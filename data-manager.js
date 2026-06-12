@@ -96,14 +96,21 @@
     return null;
   }
 
-  function deleteSample(id) {
+  async function deleteSample(id) {
     state.samples = state.samples.filter(s => s.id !== id);
     state.compare = state.compare.filter(cid => cid !== id);
     state.tasks.forEach(task => {
       task.sampleIds = task.sampleIds.filter(sid => sid !== id);
       task.completedSamples = (task.completedSamples || []).filter(sid => sid !== id);
     });
-    save();
+
+    try {
+      await window.StorageLayer.SampleStore.remove(id);
+      await window.StorageLayer.AppStateStore.setCompareList(state.compare);
+    } catch (e) {
+      console.error("删除样本持久化失败:", e);
+      save();
+    }
   }
 
   function getSampleById(id) {
@@ -125,9 +132,15 @@
     return null;
   }
 
-  function deleteTask(id) {
+  async function deleteTask(id) {
     state.tasks = state.tasks.filter(t => t.id !== id);
-    save();
+
+    try {
+      await window.StorageLayer.TaskStore.remove(id);
+    } catch (e) {
+      console.error("删除任务持久化失败:", e);
+      save();
+    }
   }
 
   function getTaskById(id) {
