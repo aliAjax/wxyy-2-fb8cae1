@@ -1053,13 +1053,6 @@ function handleFile(file) {
 
       const { fieldMap, matchedFields, missingFields } = mapFields(parsedData.headers);
 
-      const requiredMissing = REQUIRED_FIELDS.filter((f) => missingFields.includes(f));
-      if (requiredMissing.length > 0) {
-        const missingLabels = requiredMissing.map((f) => FIELD_LABELS[f]).join("、");
-        alert(`缺少必填字段：${missingLabels}。请检查文件格式。`);
-        return;
-      }
-
       const analysis = analyzeImportData(parsedData.rows, fieldMap);
 
       importPreviewData = {
