@@ -15,6 +15,7 @@
         <h1>岩芯薄片显微照片索引台</h1>
       </div>
       <div class="mast-actions">
+        <button id="importBtn" type="button" class="ghost">批量导入</button>
         <button id="exportBtn" type="button">导出观察清单</button>
       </div>
     </header>
@@ -171,6 +172,100 @@
       </div>
     </section>
   </main>
+  <div id="importOverlay" class="import-overlay hidden">
+    <div class="import-modal">
+      <header class="import-header">
+        <div>
+          <h2>批量导入观察记录</h2>
+          <p class="import-subtitle">支持 CSV 和 JSON 格式，照片字段仅支持 URL 或留空</p>
+        </div>
+        <button type="button" id="closeImportBtn" class="import-close-btn">关闭</button>
+      </header>
+
+      <div class="import-body">
+        <div id="importStepUpload" class="import-step">
+          <div class="import-upload-area" id="importDropZone">
+            <div class="import-upload-icon">📄</div>
+            <h3>拖拽文件到此处，或点击选择文件</h3>
+            <p>支持 .csv 和 .json 格式</p>
+            <input type="file" id="importFileInput" accept=".csv,.json,application/json,text/csv" hidden>
+            <button type="button" id="importSelectBtn" class="primary">选择文件</button>
+          </div>
+          <div class="import-format-hint">
+            <h4>格式说明</h4>
+            <ul>
+              <li><strong>样本编号</strong>（必填）：样本的唯一标识</li>
+              <li><strong>采样地点</strong>：采样位置描述</li>
+              <li><strong>放大倍数</strong>：如 40x、100x</li>
+              <li><strong>偏光类型</strong>：单偏光 / 正交偏光 / 反射光</li>
+              <li><strong>主要矿物</strong>：矿物名称，用顿号分隔</li>
+              <li><strong>颗粒结构</strong>：结构描述</li>
+              <li><strong>老师批注</strong>：备注信息</li>
+              <li><strong>照片</strong>：图片 URL 或留空</li>
+            </ul>
+          </div>
+        </div>
+
+        <div id="importStepPreview" class="import-step hidden">
+          <div class="import-stats">
+            <div class="stat-card">
+              <span class="stat-label">总记录数</span>
+              <span class="stat-value" id="importStatTotal">0</span>
+            </div>
+            <div class="stat-card">
+              <span class="stat-label">可导入</span>
+              <span class="stat-value success" id="importStatValid">0</span>
+            </div>
+            <div class="stat-card">
+              <span class="stat-label">有警告</span>
+              <span class="stat-value warning" id="importStatWarning">0</span>
+            </div>
+            <div class="stat-card">
+              <span class="stat-label">错误行</span>
+              <span class="stat-value danger" id="importStatError">0</span>
+            </div>
+          </div>
+
+          <div class="import-field-map">
+            <h4>字段匹配</h4>
+            <div id="importFieldMap" class="field-map-list"></div>
+          </div>
+
+          <div class="import-warnings" id="importWarningsSection">
+            <h4>⚠️ 缺失字段警告</h4>
+            <div id="importWarnings" class="warnings-list"></div>
+          </div>
+
+          <div class="import-duplicates" id="importDuplicatesSection">
+            <h4>🔁 重复样本编号</h4>
+            <div id="importDuplicates" class="duplicates-list"></div>
+          </div>
+
+          <div class="import-errors" id="importErrorsSection">
+            <h4>❌ 错误行摘要</h4>
+            <div id="importErrors" class="errors-list"></div>
+          </div>
+
+          <div class="import-preview-table-wrap">
+            <h4>数据预览（前 10 行）</h4>
+            <div class="import-preview-table" id="importPreviewTable"></div>
+          </div>
+        </div>
+      </div>
+
+      <footer class="import-footer">
+        <button type="button" id="importCancelBtn" class="ghost">取消</button>
+        <div class="import-footer-right">
+          <label class="import-dup-handle">
+            <input type="checkbox" id="importSkipDup" checked>
+            跳过重复编号的记录
+          </label>
+          <button type="button" id="importConfirmBtn" class="primary" disabled>确认导入</button>
+        </div>
+      </footer>
+    </div>
+  </div>
+
   <script src="./annotation-view.js"></script>
   <script src="./app.js"></script>
 </body>

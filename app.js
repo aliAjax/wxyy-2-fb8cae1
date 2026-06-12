@@ -269,7 +269,8 @@ $("#exportBtn")?.addEventListener("click", () => {
     偏光类型: sample.polarization,
     主要矿物: sample.minerals,
     颗粒结构: sample.texture,
-    老师批注: sample.comment
+    老师批注: sample.comment,
+    照片: sample.photo && sample.photo.startsWith("data:") ? "" : sample.photo
   }));
   const blob = new Blob([JSON.stringify(checklist, null, 2)], { type: "application/json" });
   const link = document.createElement("a");
@@ -593,5 +594,633 @@ function renderAll() {
 if (window.AnnotationView) {
   window.AnnotationView.init({ state, save, renderAll });
 }
+
+const FIELD_ALIASES = {
+  code: ["样本编号", "编号", "sampleCode", "sample_code", "code", "编号代码"],
+  location: ["采样地点", "地点", "位置", "location", "取样地点"],
+  magnification: ["放大倍数", "倍数", "倍率", "magnification"],
+  polarization: ["偏光类型", "偏光", "偏振光", "polarization"],
+  minerals: ["主要矿物", "矿物", "矿物成分", "minerals"],
+  texture: ["颗粒结构", "结构", "构造", "texture"],
+  comment: ["老师批注", "批注", "备注", "说明", "comment"],
+  photo: ["照片", "图片", "显微照片", "照片URL", "photo", "image"]
+};
+
+const REQUIRED_FIELDS = ["code"];
+
+const FIELD_LABELS = {
+  code: "样本编号",
+  location: "采样地点",
+  magnification: "放大倍数",
+  polarization: "偏光类型",
+  minerals: "主要矿物",
+  texture: "颗粒结构",
+  comment: "老师批注",
+  photo: "照片"
+};
+
+let importPreviewData = null;
+let importAnalysis = null;
+
+const importOverlay = $("#importOverlay");
+const importBtn = $("#importBtn");
+const closeImportBtn = $("#closeImportBtn");
+const importCancelBtn = $("#importCancelBtn");
+const importSelectBtn = $("#importSelectBtn");
+const importFileInput = $("#importFileInput");
+const importDropZone = $("#importDropZone");
+const importStepUpload = $("#importStepUpload");
+const importStepPreview = $("#importStepPreview");
+const importConfirmBtn = $("#importConfirmBtn");
+const importSkipDup = $("#importSkipDup");
+
+function openImportModal() {
+  importOverlay.classList.remove("hidden");
+  document.body.style.overflow = "hidden";
+  resetImportState();
+}
+
+function closeImportModal() {
+  importOverlay.classList.add("hidden");
+  document.body.style.overflow = "";
+  resetImportState();
+}
+
+function resetImportState() {
+  importPreviewData = null;
+  importAnalysis = null;
+  importStepUpload.classList.remove("hidden");
+  importStepPreview.classList.add("hidden");
+  importConfirmBtn.disabled = true;
+  if (importFileInput) importFileInput.value = "";
+}
+
+function parseCSV(text) {
+  const lines = text.split(/\r?\n/).filter((line) => line.trim() !== "");
+  if (lines.length === 0) return { headers: [], rows: [] };
+
+  const headers = parseCSVLine(lines[0]);
+  const rows = [];
+
+  for (let i = 1; i < lines.length; i++) {
+    const values = parseCSVLine(lines[i]);
+    const row = {};
+    headers.forEach((header, idx) => {
+      row[header] = values[idx] !== undefined ? values[idx] : "";
+    });
+    rows.push(row);
+  }
+
+  return { headers, rows };
+}
+
+function parseCSVLine(line) {
+  const result = [];
+  let current = "";
+  let inQuotes = false;
+
+  for (let i = 0; i < line.length; i++) {
+    const char = line[i];
+
+    if (inQuotes) {
+      if (char === '"') {
+        if (line[i + 1] === '"') {
+          current += '"';
+          i++;
+        } else {
+          inQuotes = false;
+        }
+      } else {
+        current += char;
+      }
+    } else {
+      if (char === '"') {
+        inQuotes = true;
+      } else if (char === ",") {
+        result.push(current);
+        current = "";
+      } else {
+        current += char;
+      }
+    }
+  }
+  result.push(current);
+
+  return result.map((s) => s.trim());
+}
+
+function detectFileFormat(filename) {
+  const lower = filename.toLowerCase();
+  if (lower.endsWith(".csv")) return "csv";
+  if (lower.endsWith(".json")) return "json";
+  return null;
+}
+
+function mapFields(headers) {
+  const fieldMap = {};
+  const matchedFields = new Set();
+  const missingFields = [];
+
+  for (const [targetField, aliases] of Object.entries(FIELD_ALIASES)) {
+    let matched = null;
+    for (const header of headers) {
+      const lowerHeader = header.trim().toLowerCase();
+      if (aliases.some((a) => a.toLowerCase() === lowerHeader)) {
+        matched = header;
+        break;
+      }
+    }
+    if (matched) {
+      fieldMap[targetField] = matched;
+      matchedFields.add(targetField);
+    }
+  }
+
+  for (const field of Object.keys(FIELD_ALIASES)) {
+    if (!matchedFields.has(field)) {
+      missingFields.push(field);
+    }
+  }
+
+  return { fieldMap, matchedFields: Array.from(matchedFields), missingFields };
+}
+
+function analyzeImportData(rows, fieldMap) {
+  const validRows = [];
+  const warningRows = [];
+  const errorRows = [];
+  const warnings = [];
+  const errors = [];
+  const duplicateCodes = [];
+  const seenCodes = new Set();
+  const codeCount = {};
+
+  const existingCodes = new Set(state.samples.map((s) => s.code));
+
+  rows.forEach((row, rowIndex) => {
+    const rowNum = rowIndex + 2;
+    const sample = {};
+    const rowErrors = [];
+    const rowWarnings = [];
+
+    for (const [targetField, sourceField] of Object.entries(fieldMap)) {
+      let value = row[sourceField];
+      if (value === undefined || value === null) {
+        value = "";
+      }
+      sample[targetField] = String(value).trim();
+    }
+
+    if (!sample.code) {
+      rowErrors.push("缺少样本编号");
+    } else {
+      if (!codeCount[sample.code]) {
+        codeCount[sample.code] = 0;
+      }
+      codeCount[sample.code]++;
+
+      if (existingCodes.has(sample.code)) {
+        if (!duplicateCodes.some((d) => d.code === sample.code)) {
+          duplicateCodes.push({ code: sample.code, rows: [] });
+        }
+        const dup = duplicateCodes.find((d) => d.code === sample.code);
+        if (dup && !dup.rows.includes(rowNum)) {
+          dup.rows.push(rowNum);
+        }
+        rowWarnings.push(`样本编号「${sample.code}」已存在于库中`);
+      }
+
+      if (codeCount[sample.code] > 1) {
+        if (!duplicateCodes.some((d) => d.code === sample.code)) {
+          duplicateCodes.push({ code: sample.code, rows: [] });
+        }
+        const dup = duplicateCodes.find((d) => d.code === sample.code);
+        if (dup && !dup.rows.includes(rowNum)) {
+          dup.rows.push(rowNum);
+        }
+        if (!rowWarnings.some((w) => w.includes("导入文件内重复"))) {
+          rowWarnings.push("导入文件内存在重复编号");
+        }
+      }
+
+      seenCodes.add(sample.code);
+    }
+
+    if (sample.photo && !isValidPhotoUrl(sample.photo)) {
+      rowWarnings.push("照片字段仅支持URL或留空，当前值可能无效");
+    }
+
+    if (sample.polarization) {
+      const validPolar = ["单偏光", "正交偏光", "反射光"];
+      if (!validPolar.includes(sample.polarization)) {
+        rowWarnings.push(`偏光类型「${sample.polarization}」不在标准选项中`);
+      }
+    }
+
+    if (rowErrors.length > 0) {
+      errorRows.push({ rowNum, sample, errors: rowErrors });
+      errors.push({ rowNum, errors: rowErrors });
+    } else if (rowWarnings.length > 0) {
+      warningRows.push({ rowNum, sample, warnings: rowWarnings });
+      warnings.push({ rowNum, warnings: rowWarnings });
+      validRows.push({ rowNum, sample, warnings: rowWarnings });
+    } else {
+      validRows.push({ rowNum, sample, warnings: [] });
+    }
+  });
+
+  const internalDups = duplicateCodes.filter((d) => {
+    const codeRows = rows.filter((r, i) => {
+      const code = r[fieldMap.code]?.trim();
+      return code === d.code;
+    });
+    return codeRows.length > 1;
+  });
+
+  const externalDups = duplicateCodes.filter((d) => existingCodes.has(d.code));
+
+  return {
+    total: rows.length,
+    validCount: validRows.length,
+    warningCount: warningRows.length,
+    errorCount: errorRows.length,
+    validRows,
+    warningRows,
+    errorRows,
+    warnings,
+    errors,
+    duplicateCodes,
+    internalDuplicates: internalDups,
+    externalDuplicates: externalDups
+  };
+}
+
+function isValidPhotoUrl(value) {
+  if (!value) return true;
+  if (value.startsWith("http://") || value.startsWith("https://")) {
+    return true;
+  }
+  if (value.startsWith("data:image/")) {
+    return true;
+  }
+  return false;
+}
+
+function renderFieldMap(fieldMap, missingFields) {
+  const container = $("#importFieldMap");
+  if (!container) return;
+
+  const allFields = Object.keys(FIELD_ALIASES);
+  const html = allFields
+    .map((field) => {
+      const isMissing = missingFields.includes(field);
+      const isRequired = REQUIRED_FIELDS.includes(field);
+      const icon = isMissing ? "✗" : "✓";
+      const label = FIELD_LABELS[field];
+      const sourceField = fieldMap[field];
+
+      return `
+        <div class="field-map-item ${isMissing ? "missing" : ""}">
+          <span class="field-icon">${icon}</span>
+          <span class="field-name">${label}${isRequired ? " *" : ""}</span>
+          ${sourceField ? `<span style="color:var(--muted);font-size:12px;">← ${sourceField}</span>` : ""}
+        </div>
+      `;
+    })
+    .join("");
+
+  container.innerHTML = html;
+}
+
+function renderWarnings(warnings) {
+  const section = $("#importWarningsSection");
+  const container = $("#importWarnings");
+  if (!section || !container) return;
+
+  if (warnings.length === 0) {
+    section.classList.add("hidden");
+    return;
+  }
+
+  section.classList.remove("hidden");
+  container.innerHTML = warnings
+    .slice(0, 20)
+    .map((w) => {
+      const msg = w.warnings.join("；");
+      return `<div class="warning-item"><span class="row-num">第${w.rowNum}行:</span>${msg}</div>`;
+    })
+    .join("");
+
+  if (warnings.length > 20) {
+    container.innerHTML += `<div class="warning-item" style="text-align:center;color:var(--muted);">... 还有 ${warnings.length - 20} 条警告</div>`;
+  }
+}
+
+function renderDuplicates(duplicates) {
+  const section = $("#importDuplicatesSection");
+  const container = $("#importDuplicates");
+  if (!section || !container) return;
+
+  if (duplicates.length === 0) {
+    section.classList.add("hidden");
+    return;
+  }
+
+  section.classList.remove("hidden");
+  container.innerHTML = duplicates
+    .slice(0, 15)
+    .map((d) => {
+      const rowStr = d.rows.length > 0 ? `（第 ${d.rows.join("、")} 行）` : "";
+      return `<div class="duplicate-item"><span class="row-num">${d.code}</span>${rowStr}</div>`;
+    })
+    .join("");
+
+  if (duplicates.length > 15) {
+    container.innerHTML += `<div class="duplicate-item" style="text-align:center;color:var(--muted);">... 还有 ${duplicates.length - 15} 个重复编号</div>`;
+  }
+}
+
+function renderErrors(errors) {
+  const section = $("#importErrorsSection");
+  const container = $("#importErrors");
+  if (!section || !container) return;
+
+  if (errors.length === 0) {
+    section.classList.add("hidden");
+    return;
+  }
+
+  section.classList.remove("hidden");
+  container.innerHTML = errors
+    .slice(0, 15)
+    .map((e) => {
+      const msg = e.errors.join("；");
+      return `<div class="error-item"><span class="row-num">第${e.rowNum}行:</span>${msg}</div>`;
+    })
+    .join("");
+
+  if (errors.length > 15) {
+    container.innerHTML += `<div class="error-item" style="text-align:center;color:var(--muted);">... 还有 ${errors.length - 15} 条错误</div>`;
+  }
+}
+
+function renderPreviewTable(validRows, warningRows, errorRows) {
+  const container = $("#importPreviewTable");
+  if (!container) return;
+
+  const allRows = [
+    ...errorRows.map((r) => ({ ...r, status: "error" })),
+    ...warningRows.map((r) => ({ ...r, status: "warning" })),
+    ...validRows.filter((r) => r.warnings.length === 0).map((r) => ({ ...r, status: "ok" }))
+  ].slice(0, 10);
+
+  if (allRows.length === 0) {
+    container.innerHTML = "<p style='padding:20px;text-align:center;color:var(--muted);'>暂无数据</p>";
+    return;
+  }
+
+  const fields = Object.keys(FIELD_LABELS);
+
+  let html = "<table><thead><tr>";
+  html += "<th>行号</th>";
+  fields.forEach((f) => {
+    html += `<th>${FIELD_LABELS[f]}</th>`;
+  });
+  html += "</tr></thead><tbody>";
+
+  allRows.forEach((row) => {
+    const rowClass = row.status === "error" ? "error-row" : row.status === "warning" ? "warning-row" : "";
+    html += `<tr class="${rowClass}">`;
+    html += `<td>${row.rowNum}</td>`;
+    fields.forEach((f) => {
+      const value = row.sample[f] || "";
+      const displayValue = value.length > 30 ? value.slice(0, 30) + "..." : value;
+      html += `<td title="${escapeHtml(value)}">${escapeHtml(displayValue) || "-"}</td>`;
+    });
+    html += "</tr>";
+  });
+
+  html += "</tbody></table>";
+  container.innerHTML = html;
+}
+
+function escapeHtml(s) {
+  return String(s || "").replace(/[&<>"']/g, (c) => ({
+    "&": "&amp;",
+    "<": "&lt;",
+    ">": "&gt;",
+    '"': "&quot;",
+    "'": "&#39;"
+  }[c]));
+}
+
+function updateImportStats(analysis) {
+  const totalEl = $("#importStatTotal");
+  const validEl = $("#importStatValid");
+  const warningEl = $("#importStatWarning");
+  const errorEl = $("#importStatError");
+
+  if (totalEl) totalEl.textContent = analysis.total;
+  if (validEl) validEl.textContent = analysis.validCount;
+  if (warningEl) warningEl.textContent = analysis.warningCount;
+  if (errorEl) errorEl.textContent = analysis.errorCount;
+}
+
+function handleFile(file) {
+  const format = detectFileFormat(file.name);
+
+  if (!format) {
+    alert("不支持的文件格式，请上传 CSV 或 JSON 文件。");
+    return;
+  }
+
+  const reader = new FileReader();
+  reader.onload = (e) => {
+    try {
+      let parsedData;
+
+      if (format === "json") {
+        const json = JSON.parse(e.target.result);
+        parsedData = parseJSONImport(json);
+      } else {
+        parsedData = parseCSV(e.target.result);
+      }
+
+      if (!parsedData.rows || parsedData.rows.length === 0) {
+        alert("文件中没有找到有效数据行。");
+        return;
+      }
+
+      const { fieldMap, matchedFields, missingFields } = mapFields(parsedData.headers);
+
+      const requiredMissing = REQUIRED_FIELDS.filter((f) => missingFields.includes(f));
+      if (requiredMissing.length > 0) {
+        const missingLabels = requiredMissing.map((f) => FIELD_LABELS[f]).join("、");
+        alert(`缺少必填字段：${missingLabels}。请检查文件格式。`);
+        return;
+      }
+
+      const analysis = analyzeImportData(parsedData.rows, fieldMap);
+
+      importPreviewData = {
+        rows: parsedData.rows,
+        fieldMap,
+        matchedFields,
+        missingFields,
+        format
+      };
+      importAnalysis = analysis;
+
+      showImportPreview();
+    } catch (err) {
+      console.error("导入解析失败:", err);
+      alert("文件解析失败：" + (err.message || "未知错误"));
+    }
+  };
+
+  reader.onerror = () => {
+    alert("文件读取失败，请重试。");
+  };
+
+  if (format === "csv") {
+    reader.readAsText(file, "UTF-8");
+  } else {
+    reader.readAsText(file, "UTF-8");
+  }
+}
+
+function parseJSONImport(json) {
+  let rows = [];
+  let headers = [];
+
+  if (Array.isArray(json)) {
+    rows = json;
+  } else if (json.samples && Array.isArray(json.samples)) {
+    rows = json.samples;
+  } else if (json.data && Array.isArray(json.data)) {
+    rows = json.data;
+  } else {
+    throw new Error("JSON 格式不正确，应为数组或包含 samples/data 数组");
+  }
+
+  if (rows.length > 0) {
+    headers = Object.keys(rows[0]);
+  }
+
+  return { headers, rows };
+}
+
+function showImportPreview() {
+  if (!importPreviewData || !importAnalysis) return;
+
+  importStepUpload.classList.add("hidden");
+  importStepPreview.classList.remove("hidden");
+
+  updateImportStats(importAnalysis);
+  renderFieldMap(importPreviewData.fieldMap, importPreviewData.missingFields);
+  renderWarnings(importAnalysis.warnings);
+  renderDuplicates(importAnalysis.duplicateCodes);
+  renderErrors(importAnalysis.errors);
+  renderPreviewTable(
+    importAnalysis.validRows.filter((r) => r.warnings.length === 0),
+    importAnalysis.warningRows,
+    importAnalysis.errorRows
+  );
+
+  importConfirmBtn.disabled = importAnalysis.validCount === 0;
+}
+
+function confirmImport() {
+  if (!importPreviewData || !importAnalysis) return;
+
+  const skipDup = importSkipDup?.checked ?? true;
+  let imported = 0;
+  let skipped = 0;
+
+  const existingCodes = new Set(state.samples.map((s) => s.code));
+  const importedCodes = new Set();
+
+  importAnalysis.validRows.forEach(({ sample }) => {
+    if (skipDup) {
+      if (existingCodes.has(sample.code) || importedCodes.has(sample.code)) {
+        skipped++;
+        return;
+      }
+    }
+
+    const newSample = {
+      id: crypto.randomUUID(),
+      photo: sample.photo || "",
+      code: sample.code,
+      location: sample.location || "",
+      magnification: sample.magnification || "",
+      polarization: sample.polarization || "单偏光",
+      minerals: sample.minerals || "",
+      texture: sample.texture || "",
+      comment: sample.comment || "",
+      annotations: [],
+      createdAt: new Date().toISOString()
+    };
+
+    state.samples.unshift(newSample);
+    importedCodes.add(sample.code);
+    imported++;
+  });
+
+  save();
+  renderAll();
+
+  closeImportModal();
+
+  setTimeout(() => {
+    alert(`导入完成！\n成功导入 ${imported} 条记录${skipDup && skipped > 0 ? `\n跳过重复 ${skipped} 条` : ""}`);
+  }, 100);
+}
+
+importBtn?.addEventListener("click", openImportModal);
+closeImportBtn?.addEventListener("click", closeImportModal);
+importCancelBtn?.addEventListener("click", closeImportModal);
+
+importOverlay?.addEventListener("click", (e) => {
+  if (e.target === importOverlay) closeImportModal();
+});
+
+importSelectBtn?.addEventListener("click", () => {
+  importFileInput?.click();
+});
+
+importFileInput?.addEventListener("change", (e) => {
+  const file = e.target.files?.[0];
+  if (file) handleFile(file);
+});
+
+importDropZone?.addEventListener("click", () => {
+  importFileInput?.click();
+});
+
+importDropZone?.addEventListener("dragover", (e) => {
+  e.preventDefault();
+  importDropZone.classList.add("drag-over");
+});
+
+importDropZone?.addEventListener("dragleave", () => {
+  importDropZone.classList.remove("drag-over");
+});
+
+importDropZone?.addEventListener("drop", (e) => {
+  e.preventDefault();
+  importDropZone.classList.remove("drag-over");
+
+  const file = e.dataTransfer?.files?.[0];
+  if (file) handleFile(file);
+});
+
+importConfirmBtn?.addEventListener("click", confirmImport);
+
+document.addEventListener("keydown", (e) => {
+  if (e.key === "Escape" && !importOverlay?.classList.contains("hidden")) {
+    closeImportModal();
+  }
+});
 
 renderAll();
