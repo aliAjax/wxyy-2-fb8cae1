@@ -99,14 +99,26 @@
   async function deleteSample(id) {
     state.samples = state.samples.filter(s => s.id !== id);
     state.compare = state.compare.filter(cid => cid !== id);
+    const affectedTasks = [];
     state.tasks.forEach(task => {
-      task.sampleIds = task.sampleIds.filter(sid => sid !== id);
-      task.completedSamples = (task.completedSamples || []).filter(sid => sid !== id);
+      const sampleIds = task.sampleIds.filter(sid => sid !== id);
+      const completedSamples = (task.completedSamples || []).filter(sid => sid !== id);
+      const changed = sampleIds.length !== task.sampleIds.length ||
+        completedSamples.length !== (task.completedSamples || []).length;
+      task.sampleIds = sampleIds;
+      task.completedSamples = completedSamples;
+      if (changed) affectedTasks.push(task);
     });
 
     try {
       await window.StorageLayer.SampleStore.remove(id);
       await window.StorageLayer.AppStateStore.setCompareList(state.compare);
+      for (const task of affectedTasks) {
+        await window.StorageLayer.TaskStore.update(task.id, {
+          sampleIds: task.sampleIds,
+          completedSamples: task.completedSamples
+        });
+      }
     } catch (e) {
       console.error("删除样本持久化失败:", e);
       save();
