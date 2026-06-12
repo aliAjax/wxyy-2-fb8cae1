@@ -13,48 +13,161 @@
         <p>Petrographic Slide Index</p>
         <h1>岩芯薄片显微照片索引台</h1>
       </div>
-      <button id="exportBtn" type="button">导出观察清单</button>
+      <div class="mast-actions">
+        <button id="exportBtn" type="button">导出观察清单</button>
+      </div>
     </header>
 
-    <section class="layout">
-      <form id="sampleForm" class="editor">
-        <h2>样本录入</h2>
-        <label>显微照片<input id="photoInput" type="file" accept="image/*"></label>
-        <label>样本编号<input name="code" required placeholder="BX-17-03"></label>
-        <label>采样地点<input name="location" placeholder="剖面东侧第二层"></label>
-        <div class="pair">
-          <label>放大倍数<input name="magnification" placeholder="40x"></label>
-          <label>偏光类型
-            <select name="polarization">
+    <nav class="tabs">
+      <button class="tab-btn active" data-tab="entry">样本录入</button>
+      <button class="tab-btn" data-tab="samples">样本列表</button>
+      <button class="tab-btn" data-tab="tasks">观察任务</button>
+    </nav>
+
+    <section id="tab-entry" class="tab-panel active">
+      <section class="layout">
+        <form id="sampleForm" class="editor">
+          <h2>样本录入</h2>
+          <label>显微照片<input id="photoInput" type="file" accept="image/*"></label>
+          <label>样本编号<input name="code" required placeholder="BX-17-03"></label>
+          <label>采样地点<input name="location" placeholder="剖面东侧第二层"></label>
+          <div class="pair">
+            <label>放大倍数<input name="magnification" placeholder="40x"></label>
+            <label>偏光类型
+              <select name="polarization">
+                <option>单偏光</option>
+                <option>正交偏光</option>
+                <option>反射光</option>
+              </select>
+            </label>
+          </div>
+          <label>主要矿物<input name="minerals" placeholder="石英、斜长石、黑云母"></label>
+          <label>颗粒结构<input name="texture" placeholder="半自形粒状、碎裂结构"></label>
+          <label>老师批注<textarea name="comment" rows="4" placeholder="记录鉴定依据或疑点"></textarea></label>
+          <button type="submit">保存样本</button>
+        </form>
+
+        <section class="board">
+          <div class="board-header">
+            <h2>最近录入</h2>
+          </div>
+          <div id="sampleGrid" class="sample-grid"></div>
+        </section>
+
+        <aside class="compare">
+          <h2>并排对比</h2>
+          <div id="comparePane" class="compare-pane"></div>
+        </aside>
+      </section>
+    </section>
+
+    <section id="tab-samples" class="tab-panel">
+      <section class="layout layout-single">
+        <section class="board full">
+          <div class="filters">
+            <input id="mineralFilter" placeholder="按矿物筛选">
+            <select id="polarFilter">
+              <option value="">全部偏光</option>
               <option>单偏光</option>
               <option>正交偏光</option>
               <option>反射光</option>
             </select>
-          </label>
-        </div>
-        <label>主要矿物<input name="minerals" placeholder="石英、斜长石、黑云母"></label>
-        <label>颗粒结构<input name="texture" placeholder="半自形粒状、碎裂结构"></label>
-        <label>老师批注<textarea name="comment" rows="4" placeholder="记录鉴定依据或疑点"></textarea></label>
-        <button type="submit">保存样本</button>
-      </form>
-
-      <section class="board">
-        <div class="filters">
-          <input id="mineralFilter" placeholder="按矿物筛选">
-          <select id="polarFilter">
-            <option value="">全部偏光</option>
-            <option>单偏光</option>
-            <option>正交偏光</option>
-            <option>反射光</option>
-          </select>
-        </div>
-        <div id="sampleGrid" class="sample-grid"></div>
+          </div>
+          <div id="sampleGridFull" class="sample-grid"></div>
+        </section>
       </section>
+    </section>
 
-      <aside class="compare">
-        <h2>并排对比</h2>
-        <div id="comparePane" class="compare-pane"></div>
-      </aside>
+    <section id="tab-tasks" class="tab-panel">
+      <div class="tasks-layout">
+        <section class="tasks-panel">
+          <div class="tasks-header">
+            <h2>观察任务列表</h2>
+            <button id="newTaskBtn" type="button" class="primary">+ 新建任务</button>
+          </div>
+          <div id="taskList" class="task-list"></div>
+        </section>
+
+        <section class="tasks-panel" id="taskEditorPanel">
+          <div id="taskEditorEmpty" class="task-empty">
+            <p>请选择左侧的观察任务，或点击"新建任务"创建新任务</p>
+          </div>
+
+          <form id="taskForm" class="task-editor hidden">
+            <div class="task-editor-header">
+              <h2 id="taskEditorTitle">新建观察任务</h2>
+              <button type="button" id="cancelTaskBtn" class="ghost">取消</button>
+            </div>
+
+            <label>任务标题
+              <input name="title" required placeholder="例如：第三章 沉积岩结构观察">
+            </label>
+
+            <label>观察目标
+              <textarea name="objective" rows="4" required placeholder="描述本次观察要达成的目标，例如：识别砂岩中的石英颗粒形态与胶结类型"></textarea>
+            </label>
+
+            <label>截止时间
+              <input type="datetime-local" name="deadline">
+            </label>
+
+            <div class="samples-selector">
+              <div class="selector-header">
+                <h3>关联样本</h3>
+                <span id="selectedCount">已选 0 个</span>
+              </div>
+              <div id="taskSamplePicker" class="sample-picker"></div>
+            </div>
+
+            <div class="task-editor-actions">
+              <button type="submit" class="primary">保存任务</button>
+            </div>
+          </form>
+
+          <section id="taskDetail" class="task-detail hidden">
+            <div class="task-detail-header">
+              <div>
+                <h2 id="detailTitle"></h2>
+                <div class="task-meta">
+                  <span class="task-deadline" id="detailDeadline"></span>
+                  <span class="task-status" id="detailStatus"></span>
+                </div>
+              </div>
+              <div class="detail-actions">
+                <button type="button" id="editTaskBtn" class="ghost">编辑</button>
+                <button type="button" id="deleteTaskBtn" class="danger">删除</button>
+              </div>
+            </div>
+
+            <div class="task-objective">
+              <h3>观察目标</h3>
+              <p id="detailObjective"></p>
+            </div>
+
+            <div class="task-progress">
+              <h3>完成进度</h3>
+              <div class="progress-bar">
+                <div class="progress-fill" id="progressFill"></div>
+              </div>
+              <p id="progressText"></p>
+            </div>
+
+            <div class="task-samples-section">
+              <h3>关联样本</h3>
+              <div id="detailSamples" class="detail-samples"></div>
+            </div>
+
+            <div class="task-comment-section">
+              <h3>批注</h3>
+              <div id="taskComments" class="task-comments"></div>
+              <div class="comment-input">
+                <textarea id="commentInput" rows="3" placeholder="添加任务批注..."></textarea>
+                <button type="button" id="addCommentBtn" class="primary">添加批注</button>
+              </div>
+            </div>
+          </section>
+        </section>
+      </div>
     </section>
   </main>
   <script src="./app.js"></script>
