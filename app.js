@@ -124,6 +124,7 @@ function filteredSamples() {
 }
 
 function sampleCardHTML(sample, showActions = true) {
+  const annSummary = window.AnnotationView ? window.AnnotationView.annotationSummaryHTML(sample) : "";
   return `
     <article class="sample-card">
       ${sample.photo ? `<img src="${sample.photo}" alt="${sample.code}显微照片">` : '<div class="photo-placeholder">暂无照片</div>'}
@@ -133,10 +134,14 @@ function sampleCardHTML(sample, showActions = true) {
         <p>矿物：${sample.minerals || "未记录"}</p>
         <p>结构：${sample.texture || "未记录"}</p>
         <p>${sample.comment || "未填写批注"}</p>
+        ${annSummary}
         ${showActions ? `
         <div class="card-actions">
           <label><input type="checkbox" data-compare="${sample.id}" ${state.compare.includes(sample.id) ? "checked" : ""}>对比</label>
-          <button type="button" data-delete="${sample.id}">删除</button>
+          <div class="card-action-btns">
+            <button type="button" data-annotate="${sample.id}">标注</button>
+            <button type="button" data-delete="${sample.id}">删除</button>
+          </div>
         </div>` : ""}
       </div>
     </article>
@@ -164,14 +169,17 @@ function renderCompare() {
     .filter(Boolean)
     .slice(0, 2);
 
-  comparePane.innerHTML = compareSamples.length ? compareSamples.map((sample) => `
+  comparePane.innerHTML = compareSamples.length ? compareSamples.map((sample) => {
+    const annSummary = window.AnnotationView ? window.AnnotationView.annotationSummaryHTML(sample) : "";
+    return `
     <article class="compare-item">
       ${sample.photo ? `<img src="${sample.photo}" alt="${sample.code}对比图">` : ""}
       <h3>${sample.code}</h3>
       <p>${sample.polarization} · ${sample.minerals || "未记录矿物"}</p>
       <p>${sample.texture || "未记录结构"}</p>
+      ${annSummary}
     </article>
-  `).join("") : "<p>勾选两张样本卡片后可并排对比。</p>";
+  `;}).join("") : "<p>勾选两张样本卡片后可并排对比。</p>";
 }
 
 function switchTab(tabName) {
@@ -202,6 +210,7 @@ form?.addEventListener("submit", async (event) => {
     minerals: data.get("minerals").trim(),
     texture: data.get("texture").trim(),
     comment: data.get("comment").trim(),
+    annotations: [],
     createdAt: new Date().toISOString()
   });
   pendingPhoto = "";
@@ -213,6 +222,11 @@ form?.addEventListener("submit", async (event) => {
 
 function handleSampleGridClick(gridEl, event) {
   const deleteId = event.target.dataset.delete;
+  const annotateId = event.target.dataset.annotate;
+  if (annotateId) {
+    if (window.AnnotationView) window.AnnotationView.openAnnotation(annotateId);
+    return;
+  }
   if (deleteId) {
     if (!confirm("确定删除该样本？此操作不可撤销。")) return;
     state.samples = state.samples.filter((sample) => sample.id !== deleteId);
@@ -574,6 +588,10 @@ function renderAll() {
   renderSamples();
   renderCompare();
   if ($("#tab-tasks").classList.contains("active")) renderTasks();
+}
+
+if (window.AnnotationView) {
+  window.AnnotationView.init({ state, save, renderAll });
 }
 
 renderAll();
