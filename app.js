@@ -1,21 +1,46 @@
-const storageKey = "wxyy-2-thin-section-index";
-const defaultState = { samples: [], compare: [], tasks: [] };
-const state = loadState();
+let state = null;
 
-function loadState() {
-  try {
-    const raw = localStorage.getItem(storageKey);
-    if (!raw) return structuredClone(defaultState);
-    const parsed = JSON.parse(raw);
-    return Object.assign(structuredClone(defaultState), parsed);
-  } catch {
-    return structuredClone(defaultState);
-  }
-}
+const $ = (sel, scope = document) => scope.querySelector(sel);
+const $$ = (sel, scope = document) => Array.from(scope.querySelectorAll(sel));
 
-function save() {
-  localStorage.setItem(storageKey, JSON.stringify(state));
-}
+const form = $("#sampleForm");
+const photoInput = $("#photoInput");
+const sampleGrid = $("#sampleGrid");
+const sampleGridFull = $("#sampleGridFull");
+const comparePane = $("#comparePane");
+const mineralFilter = $("#mineralFilter");
+const polarFilter = $("#polarFilter");
+const reviewFilter = $("#reviewFilter");
+
+const tabBtns = $$(".tab-btn");
+const tabPanels = $$(".tab-panel");
+
+const taskList = $("#taskList");
+const newTaskBtn = $("#newTaskBtn");
+const taskEditorEmpty = $("#taskEditorEmpty");
+const taskForm = $("#taskForm");
+const taskFormTitle = $("#taskEditorTitle");
+const cancelTaskBtn = $("#cancelTaskBtn");
+const taskSamplePicker = $("#taskSamplePicker");
+const selectedCountEl = $("#selectedCount");
+const taskDetail = $("#taskDetail");
+const editTaskBtn = $("#editTaskBtn");
+const deleteTaskBtn = $("#deleteTaskBtn");
+const detailTitle = $("#detailTitle");
+const detailDeadline = $("#detailDeadline");
+const detailStatus = $("#detailStatus");
+const detailObjective = $("#detailObjective");
+const progressFill = $("#progressFill");
+const progressText = $("#progressText");
+const detailSamples = $("#detailSamples");
+const taskComments = $("#taskComments");
+const commentInput = $("#commentInput");
+const addCommentBtn = $("#addCommentBtn");
+
+let pendingPhoto = "";
+let editingTaskId = null;
+let selectedTaskId = null;
+let pickerSelectedIds = new Set();
 
 function readFileAsDataUrl(file) {
   return new Promise((resolve) => {
@@ -71,48 +96,6 @@ function getTaskStatusClass(task) {
   if (status === "进行中") return "in-progress";
   return "not-started";
 }
-
-const $ = (sel, scope = document) => scope.querySelector(sel);
-const $$ = (sel, scope = document) => Array.from(scope.querySelectorAll(sel));
-
-const form = $("#sampleForm");
-const photoInput = $("#photoInput");
-const sampleGrid = $("#sampleGrid");
-const sampleGridFull = $("#sampleGridFull");
-const comparePane = $("#comparePane");
-const mineralFilter = $("#mineralFilter");
-const polarFilter = $("#polarFilter");
-const reviewFilter = $("#reviewFilter");
-
-const tabBtns = $$(".tab-btn");
-const tabPanels = $$(".tab-panel");
-
-const taskList = $("#taskList");
-const newTaskBtn = $("#newTaskBtn");
-const taskEditorEmpty = $("#taskEditorEmpty");
-const taskForm = $("#taskForm");
-const taskFormTitle = $("#taskEditorTitle");
-const cancelTaskBtn = $("#cancelTaskBtn");
-const taskSamplePicker = $("#taskSamplePicker");
-const selectedCountEl = $("#selectedCount");
-const taskDetail = $("#taskDetail");
-const editTaskBtn = $("#editTaskBtn");
-const deleteTaskBtn = $("#deleteTaskBtn");
-const detailTitle = $("#detailTitle");
-const detailDeadline = $("#detailDeadline");
-const detailStatus = $("#detailStatus");
-const detailObjective = $("#detailObjective");
-const progressFill = $("#progressFill");
-const progressText = $("#progressText");
-const detailSamples = $("#detailSamples");
-const taskComments = $("#taskComments");
-const commentInput = $("#commentInput");
-const addCommentBtn = $("#addCommentBtn");
-
-let pendingPhoto = "";
-let editingTaskId = null;
-let selectedTaskId = null;
-let pickerSelectedIds = new Set();
 
 function filteredSamples() {
   const mineral = mineralFilter?.value?.trim() || "";
@@ -247,7 +230,7 @@ form?.addEventListener("submit", async (event) => {
   if (!pendingPhoto && photoInput?.files?.[0]) {
     pendingPhoto = await readFileAsDataUrl(photoInput.files[0]);
   }
-  state.samples.unshift({
+  const newSample = {
     id: crypto.randomUUID(),
     photo: pendingPhoto,
     code: data.get("code").trim(),
@@ -259,11 +242,11 @@ form?.addEventListener("submit", async (event) => {
     comment: data.get("comment").trim(),
     annotations: [],
     createdAt: new Date().toISOString()
-  });
+  };
+  window.DataManager.addSample(newSample);
   pendingPhoto = "";
   photoInput.value = "";
   form.reset();
-  save();
   renderAll();
 });
 
@@ -281,13 +264,7 @@ function handleSampleGridClick(gridEl, event) {
   }
   if (deleteId) {
     if (!confirm("确定删除该样本？此操作不可撤销。")) return;
-    state.samples = state.samples.filter((sample) => sample.id !== deleteId);
-    state.compare = state.compare.filter((id) => id !== deleteId);
-    state.tasks.forEach((task) => {
-      task.sampleIds = task.sampleIds.filter((id) => id !== deleteId);
-      task.completedSamples = (task.completedSamples || []).filter((id) => id !== deleteId);
-    });
-    save();
+    window.DataManager.deleteSample(deleteId);
     renderAll();
   }
 }
@@ -298,12 +275,7 @@ sampleGridFull?.addEventListener("click", (e) => handleSampleGridClick(sampleGri
 function handleSampleGridChange(gridEl, event) {
   const id = event.target.dataset.compare;
   if (!id) return;
-  if (event.target.checked) {
-    state.compare = [id, ...state.compare.filter((item) => item !== id)].slice(0, 2);
-  } else {
-    state.compare = state.compare.filter((item) => item !== id);
-  }
-  save();
+  window.DataManager.toggleCompare(id);
   renderSamples();
   renderCompare();
 }
@@ -467,7 +439,7 @@ function renderDetailSamples(task) {
       } else {
         task.completedSamples = task.completedSamples.filter((x) => x !== sid);
       }
-      save();
+      window.DataManager.updateTask(task.id, { completedSamples: task.completedSamples });
       renderTasks();
     });
   });
@@ -495,7 +467,7 @@ function renderTaskComments(task) {
       if (!confirm("删除这条批注？")) return;
       const cid = e.target.dataset.deleteComment;
       task.comments = (task.comments || []).filter((c) => c.id !== cid);
-      save();
+      window.DataManager.updateTask(task.id, { comments: task.comments });
       renderTaskComments(task);
     });
   });
@@ -513,7 +485,7 @@ addCommentBtn?.addEventListener("click", () => {
     createdAt: new Date().toISOString()
   });
   commentInput.value = "";
-  save();
+  window.DataManager.updateTask(task.id, { comments: task.comments });
   renderTaskComments(task);
 });
 
@@ -527,9 +499,8 @@ editTaskBtn?.addEventListener("click", () => {
 deleteTaskBtn?.addEventListener("click", () => {
   if (!selectedTaskId) return;
   if (!confirm("确定删除该观察任务？此操作不可撤销。")) return;
-  state.tasks = state.tasks.filter((t) => t.id !== selectedTaskId);
+  window.DataManager.deleteTask(selectedTaskId);
   selectedTaskId = null;
-  save();
   renderTasks();
 });
 
@@ -625,23 +596,24 @@ taskForm?.addEventListener("submit", (e) => {
       comments: [],
       createdAt: new Date().toISOString()
     };
-    state.tasks.unshift(newTask);
+    window.DataManager.addTask(newTask);
     selectedTaskId = newTask.id;
   } else {
     const task = state.tasks.find((t) => t.id === editingTaskId);
     if (task) {
-      task.title = title;
-      task.objective = objective;
-      task.deadline = deadline;
-      task.sampleIds = sampleIds;
-      task.completedSamples = (task.completedSamples || []).filter((id) => sampleIds.includes(id));
+      window.DataManager.updateTask(editingTaskId, {
+        title,
+        objective,
+        deadline,
+        sampleIds,
+        completedSamples: (task.completedSamples || []).filter((id) => sampleIds.includes(id))
+      });
       selectedTaskId = task.id;
     }
   }
 
   editingTaskId = null;
   pickerSelectedIds.clear();
-  save();
   renderAll();
 });
 
@@ -653,14 +625,6 @@ function renderAll() {
     window.ReviewModule.renderReviewBoard();
     updateReviewStats();
   }
-}
-
-if (window.AnnotationView) {
-  window.AnnotationView.init({ state, save, renderAll });
-}
-
-if (window.ReviewModule) {
-  window.ReviewModule.init({ state, save, renderAll });
 }
 
 const FIELD_ALIASES = {
@@ -1223,12 +1187,11 @@ function confirmImport() {
       createdAt: new Date().toISOString()
     };
 
-    state.samples.unshift(newSample);
+    window.DataManager.addSample(newSample);
     importedCodes.add(sample.code);
     imported++;
   });
 
-  save();
   renderAll();
 
   closeImportModal();
@@ -1284,4 +1247,166 @@ document.addEventListener("keydown", (e) => {
   }
 });
 
-renderAll();
+function initBackupRestoreUI() {
+  const backupBtn = $("#backupBtn");
+  const restoreBtn = $("#restoreBtn");
+  const restoreFileInput = $("#restoreFileInput");
+
+  backupBtn?.addEventListener("click", async () => {
+    try {
+      backupBtn.disabled = true;
+      backupBtn.textContent = "导出中...";
+      await window.BackupRestore.downloadBackup();
+      backupBtn.disabled = false;
+      backupBtn.textContent = "数据备份";
+    } catch (err) {
+      console.error("备份失败:", err);
+      alert("备份失败：" + err.message);
+      backupBtn.disabled = false;
+      backupBtn.textContent = "数据备份";
+    }
+  });
+
+  restoreBtn?.addEventListener("click", () => {
+    restoreFileInput?.click();
+  });
+
+  restoreFileInput?.addEventListener("change", async (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (!confirm(`确定要导入备份文件「${file.name}」吗？\n这将覆盖当前所有数据！`)) {
+      e.target.value = "";
+      return;
+    }
+
+    try {
+      restoreBtn.disabled = true;
+      restoreBtn.textContent = "恢复中...";
+
+      const result = await window.BackupRestore.importBackupFile(file, { merge: false });
+
+      await window.DataManager.reload();
+      state = window.DataManager.getState();
+      renderAll();
+
+      alert(`恢复成功！\n导入了 ${result.sampleCount} 个样本、${result.taskCount} 个任务`);
+    } catch (err) {
+      console.error("恢复失败:", err);
+      alert("恢复失败：" + err.message);
+    } finally {
+      restoreBtn.disabled = false;
+      restoreBtn.textContent = "数据恢复";
+      e.target.value = "";
+    }
+  });
+}
+
+async function showMigrationDialog() {
+  return new Promise((resolve) => {
+    const overlay = document.createElement("div");
+    overlay.id = "migrationOverlay";
+    overlay.className = "migration-overlay";
+    overlay.innerHTML = `
+      <div class="migration-modal">
+        <div class="migration-icon">📦</div>
+        <h2>数据迁移</h2>
+        <p class="migration-desc">检测到旧版本数据，需要迁移到新的存储系统。</p>
+        <div class="migration-status" id="migrationStatus">点击「开始迁移」继续</div>
+        <div class="migration-progress hidden" id="migrationProgress">
+          <div class="migration-progress-bar">
+            <div class="migration-progress-fill" id="migrationProgressFill"></div>
+          </div>
+        </div>
+        <div class="migration-actions">
+          <button type="button" id="migrationStartBtn" class="primary">开始迁移</button>
+          <button type="button" id="migrationSkipBtn" class="ghost">跳过</button>
+        </div>
+      </div>
+    `;
+    document.body.appendChild(overlay);
+
+    const startBtn = $("#migrationStartBtn");
+    const skipBtn = $("#migrationSkipBtn");
+    const statusEl = $("#migrationStatus");
+    const progressEl = $("#migrationProgress");
+    const progressFill = $("#migrationProgressFill");
+
+    startBtn.addEventListener("click", async () => {
+      startBtn.disabled = true;
+      skipBtn.disabled = true;
+      statusEl.textContent = "正在迁移数据...";
+      progressEl.classList.remove("hidden");
+      progressFill.style.width = "30%";
+
+      try {
+        const result = await window.DataMigration.runMigration();
+        progressFill.style.width = "100%";
+
+        if (result.migrated) {
+          statusEl.textContent = `迁移完成！${result.sampleCount} 个样本、${result.taskCount} 个任务`;
+          setTimeout(() => {
+            overlay.remove();
+            resolve({ migrated: true });
+          }, 1500);
+        } else {
+          statusEl.textContent = "无需迁移";
+          setTimeout(() => {
+            overlay.remove();
+            resolve({ migrated: false });
+          }, 1000);
+        }
+      } catch (err) {
+        console.error("迁移失败:", err);
+        statusEl.textContent = "迁移失败：" + err.message;
+        startBtn.disabled = false;
+        skipBtn.disabled = false;
+      }
+    });
+
+    skipBtn.addEventListener("click", () => {
+      overlay.remove();
+      resolve({ migrated: false, skipped: true });
+    });
+  });
+}
+
+async function initApp() {
+  try {
+    await window.StorageLayer.initDB();
+    await window.DataManager.init();
+
+    const needsMigration = await window.DataMigration.checkAndMigrate();
+    if (needsMigration) {
+      await showMigrationDialog();
+      await window.DataManager.reload();
+    }
+
+    state = window.DataManager.getState();
+
+    if (window.AnnotationView) {
+      window.AnnotationView.init({
+        getState: () => state,
+        save: () => window.DataManager.save(),
+        renderAll
+      });
+    }
+
+    if (window.ReviewModule) {
+      window.ReviewModule.init({
+        getState: () => state,
+        save: () => window.DataManager.save(),
+        renderAll
+      });
+    }
+
+    initBackupRestoreUI();
+
+    renderAll();
+  } catch (err) {
+    console.error("初始化失败:", err);
+    alert("应用初始化失败：" + err.message);
+  }
+}
+
+document.addEventListener("DOMContentLoaded", initApp);

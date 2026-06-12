@@ -15,6 +15,9 @@
         <h1>岩芯薄片显微照片索引台</h1>
       </div>
       <div class="mast-actions">
+        <button id="backupBtn" type="button" class="ghost">数据备份</button>
+        <button id="restoreBtn" type="button" class="ghost">数据恢复</button>
+        <input type="file" id="restoreFileInput" accept=".json,application/json" hidden>
         <button id="importBtn" type="button" class="ghost">批量导入</button>
         <button id="exportBtn" type="button">导出观察清单</button>
       </div>
@@ -301,6 +304,10 @@
     </div>
   </div>
 
+  <script src="./storage-layer.js"></script>
+  <script src="./data-manager.js"></script>
+  <script src="./data-migration.js"></script>
+  <script src="./backup-restore.js"></script>
   <script src="./annotation-view.js"></script>
   <script src="./review.js"></script>
   <script src="./app.js"></script>

@@ -6,9 +6,13 @@
     "#2980b9", "#8e44ad", "#16a085", "#c0392b"
   ];
 
-  let stateRef = null;
+  let getState = null;
   let saveFn = null;
   let renderAllFn = null;
+
+  function getStateRef() {
+    return getState ? getState() : null;
+  }
 
   let currentSampleId = null;
   let currentTool = "point";
@@ -135,7 +139,11 @@
       if (!sample || !sample.annotations || sample.annotations.length === 0) return;
       if (!confirm(`确定清空该样本的全部 ${sample.annotations.length} 条标注？此操作不可撤销。`)) return;
       sample.annotations = [];
-      saveFn();
+      if (window.DataManager) {
+        window.DataManager.save();
+      } else {
+        saveFn();
+      }
       renderAnnotations();
       renderAnnotationList();
       renderAllFn();
@@ -171,8 +179,9 @@
   }
 
   function getCurrentSample() {
-    if (!stateRef || !currentSampleId) return null;
-    return stateRef.samples.find((s) => s.id === currentSampleId);
+    const state = getStateRef();
+    if (!state || !currentSampleId) return null;
+    return state.samples.find((s) => s.id === currentSampleId);
   }
 
   function canvasToPct(clientX, clientY) {
@@ -303,10 +312,15 @@
     sample.annotations = sample.annotations || [];
     const annotation = Object.assign({
       id: crypto.randomUUID(),
-      createdAt: new Date().toISOString()
+      createdAt: new Date().toISOString(),
+      sampleId: sample.id
     }, partial);
     sample.annotations.push(annotation);
-    saveFn();
+    if (window.DataManager) {
+      window.DataManager.save();
+    } else {
+      saveFn();
+    }
     renderAnnotations();
     renderAnnotationList();
     renderAllFn();
@@ -317,7 +331,11 @@
     if (!sample || !sample.annotations) return;
     sample.annotations = sample.annotations.filter((a) => a.id !== id);
     if (selectedAnnotationId === id) clearSelection();
-    saveFn();
+    if (window.DataManager) {
+      window.DataManager.save();
+    } else {
+      saveFn();
+    }
     renderAnnotations();
     renderAnnotationList();
     renderAllFn();
@@ -442,11 +460,12 @@
 
   function openAnnotation(sampleId) {
     ensureContainer();
-    if (!stateRef) {
+    const state = getStateRef();
+    if (!state) {
       console.error("AnnotationView: 未初始化，请先调用 init()");
       return;
     }
-    const sample = stateRef.samples.find((s) => s.id === sampleId);
+    const sample = state.samples.find((s) => s.id === sampleId);
     if (!sample) {
       alert("未找到该样本。");
       return;
@@ -524,7 +543,7 @@
   }
 
   function init(refs) {
-    stateRef = refs.state;
+    getState = refs.getState || (() => refs.state);
     saveFn = refs.save;
     renderAllFn = refs.renderAll;
   }

@@ -23,9 +23,13 @@
     { key: "magnification", label: "放大倍数", weight: 5 }
   ];
 
-  let stateRef = null;
+  let getState = null;
   let saveFn = null;
   let renderAllFn = null;
+
+  function getStateRef() {
+    return getState ? getState() : null;
+  }
 
   function calcCompleteness(sample) {
     if (!sample) return { score: 0, percent: 0, missing: [], filled: [] };
@@ -69,12 +73,21 @@
   }
 
   function setReviewStatus(sampleId, status, comment) {
-    const sample = stateRef.samples.find((s) => s.id === sampleId);
+    const state = getStateRef();
+    const sample = state.samples.find((s) => s.id === sampleId);
     if (!sample) return;
     sample.reviewStatus = status;
     sample.reviewComment = comment || sample.reviewComment || "";
     sample.reviewedAt = new Date().toISOString();
-    saveFn();
+    if (window.DataManager) {
+      window.DataManager.updateSample(sampleId, {
+        reviewStatus: status,
+        reviewComment: sample.reviewComment,
+        reviewedAt: sample.reviewedAt
+      });
+    } else {
+      saveFn();
+    }
     renderAllFn();
   }
 
@@ -223,7 +236,8 @@
 
   function openReviewModal(sampleId) {
     ensureReviewModal();
-    const sample = stateRef.samples.find((s) => s.id === sampleId);
+    const state = getStateRef();
+    const sample = state.samples.find((s) => s.id === sampleId);
     if (!sample) return;
 
     currentReviewSampleId = sampleId;
@@ -271,8 +285,9 @@
   }
 
   function getSamplesByStatus() {
+    const state = getStateRef();
     const result = { incomplete: [], pending: [], confirmed: [] };
-    stateRef.samples.forEach((sample) => {
+    state.samples.forEach((sample) => {
       const status = getReviewStatus(sample);
       if (result[status]) result[status].push(sample);
     });
@@ -315,7 +330,7 @@
   }
 
   function init(refs) {
-    stateRef = refs.state;
+    getState = refs.getState || (() => refs.state);
     saveFn = refs.save;
     renderAllFn = refs.renderAll;
   }

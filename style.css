@@ -1944,3 +1944,122 @@ textarea {
     grid-template-columns: 1fr;
   }
 }
+
+.migration-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(23, 32, 29, 0.7);
+  backdrop-filter: blur(6px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 2000;
+  padding: 20px;
+  animation: migration-fade-in 0.3s ease;
+}
+
+@keyframes migration-fade-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+.migration-modal {
+  width: 100%;
+  max-width: 420px;
+  background: var(--panel);
+  border-radius: 16px;
+  box-shadow: 0 24px 60px rgba(23, 32, 29, 0.4);
+  padding: 36px 28px;
+  text-align: center;
+  animation: migration-scale-in 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+@keyframes migration-scale-in {
+  from { opacity: 0; transform: scale(0.9) translateY(20px); }
+  to { opacity: 1; transform: scale(1) translateY(0); }
+}
+
+.migration-icon {
+  font-size: 56px;
+  margin-bottom: 16px;
+  line-height: 1;
+}
+
+.migration-modal h2 {
+  font-size: 22px;
+  color: var(--text);
+  margin-bottom: 8px;
+}
+
+.migration-desc {
+  color: var(--muted);
+  font-size: 14px;
+  margin-bottom: 20px;
+  line-height: 1.6;
+}
+
+.migration-status {
+  font-size: 13px;
+  color: var(--accent);
+  margin-bottom: 16px;
+  font-weight: 500;
+}
+
+.migration-progress {
+  margin-bottom: 20px;
+}
+
+.migration-progress.hidden {
+  display: none;
+}
+
+.migration-progress-bar {
+  height: 6px;
+  background: var(--line);
+  border-radius: 999px;
+  overflow: hidden;
+}
+
+.migration-progress-fill {
+  height: 100%;
+  background: var(--accent);
+  border-radius: 999px;
+  transition: width 0.3s ease;
+  width: 0%;
+}
+
+.migration-actions {
+  display: flex;
+  gap: 10px;
+  justify-content: center;
+}
+
+.migration-actions .primary {
+  min-width: 120px;
+}
+
+.migration-actions .ghost {
+  min-width: 100px;
+}
+
+.mast-actions {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+
+@media (max-width: 640px) {
+  .migration-modal {
+    padding: 28px 20px;
+  }
+
+  .migration-icon {
+    font-size: 48px;
+  }
+
+  .migration-modal h2 {
+    font-size: 18px;
+  }
+}
