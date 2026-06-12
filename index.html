@@ -23,6 +23,7 @@
     <nav class="tabs">
       <button class="tab-btn active" data-tab="entry">样本录入</button>
       <button class="tab-btn" data-tab="samples">样本列表</button>
+      <button class="tab-btn" data-tab="review">审核工作台</button>
       <button class="tab-btn" data-tab="tasks">观察任务</button>
     </nav>
 
@@ -74,9 +75,43 @@
               <option>正交偏光</option>
               <option>反射光</option>
             </select>
+            <select id="reviewFilter">
+              <option value="">全部审核状态</option>
+              <option value="incomplete">未完善</option>
+              <option value="pending">待复核</option>
+              <option value="confirmed">已确认</option>
+            </select>
           </div>
           <div id="sampleGridFull" class="sample-grid"></div>
         </section>
+      </section>
+    </section>
+
+    <section id="tab-review" class="tab-panel">
+      <section class="review-layout">
+        <section class="board full review-board-header">
+          <div class="review-header">
+            <div>
+              <h2>样本审核工作台</h2>
+              <p class="review-subtitle">按「未完善 - 待复核 - 已确认」三态管理薄片样本审核进度</p>
+            </div>
+            <div class="review-stats">
+              <div class="review-stat-card incomplete">
+                <span class="stat-num" id="statIncomplete">0</span>
+                <span class="stat-label">未完善</span>
+              </div>
+              <div class="review-stat-card pending">
+                <span class="stat-num" id="statPending">0</span>
+                <span class="stat-label">待复核</span>
+              </div>
+              <div class="review-stat-card confirmed">
+                <span class="stat-num" id="statConfirmed">0</span>
+                <span class="stat-label">已确认</span>
+              </div>
+            </div>
+          </div>
+        </section>
+        <div id="reviewBoard" class="review-board"></div>
       </section>
     </section>
 
@@ -267,6 +302,7 @@
   </div>
 
   <script src="./annotation-view.js"></script>
+  <script src="./review.js"></script>
   <script src="./app.js"></script>
 </body>
 </html>

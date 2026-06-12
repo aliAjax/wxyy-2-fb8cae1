@@ -82,6 +82,7 @@ const sampleGridFull = $("#sampleGridFull");
 const comparePane = $("#comparePane");
 const mineralFilter = $("#mineralFilter");
 const polarFilter = $("#polarFilter");
+const reviewFilter = $("#reviewFilter");
 
 const tabBtns = $$(".tab-btn");
 const tabPanels = $$(".tab-panel");
@@ -116,17 +117,27 @@ let pickerSelectedIds = new Set();
 function filteredSamples() {
   const mineral = mineralFilter?.value?.trim() || "";
   const polarization = polarFilter?.value || "";
+  const reviewStatus = reviewFilter?.value || "";
   return state.samples.filter((sample) => {
     const mineralMatch = !mineral || sample.minerals.includes(mineral);
     const polarMatch = !polarization || sample.polarization === polarization;
-    return mineralMatch && polarMatch;
+    let reviewMatch = true;
+    if (reviewStatus && window.ReviewModule) {
+      reviewMatch = window.ReviewModule.getReviewStatus(sample) === reviewStatus;
+    }
+    return mineralMatch && polarMatch && reviewMatch;
   });
 }
 
 function sampleCardHTML(sample, showActions = true) {
   const annSummary = window.AnnotationView ? window.AnnotationView.annotationSummaryHTML(sample) : "";
+  const reviewBadge = window.ReviewModule ? window.ReviewModule.reviewStatusBadgeHTML(sample) : "";
+  const completenessBar = window.ReviewModule ? window.ReviewModule.completenessBarHTML(sample) : "";
   return `
-    <article class="sample-card">
+    <article class="sample-card ${window.ReviewModule ? "review-" + window.ReviewModule.getReviewStatusClass(sample) : ""}">
+      <div class="sample-card-badges">
+        ${reviewBadge}
+      </div>
       ${sample.photo ? `<img src="${sample.photo}" alt="${sample.code}显微照片">` : '<div class="photo-placeholder">暂无照片</div>'}
       <div class="sample-body">
         <h3>${sample.code}</h3>
@@ -134,12 +145,15 @@ function sampleCardHTML(sample, showActions = true) {
         <p>矿物：${sample.minerals || "未记录"}</p>
         <p>结构：${sample.texture || "未记录"}</p>
         <p>${sample.comment || "未填写批注"}</p>
+        ${sample.reviewComment ? `<p class="card-review-note">复核：${sample.reviewComment}</p>` : ""}
+        ${completenessBar}
         ${annSummary}
         ${showActions ? `
         <div class="card-actions">
           <label><input type="checkbox" data-compare="${sample.id}" ${state.compare.includes(sample.id) ? "checked" : ""}>对比</label>
           <div class="card-action-btns">
             <button type="button" data-annotate="${sample.id}">标注</button>
+            <button type="button" data-review-card="${sample.id}">审核</button>
             <button type="button" data-delete="${sample.id}">删除</button>
           </div>
         </div>` : ""}
@@ -171,12 +185,19 @@ function renderCompare() {
 
   comparePane.innerHTML = compareSamples.length ? compareSamples.map((sample) => {
     const annSummary = window.AnnotationView ? window.AnnotationView.annotationSummaryHTML(sample) : "";
+    const reviewBadge = window.ReviewModule ? window.ReviewModule.reviewStatusBadgeHTML(sample) : "";
+    const completenessBar = window.ReviewModule ? window.ReviewModule.completenessBarHTML(sample) : "";
     return `
-    <article class="compare-item">
+    <article class="compare-item ${window.ReviewModule ? "compare-review-" + window.ReviewModule.getReviewStatusClass(sample) : ""}">
+      <div class="compare-item-head">
+        <h3>${sample.code}</h3>
+        ${reviewBadge}
+      </div>
       ${sample.photo ? `<img src="${sample.photo}" alt="${sample.code}对比图">` : ""}
-      <h3>${sample.code}</h3>
+      ${completenessBar}
       <p>${sample.polarization} · ${sample.minerals || "未记录矿物"}</p>
       <p>${sample.texture || "未记录结构"}</p>
+      ${sample.reviewComment ? `<p class="compare-review-note">复核意见：${sample.reviewComment}</p>` : ""}
       ${annSummary}
     </article>
   `;}).join("") : "<p>勾选两张样本卡片后可并排对比。</p>";
@@ -186,6 +207,32 @@ function switchTab(tabName) {
   tabBtns.forEach((btn) => btn.classList.toggle("active", btn.dataset.tab === tabName));
   tabPanels.forEach((panel) => panel.classList.toggle("active", panel.id === `tab-${tabName}`));
   if (tabName === "tasks") renderTasks();
+  if (tabName === "review" && window.ReviewModule) {
+    window.ReviewModule.renderReviewBoard();
+    updateReviewStats();
+  }
+}
+
+function updateReviewStats() {
+  if (!window.ReviewModule) return;
+  const { incomplete, pending, confirmed } = getReviewCounts();
+  const elInc = $("#statIncomplete");
+  const elPen = $("#statPending");
+  const elCon = $("#statConfirmed");
+  if (elInc) elInc.textContent = incomplete;
+  if (elPen) elPen.textContent = pending;
+  if (elCon) elCon.textContent = confirmed;
+}
+
+function getReviewCounts() {
+  let incomplete = 0, pending = 0, confirmed = 0;
+  state.samples.forEach((sample) => {
+    const status = window.ReviewModule.getReviewStatus(sample);
+    if (status === "incomplete") incomplete++;
+    else if (status === "pending") pending++;
+    else if (status === "confirmed") confirmed++;
+  });
+  return { incomplete, pending, confirmed };
 }
 
 tabBtns.forEach((btn) => btn.addEventListener("click", () => switchTab(btn.dataset.tab)));
@@ -223,8 +270,13 @@ form?.addEventListener("submit", async (event) => {
 function handleSampleGridClick(gridEl, event) {
   const deleteId = event.target.dataset.delete;
   const annotateId = event.target.dataset.annotate;
+  const reviewId = event.target.dataset.reviewCard;
   if (annotateId) {
     if (window.AnnotationView) window.AnnotationView.openAnnotation(annotateId);
+    return;
+  }
+  if (reviewId) {
+    if (window.ReviewModule) window.ReviewModule.openReviewModal(reviewId);
     return;
   }
   if (deleteId) {
@@ -259,19 +311,27 @@ function handleSampleGridChange(gridEl, event) {
 sampleGrid?.addEventListener("change", (e) => handleSampleGridChange(sampleGrid, e));
 sampleGridFull?.addEventListener("change", (e) => handleSampleGridChange(sampleGridFull, e));
 
-[mineralFilter, polarFilter].forEach((field) => field?.addEventListener("input", renderSamples));
+[mineralFilter, polarFilter, reviewFilter].forEach((field) => field?.addEventListener("input", renderSamples));
+[reviewFilter].forEach((field) => field?.addEventListener("change", renderSamples));
 
 $("#exportBtn")?.addEventListener("click", () => {
-  const checklist = state.samples.map((sample) => ({
-    样本编号: sample.code,
-    采样地点: sample.location,
-    放大倍数: sample.magnification,
-    偏光类型: sample.polarization,
-    主要矿物: sample.minerals,
-    颗粒结构: sample.texture,
-    老师批注: sample.comment,
-    照片: sample.photo && sample.photo.startsWith("data:") ? "" : sample.photo
-  }));
+  const checklist = state.samples.map((sample) => {
+    const reviewStatus = window.ReviewModule ? window.ReviewModule.getReviewStatusLabel(sample) : "";
+    const completeness = window.ReviewModule ? window.ReviewModule.calcCompleteness(sample).percent + "%" : "";
+    return {
+      样本编号: sample.code,
+      采样地点: sample.location,
+      放大倍数: sample.magnification,
+      偏光类型: sample.polarization,
+      主要矿物: sample.minerals,
+      颗粒结构: sample.texture,
+      老师批注: sample.comment,
+      资料完整度: completeness,
+      审核状态: reviewStatus,
+      复核意见: sample.reviewComment || "",
+      照片: sample.photo && sample.photo.startsWith("data:") ? "" : sample.photo
+    };
+  });
   const blob = new Blob([JSON.stringify(checklist, null, 2)], { type: "application/json" });
   const link = document.createElement("a");
   link.href = URL.createObjectURL(blob);
@@ -589,10 +649,18 @@ function renderAll() {
   renderSamples();
   renderCompare();
   if ($("#tab-tasks").classList.contains("active")) renderTasks();
+  if ($("#tab-review").classList.contains("active") && window.ReviewModule) {
+    window.ReviewModule.renderReviewBoard();
+    updateReviewStats();
+  }
 }
 
 if (window.AnnotationView) {
   window.AnnotationView.init({ state, save, renderAll });
+}
+
+if (window.ReviewModule) {
+  window.ReviewModule.init({ state, save, renderAll });
 }
 
 const FIELD_ALIASES = {
