@@ -138,6 +138,7 @@ function sampleCardHTML(sample, showActions = true) {
             <button type="button" data-view="${sample.id}" class="view-btn">🔬查看</button>
             <button type="button" data-annotate="${sample.id}">标注</button>
             <button type="button" data-review-card="${sample.id}">审核</button>
+            <button type="button" data-history="${sample.id}">历史</button>
             <button type="button" data-delete="${sample.id}">删除</button>
           </div>
         </div>` : ""}
@@ -201,6 +202,7 @@ function switchTab(tabName) {
   }
   if (tabName === "lesson") renderLessonPage();
   if (tabName === "grading") renderGradingPage();
+  if (tabName === "recycle") renderRecycleBin();
 }
 
 function updateReviewStats() {
@@ -345,8 +347,13 @@ function handleSampleGridClick(gridEl, event) {
     if (window.ReviewModule) window.ReviewModule.openReviewModal(reviewId);
     return;
   }
+  const historyId = event.target.dataset.history;
+  if (historyId) {
+    openVersionHistoryModal(historyId);
+    return;
+  }
   if (deleteId) {
-    if (!confirm("确定删除该样本？此操作不可撤销。")) return;
+    if (!confirm("确定删除该样本？删除后可在回收站中恢复。")) return;
     window.DataManager.deleteSample(deleteId);
     renderAll();
   }
@@ -1520,6 +1527,9 @@ function initLessonUI() {
       if (!$("#duplicateModal")?.classList.contains("hidden")) {
         $("#duplicateModal")?.classList.add("hidden");
         if (duplicateResolve) { duplicateResolve(null); duplicateResolve = null; }
+      }
+      if (!document.getElementById("versionHistoryModal")?.classList.contains("hidden")) {
+        closeVersionHistoryModal();
       }
     }
   });
@@ -2747,10 +2757,19 @@ function initBackupRestoreUI() {
   const restoreFileInput = $("#restoreFileInput");
 
   backupBtn?.addEventListener("click", async () => {
+    const includeHistory = confirm("是否包含版本历史记录和回收站数据？\n\n点「确定」= 包含历史记录（文件较大）\n点「取消」= 仅导出当前数据（文件较小）");
     try {
       backupBtn.disabled = true;
       backupBtn.textContent = "导出中...";
-      await window.BackupRestore.downloadBackup();
+      const backup = await window.BackupRestore.exportBackup({ includeHistory });
+      const jsonStr = JSON.stringify(backup, null, 2);
+      const blob = new Blob([jsonStr], { type: "application/json" });
+      const dateStr = new Date().toISOString().slice(0, 10);
+      const link = document.createElement("a");
+      link.href = URL.createObjectURL(blob);
+      link.download = `thin-section-backup-${dateStr}.json`;
+      link.click();
+      URL.revokeObjectURL(link.href);
       backupBtn.disabled = false;
       backupBtn.textContent = "数据备份";
     } catch (err) {
@@ -2919,11 +2938,210 @@ async function initApp() {
     initLessonUI();
     initEntryAssistant();
 
+    document.getElementById("vhModalClose")?.addEventListener("click", closeVersionHistoryModal);
+    document.getElementById("versionHistoryModal")?.addEventListener("click", (e) => {
+      if (e.target.id === "versionHistoryModal") closeVersionHistoryModal();
+    });
+
+    document.getElementById("emptyRecycleBtn")?.addEventListener("click", async () => {
+      if (!confirm("确定清空回收站？所有样本将被彻底删除，此操作不可撤销。")) return;
+      try {
+        await window.VersionHistory.emptyRecycleBin();
+        renderRecycleBin();
+      } catch (e) {
+        alert("清空失败：" + e.message);
+      }
+    });
+
+    await window.DataManager.ensureHistoryForExistingSamples();
+
     renderAll();
   } catch (err) {
     console.error("初始化失败:", err);
     alert("应用初始化失败：" + err.message);
   }
+}
+
+function openVersionHistoryModal(sampleId) {
+  if (!window.VersionHistory) return;
+  const sample = state.samples.find(s => s.id === sampleId);
+  if (!sample) return;
+
+  const modal = document.getElementById("versionHistoryModal");
+  const title = document.getElementById("vhModalTitle");
+  const body = document.getElementById("vhModalBody");
+  const footer = document.getElementById("vhModalFooter");
+
+  title.textContent = `版本历史：${sample.code || "未编号"}`;
+
+  body.innerHTML = '<p class="vh-empty">加载中...</p>';
+  footer.innerHTML = '<button type="button" class="ghost" id="vhCloseBtn2">关闭</button>';
+
+  modal.classList.remove("hidden");
+  document.body.style.overflow = "hidden";
+
+  window.VersionHistory.getHistory(sampleId).then(versions => {
+    renderVersionHistoryContent(sampleId, sample, versions, body, footer);
+  });
+}
+
+function renderVersionHistoryContent(sampleId, sample, versions, body, footer) {
+  let selectedVersion = null;
+  let diffV1 = null;
+  let diffV2 = null;
+
+  function render() {
+    const timelineHTML = window.VersionHistory.versionTimelineHTML(versions, sampleId);
+
+    let diffSectionHTML = "";
+    if (versions.length >= 2) {
+      const options = versions.map(v => `<option value="${v.version}">v${v.version} (${formatDateTime(v.timestamp)})</option>`).join("");
+      diffSectionHTML = `
+        <div class="vh-diff-section">
+          <div class="vh-diff-header">
+            <h3>版本对比</h3>
+            <div class="vh-diff-selectors">
+              <select id="vhDiffV1">${options}</select>
+              <span>→</span>
+              <select id="vhDiffV2">${options}</select>
+              <button type="button" class="ghost" id="vhCompareBtn">对比</button>
+            </div>
+          </div>
+          <div id="vhDiffResult"></div>
+        </div>
+      `;
+    }
+
+    let rollbackHTML = "";
+    if (selectedVersion && versions.length > 0) {
+      const latestVersion = versions[versions.length - 1];
+      if (selectedVersion !== latestVersion.version) {
+        rollbackHTML = `
+          <div class="vh-rollback-bar">
+            <p>已选择 v${selectedVersion}，点击回滚将恢复到该版本的字段值</p>
+            <button type="button" id="vhRollbackBtn">回滚到此版本</button>
+          </div>
+        `;
+      }
+    }
+
+    body.innerHTML = timelineHTML + diffSectionHTML + rollbackHTML;
+
+    const timelineItems = body.querySelectorAll(".vh-timeline-item");
+    timelineItems.forEach(item => {
+      item.addEventListener("click", () => {
+        timelineItems.forEach(i => i.classList.remove("vh-version-selected"));
+        item.classList.add("vh-version-selected");
+        selectedVersion = parseInt(item.dataset.versionNum, 10);
+        render();
+      });
+    });
+
+    if (selectedVersion) {
+      const selItem = body.querySelector(`.vh-timeline-item[data-version-num="${selectedVersion}"]`);
+      if (selItem) selItem.classList.add("vh-version-selected");
+    }
+
+    const diffV1Select = document.getElementById("vhDiffV1");
+    const diffV2Select = document.getElementById("vhDiffV2");
+    if (diffV1Select && diffV2Select && versions.length >= 2) {
+      diffV1Select.value = String(versions[0].version);
+      diffV2Select.value = String(versions[versions.length - 1].version);
+    }
+
+    const compareBtn = document.getElementById("vhCompareBtn");
+    if (compareBtn) {
+      compareBtn.addEventListener("click", () => {
+        const v1Num = parseInt(diffV1Select.value, 10);
+        const v2Num = parseInt(diffV2Select.value, 10);
+        const v1 = versions.find(v => v.version === v1Num);
+        const v2 = versions.find(v => v.version === v2Num);
+        const resultEl = document.getElementById("vhDiffResult");
+        if (v1 && v2 && resultEl) {
+          const diff = window.VersionHistory.diffTwoVersions(v1, v2);
+          resultEl.innerHTML = window.VersionHistory.diffTableHTML(diff);
+        }
+      });
+    }
+
+    const rollbackBtn = document.getElementById("vhRollbackBtn");
+    if (rollbackBtn) {
+      rollbackBtn.addEventListener("click", async () => {
+        if (!confirm(`确定要回滚到 v${selectedVersion} 吗？当前字段值将被替换。`)) return;
+        try {
+          const result = await window.VersionHistory.rollbackToVersion(sampleId, selectedVersion);
+          if (!result) {
+            alert("当前数据已是该版本，无需回滚。");
+            return;
+          }
+          window.DataManager.updateSample(sampleId, result.updates);
+          await window.VersionHistory.recordVersion(sampleId, window.DataManager.getSampleById(sampleId), "rollback", result.targetSnapshot);
+          state = window.DataManager.getState();
+          renderAll();
+          closeVersionHistoryModal();
+          alert("已成功回滚到 v" + selectedVersion);
+        } catch (e) {
+          alert("回滚失败：" + e.message);
+        }
+      });
+    }
+  }
+
+  footer.innerHTML = '<button type="button" class="ghost" id="vhCloseBtn2">关闭</button>';
+  document.getElementById("vhCloseBtn2")?.addEventListener("click", closeVersionHistoryModal);
+
+  render();
+}
+
+function closeVersionHistoryModal() {
+  const modal = document.getElementById("versionHistoryModal");
+  if (modal) modal.classList.add("hidden");
+  document.body.style.overflow = "";
+}
+
+function renderRecycleBin() {
+  if (!window.VersionHistory) return;
+
+  const container = document.getElementById("recycleBinList");
+  if (!container) return;
+
+  container.innerHTML = '<p class="vh-empty">加载中...</p>';
+
+  window.VersionHistory.getRecycleBin().then(items => {
+    container.innerHTML = window.VersionHistory.recycleBinListHTML(items);
+
+    container.querySelectorAll(".vh-restore-btn").forEach(btn => {
+      btn.addEventListener("click", async () => {
+        const recycleId = btn.dataset.restoreId;
+        if (!confirm("确定恢复该样本？")) return;
+        try {
+          const sample = await window.VersionHistory.restoreFromRecycleBin(recycleId);
+          if (sample) {
+            await window.DataManager.restoreSample(sample);
+            state = window.DataManager.getState();
+            renderAll();
+            renderRecycleBin();
+            alert("样本已恢复！");
+          }
+        } catch (e) {
+          alert("恢复失败：" + e.message);
+        }
+      });
+    });
+
+    container.querySelectorAll(".vh-permanent-delete-btn").forEach(btn => {
+      btn.addEventListener("click", async () => {
+        const deleteId = btn.dataset.deleteId;
+        if (!confirm("彻底删除该样本？此操作不可撤销，版本历史也将被清除。")) return;
+        try {
+          await window.VersionHistory.permanentlyDelete(deleteId);
+          renderRecycleBin();
+        } catch (e) {
+          alert("删除失败：" + e.message);
+        }
+      });
+    });
+  });
 }
 
 document.addEventListener("DOMContentLoaded", initApp);

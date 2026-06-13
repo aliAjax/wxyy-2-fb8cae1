@@ -31,6 +31,7 @@
       <button class="tab-btn" data-tab="tasks">观察任务</button>
       <button class="tab-btn" data-tab="lesson">课堂包管理</button>
       <button class="tab-btn" data-tab="grading">作业评分</button>
+      <button class="tab-btn" data-tab="recycle">回收站</button>
     </nav>
 
     <section id="tab-entry" class="tab-panel active">
@@ -339,6 +340,32 @@
       </div>
     </div>
 
+    <section id="tab-recycle" class="tab-panel">
+      <div class="recycle-layout">
+        <section class="recycle-panel">
+          <div class="recycle-header">
+            <div>
+              <h2>回收站</h2>
+              <p class="recycle-subtitle">删除的样本暂存在此，可恢复或彻底删除</p>
+            </div>
+            <button type="button" id="emptyRecycleBtn" class="danger">清空回收站</button>
+          </div>
+          <div id="recycleBinList" class="recycle-bin-list"></div>
+        </section>
+      </div>
+    </section>
+
+    <div id="versionHistoryModal" class="modal-overlay hidden">
+      <div class="modal-content vh-modal">
+        <header class="modal-header">
+          <h2 id="vhModalTitle">版本历史</h2>
+          <button type="button" class="modal-close" id="vhModalClose">×</button>
+        </header>
+        <div class="vh-modal-body" id="vhModalBody"></div>
+        <footer class="modal-footer" id="vhModalFooter"></footer>
+      </div>
+    </div>
+
     <div id="answerModal" class="modal-overlay hidden">
       <div class="modal-content answer-modal">
         <header class="modal-header">
@@ -499,6 +526,7 @@
   <script src="./storage-layer.js"></script>
   <script src="./data-manager.js"></script>
   <script src="./data-migration.js"></script>
+  <script src="./version-history.js"></script>
   <script src="./backup-restore.js"></script>
   <script src="./mineral-rules.js"></script>
   <script src="./lesson-package.js"></script>

@@ -2,7 +2,7 @@
   "use strict";
 
   const DB_NAME = "wxyy-thin-section-db";
-  const DB_VERSION = 2;
+  const DB_VERSION = 3;
 
   const STORES = {
     SAMPLES: "samples",
@@ -10,7 +10,9 @@
     TASKS: "tasks",
     APP_STATE: "appState",
     ANNOTATIONS: "annotations",
-    STUDENT_ANSWERS: "studentAnswers"
+    STUDENT_ANSWERS: "studentAnswers",
+    VERSION_HISTORY: "versionHistory",
+    RECYCLE_BIN: "recycleBin"
   };
 
   let db = null;
@@ -63,6 +65,19 @@
           ansStore.createIndex("taskId", "taskId", { unique: false });
           ansStore.createIndex("sampleId", "sampleId", { unique: false });
           ansStore.createIndex("updatedAt", "updatedAt", { unique: false });
+        }
+
+        if (!database.objectStoreNames.contains(STORES.VERSION_HISTORY)) {
+          const vhStore = database.createObjectStore(STORES.VERSION_HISTORY, { keyPath: "id" });
+          vhStore.createIndex("sampleId", "sampleId", { unique: false });
+          vhStore.createIndex("timestamp", "timestamp", { unique: false });
+          vhStore.createIndex("sampleId_timestamp", ["sampleId", "timestamp"], { unique: false });
+        }
+
+        if (!database.objectStoreNames.contains(STORES.RECYCLE_BIN)) {
+          const rbStore = database.createObjectStore(STORES.RECYCLE_BIN, { keyPath: "id" });
+          rbStore.createIndex("sampleId", "sampleId", { unique: false });
+          rbStore.createIndex("deletedAt", "deletedAt", { unique: false });
         }
       };
     });
@@ -405,6 +420,71 @@
     }
   };
 
+  const VersionStore = {
+    async getBySampleId(sampleId) {
+      const versions = await getByIndex(STORES.VERSION_HISTORY, "sampleId", sampleId);
+      return versions.sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp));
+    },
+
+    async add(versionRecord) {
+      return put(STORES.VERSION_HISTORY, versionRecord);
+    },
+
+    async bulkAdd(records) {
+      return bulkPut(STORES.VERSION_HISTORY, records);
+    },
+
+    async remove(id) {
+      return remove(STORES.VERSION_HISTORY, id);
+    },
+
+    async removeBySampleId(sampleId) {
+      const records = await this.getBySampleId(sampleId);
+      for (const r of records) {
+        await remove(STORES.VERSION_HISTORY, r.id);
+      }
+    },
+
+    async getAll() {
+      const all = await getAll(STORES.VERSION_HISTORY);
+      return all.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
+    },
+
+    async clearAll() {
+      return clearStore(STORES.VERSION_HISTORY);
+    }
+  };
+
+  const RecycleStore = {
+    async getAll() {
+      const items = await getAll(STORES.RECYCLE_BIN);
+      return items.sort((a, b) => new Date(b.deletedAt) - new Date(a.deletedAt));
+    },
+
+    async getById(id) {
+      return getById(STORES.RECYCLE_BIN, id);
+    },
+
+    async add(item) {
+      return put(STORES.RECYCLE_BIN, item);
+    },
+
+    async remove(id) {
+      return remove(STORES.RECYCLE_BIN, id);
+    },
+
+    async removeBySampleId(sampleId) {
+      const items = await getByIndex(STORES.RECYCLE_BIN, "sampleId", sampleId);
+      for (const item of items) {
+        await remove(STORES.RECYCLE_BIN, item.id);
+      }
+    },
+
+    async clearAll() {
+      return clearStore(STORES.RECYCLE_BIN);
+    }
+  };
+
   const AppStateStore = {
     async getCompareList() {
       return getAppState("compareList", []);
@@ -431,7 +511,9 @@
     }
   };
 
-  async function exportAllData() {
+  async function exportAllData(options = {}) {
+    const { includeHistory = true, includeRecycleBin = true } = options;
+
     await initDB();
 
     const samples = await SampleStore.getAll();
@@ -451,7 +533,7 @@
 
     const compareList = await AppStateStore.getCompareList();
 
-    return {
+    const result = {
       version: DB_VERSION,
       exportDate: new Date().toISOString(),
       samples: samplesWithPhotos,
@@ -460,6 +542,16 @@
         compareList
       }
     };
+
+    if (includeHistory) {
+      result.versionHistory = await VersionStore.getAll();
+    }
+
+    if (includeRecycleBin) {
+      result.recycleBin = await RecycleStore.getAll();
+    }
+
+    return result;
   }
 
   async function importAllData(data, options = {}) {
@@ -470,6 +562,9 @@
     if (!merge) {
       await SampleStore.clearAll();
       await TaskStore.clearAll();
+      await AnswerStore.clearAll();
+      await VersionStore.clearAll();
+      await RecycleStore.clearAll();
       await clearStore(STORES.APP_STATE);
     }
 
@@ -479,6 +574,14 @@
 
     if (data.tasks && Array.isArray(data.tasks)) {
       await bulkPut(STORES.TASKS, data.tasks);
+    }
+
+    if (data.versionHistory && Array.isArray(data.versionHistory)) {
+      await VersionStore.bulkAdd(data.versionHistory);
+    }
+
+    if (data.recycleBin && Array.isArray(data.recycleBin)) {
+      await RecycleStore.bulkAdd(data.recycleBin);
     }
 
     if (data.appState) {
@@ -495,6 +598,8 @@
     await SampleStore.clearAll();
     await TaskStore.clearAll();
     await AnswerStore.clearAll();
+    await VersionStore.clearAll();
+    await RecycleStore.clearAll();
     await clearStore(STORES.APP_STATE);
   }
 
@@ -509,6 +614,8 @@
     AnnotationStore,
     AnswerStore,
     TaskStore,
+    VersionStore,
+    RecycleStore,
     AppStateStore,
     exportAllData,
     importAllData,

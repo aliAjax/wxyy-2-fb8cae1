@@ -1,16 +1,19 @@
 (function (global) {
   "use strict";
 
-  const BACKUP_FORMAT_VERSION = 1;
+  const BACKUP_FORMAT_VERSION = 2;
 
   async function exportBackup(options = {}) {
-    const { includePhotos = true } = options;
+    const { includePhotos = true, includeHistory = true } = options;
 
     if (!window.StorageLayer) {
       throw new Error("StorageLayer 未加载");
     }
 
-    const allData = await window.StorageLayer.exportAllData();
+    const allData = await window.StorageLayer.exportAllData({
+      includeHistory,
+      includeRecycleBin: includeHistory
+    });
 
     if (!includePhotos) {
       allData.samples = allData.samples.map(s => ({ ...s, photo: "" }));
@@ -20,6 +23,7 @@
       format: "wxyy-thin-section-backup",
       version: BACKUP_FORMAT_VERSION,
       createdAt: new Date().toISOString(),
+      includeHistory,
       ...allData
     };
 
@@ -152,6 +156,8 @@
   function getBackupSummary(data) {
     const samples = data.samples || [];
     const tasks = data.tasks || [];
+    const versionHistory = data.versionHistory || [];
+    const recycleBin = data.recycleBin || [];
 
     let photosCount = 0;
     let annotationsCount = 0;
@@ -166,8 +172,11 @@
       taskCount: tasks.length,
       photosCount,
       annotationsCount,
+      versionHistoryCount: versionHistory.length,
+      recycleBinCount: recycleBin.length,
       createdAt: data.createdAt || null,
-      version: data.version || null
+      version: data.version || null,
+      includeHistory: data.includeHistory !== false
     };
   }
 

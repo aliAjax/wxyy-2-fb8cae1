@@ -81,22 +81,57 @@
     await persistState();
   }
 
-  function addSample(sample) {
+  async function addSample(sample) {
     state.samples.unshift(sample);
     save();
+
+    if (window.VersionHistory) {
+      try {
+        await window.VersionHistory.recordVersion(sample.id, sample, "create", null);
+      } catch (e) {
+        console.warn("记录版本历史失败:", e);
+      }
+    }
   }
 
-  function updateSample(id, updates) {
+  async function updateSample(id, updates) {
     const index = state.samples.findIndex(s => s.id === id);
     if (index !== -1) {
+      const oldSample = { ...state.samples[index] };
       state.samples[index] = { ...state.samples[index], ...updates };
       save();
+
+      if (window.VersionHistory) {
+        try {
+          const oldSnapshot = window.VersionHistory.buildSnapshot(oldSample);
+          const changeType = window.VersionHistory.detectChangeType(
+            Object.keys(updates).filter(k => {
+              const tracked = window.VersionHistory.TRACKED_FIELDS.find(f => f.key === k);
+              return tracked || k === "hasPhoto" || k === "annotationCount";
+            })
+          );
+          await window.VersionHistory.recordVersion(id, state.samples[index], changeType, oldSnapshot);
+        } catch (e) {
+          console.warn("记录版本历史失败:", e);
+        }
+      }
+
       return state.samples[index];
     }
     return null;
   }
 
   async function deleteSample(id) {
+    const sample = state.samples.find(s => s.id === id);
+
+    if (sample && window.VersionHistory) {
+      try {
+        await window.VersionHistory.moveToRecycleBin(sample);
+      } catch (e) {
+        console.warn("移入回收站失败:", e);
+      }
+    }
+
     state.samples = state.samples.filter(s => s.id !== id);
     state.compare = state.compare.filter(cid => cid !== id);
     const affectedTasks = [];
@@ -121,6 +156,23 @@
       }
     } catch (e) {
       console.error("删除样本持久化失败:", e);
+      save();
+    }
+  }
+
+  async function restoreSample(sample) {
+    if (!sample || !sample.id) return;
+
+    state.samples.unshift(sample);
+    save();
+
+    try {
+      await window.StorageLayer.SampleStore.add(sample);
+      if (window.VersionHistory) {
+        await window.VersionHistory.recordVersion(sample.id, sample, "restore", null);
+      }
+    } catch (e) {
+      console.error("恢复样本失败:", e);
       save();
     }
   }
@@ -182,6 +234,18 @@
     await window.StorageLayer.clearAllData();
   }
 
+  async function ensureHistoryForExistingSamples() {
+    if (!window.VersionHistory) return;
+
+    for (const sample of state.samples) {
+      try {
+        await window.VersionHistory.ensureInitialVersion(sample.id, sample);
+      } catch (e) {
+        console.warn("为旧样本创建初始版本失败:", e);
+      }
+    }
+  }
+
   global.DataManager = {
     init,
     reload,
@@ -191,6 +255,7 @@
     addSample,
     updateSample,
     deleteSample,
+    restoreSample,
     getSampleById,
     addTask,
     updateTask,
@@ -198,7 +263,8 @@
     getTaskById,
     setCompareList,
     toggleCompare,
-    clearAll
+    clearAll,
+    ensureHistoryForExistingSamples
   };
 
 })(window);

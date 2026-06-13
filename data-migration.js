@@ -2,7 +2,7 @@
   "use strict";
 
   const LEGACY_STORAGE_KEY = "wxyy-2-thin-section-index";
-  const MIGRATION_VERSION = 3;
+  const MIGRATION_VERSION = 4;
 
   function hasLegacyData() {
     try {
@@ -213,6 +213,10 @@
     }
 
     if (schemaVersion < 3) {
+      await window.StorageLayer.initDB();
+    }
+
+    if (schemaVersion < 4) {
       await window.StorageLayer.initDB();
     }
 
