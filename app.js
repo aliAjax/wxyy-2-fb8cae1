@@ -378,11 +378,14 @@ $("#exportBtn")?.addEventListener("click", () => {
     let suggestedObservations = "";
     if (window.MineralAssistant) {
       const analysis = window.MineralAssistant.analyzeSample(sample);
-      possibleMinerals = analysis.minerals
+      possibleMinerals = (analysis.inferredMinerals || [])
         .filter((m) => m.confidence >= 20)
         .map((m) => `${m.name}(${Math.round(m.confidence)}%)`)
         .join("; ");
-      suggestedObservations = analysis.suggestions.join("; ");
+      suggestedObservations = (analysis.suggestions || [])
+        .map((s) => (typeof s === "string" ? s : s.text || ""))
+        .filter(Boolean)
+        .join("; ");
     }
 
     return {

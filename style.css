@@ -3941,3 +3941,248 @@ textarea {
     max-height: 480px;
   }
 }
+
+/* ============================================================
+   矿物鉴定辅助模块 - 补齐缺失样式
+   ============================================================ */
+
+.ma-assistant {
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.ma-mineral-formula {
+  font-size: 12px;
+  color: var(--muted);
+  font-style: italic;
+  margin-right: auto;
+  padding: 0 8px;
+}
+
+.ma-mineral-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px;
+  margin-bottom: 6px;
+}
+
+.ma-conf-bar,
+.ma-confidence-bar {
+  height: 5px;
+  background: var(--line);
+  border-radius: 3px;
+  overflow: hidden;
+  margin-bottom: 8px;
+}
+
+.ma-conf-fill,
+.ma-confidence-fill {
+  height: 100%;
+  border-radius: 3px;
+  transition: width 0.3s;
+}
+
+.ma-mineral-desc {
+  font-size: 12px;
+  color: var(--ink);
+  line-height: 1.6;
+  margin: 6px 0;
+  padding: 6px 8px;
+  background: var(--accent-soft);
+  border-radius: 4px;
+  border-left: 3px solid var(--accent);
+}
+
+.ma-match-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  align-items: center;
+  margin-top: 6px;
+  font-size: 11.5px;
+}
+
+.ma-match-label {
+  color: var(--muted);
+  font-weight: 500;
+}
+
+.ma-match-tag {
+  display: inline-block;
+  padding: 1px 7px;
+  background: #e8f5ee;
+  color: var(--success);
+  border-radius: 3px;
+  font-size: 11px;
+}
+
+.ma-missing-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  align-items: center;
+  margin-top: 4px;
+  font-size: 11.5px;
+}
+
+.ma-missing-label {
+  color: var(--amber);
+  font-weight: 500;
+}
+
+.ma-missing-tag {
+  display: inline-block;
+  padding: 1px 7px;
+  background: #fff4e5;
+  color: var(--warning);
+  border-radius: 3px;
+  font-size: 11px;
+}
+
+.ma-rock-card {
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 10px 12px;
+  margin-bottom: 6px;
+}
+
+.ma-rock-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 6px;
+}
+
+.ma-rock-name {
+  font-weight: 600;
+  font-size: 13.5px;
+  color: var(--ink);
+}
+
+.ma-rock-coverage {
+  font-size: 11.5px;
+  padding: 2px 8px;
+  background: var(--accent-soft);
+  color: var(--accent);
+  border-radius: 999px;
+  font-weight: 500;
+}
+
+.ma-rock-desc {
+  font-size: 12px;
+  color: var(--muted);
+  line-height: 1.5;
+  margin: 4px 0;
+}
+
+.ma-rock-minerals {
+  font-size: 11.5px;
+  color: var(--accent);
+  background: var(--accent-soft);
+  padding: 3px 6px;
+  border-radius: 4px;
+  display: inline-block;
+}
+
+.ma-suggestion {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 8px 10px;
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  margin-bottom: 6px;
+  font-size: 12.5px;
+  line-height: 1.5;
+  transition: all 0.2s;
+}
+
+.ma-suggestion:hover {
+  border-color: var(--accent);
+  box-shadow: 0 2px 6px rgba(43, 118, 102, 0.1);
+}
+
+.ma-sug-head {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+}
+
+.ma-sug-icon {
+  flex-shrink: 0;
+  font-size: 14px;
+  line-height: 1.4;
+}
+
+.ma-sug-text {
+  flex: 1;
+  color: var(--ink);
+}
+
+.ma-sug-details {
+  font-size: 11.5px;
+  color: var(--muted);
+  margin: 4px 0 0 22px;
+  padding: 4px 6px;
+  background: #f7faf7;
+  border-radius: 4px;
+}
+
+.ma-pri-high {
+  border-left: 3px solid var(--danger);
+  background: #fff9f9;
+}
+
+.ma-pri-high .ma-sug-icon {
+  color: var(--danger);
+}
+
+.ma-pri-medium {
+  border-left: 3px solid var(--warning);
+  background: #fffbf5;
+}
+
+.ma-pri-medium .ma-sug-icon {
+  color: var(--warning);
+}
+
+.ma-pri-low {
+  border-left: 3px solid var(--muted);
+  background: var(--panel);
+}
+
+.ma-pri-low .ma-sug-icon {
+  color: var(--muted);
+}
+
+.ma-suggestion-item {
+  display: flex;
+  gap: 8px;
+  padding: 6px 10px;
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  font-size: 12.5px;
+  line-height: 1.5;
+  margin-bottom: 6px;
+}
+
+.ma-suggestion-icon {
+  flex-shrink: 0;
+  color: var(--accent);
+  font-weight: 600;
+}
+
+.ma-disc-icon {
+  margin-right: 4px;
+}
+
+.ma-empty-tip {
+  color: var(--muted);
+  font-size: 12.5px;
+  padding: 12px 4px;
+  line-height: 1.6;
+}
