@@ -135,6 +135,7 @@ function sampleCardHTML(sample, showActions = true) {
         <div class="card-actions">
           <label><input type="checkbox" data-compare="${sample.id}" ${state.compare.includes(sample.id) ? "checked" : ""}>对比</label>
           <div class="card-action-btns">
+            <button type="button" data-view="${sample.id}" class="view-btn">🔬查看</button>
             <button type="button" data-annotate="${sample.id}">标注</button>
             <button type="button" data-review-card="${sample.id}">审核</button>
             <button type="button" data-delete="${sample.id}">删除</button>
@@ -161,6 +162,10 @@ function renderSamples() {
 
 function renderCompare() {
   if (!comparePane) return;
+  if (window.ImageViewerModule) {
+    window.ImageViewerModule.renderCompareWithViewer();
+    return;
+  }
   const compareSamples = state.compare
     .map((id) => state.samples.find((sample) => sample.id === id))
     .filter(Boolean)
@@ -254,6 +259,11 @@ function handleSampleGridClick(gridEl, event) {
   const deleteId = event.target.dataset.delete;
   const annotateId = event.target.dataset.annotate;
   const reviewId = event.target.dataset.reviewCard;
+  const viewId = event.target.dataset.view;
+  if (viewId) {
+    if (window.ImageViewerModule) window.ImageViewerModule.openSingleViewer(viewId);
+    return;
+  }
   if (annotateId) {
     if (window.AnnotationView) window.AnnotationView.openAnnotation(annotateId);
     return;
@@ -1394,6 +1404,14 @@ async function initApp() {
 
     if (window.ReviewModule) {
       window.ReviewModule.init({
+        getState: () => state,
+        save: () => window.DataManager.save(),
+        renderAll
+      });
+    }
+
+    if (window.ImageViewerModule) {
+      window.ImageViewerModule.init({
         getState: () => state,
         save: () => window.DataManager.save(),
         renderAll

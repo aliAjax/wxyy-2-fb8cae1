@@ -360,9 +360,14 @@ textarea {
   color: var(--danger);
 }
 
-.card-actions button[data-annotate]:hover {
+.card-actions button[data-annotate]:hover,
+.card-actions button.view-btn:hover {
   background: var(--accent);
   color: white;
+}
+
+.card-actions button.view-btn {
+  background: linear-gradient(135deg, var(--accent-soft), #e8f0eb);
 }
 
 .compare-pane {
