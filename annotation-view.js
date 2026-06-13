@@ -134,13 +134,13 @@
       if (selectedAnnotationId) deleteAnnotation(selectedAnnotationId);
     });
 
-    document.getElementById("clearAllBtn").addEventListener("click", () => {
+    document.getElementById("clearAllBtn").addEventListener("click", async () => {
       const sample = getCurrentSample();
       if (!sample || !sample.annotations || sample.annotations.length === 0) return;
       if (!confirm(`确定清空该样本的全部 ${sample.annotations.length} 条标注？此操作不可撤销。`)) return;
       sample.annotations = [];
       if (window.DataManager) {
-        window.DataManager.save();
+        await window.DataManager.updateSample(sample.id, { annotations: [] });
       } else {
         saveFn();
       }
@@ -315,9 +315,10 @@
       createdAt: new Date().toISOString(),
       sampleId: sample.id
     }, partial);
-    sample.annotations.push(annotation);
+    const newAnnotations = [...sample.annotations, annotation];
+    sample.annotations = newAnnotations;
     if (window.DataManager) {
-      window.DataManager.save();
+      window.DataManager.updateSample(sample.id, { annotations: newAnnotations });
     } else {
       saveFn();
     }
@@ -329,10 +330,11 @@
   function deleteAnnotation(id) {
     const sample = getCurrentSample();
     if (!sample || !sample.annotations) return;
-    sample.annotations = sample.annotations.filter((a) => a.id !== id);
+    const newAnnotations = sample.annotations.filter((a) => a.id !== id);
+    sample.annotations = newAnnotations;
     if (selectedAnnotationId === id) clearSelection();
     if (window.DataManager) {
-      window.DataManager.save();
+      window.DataManager.updateSample(sample.id, { annotations: newAnnotations });
     } else {
       saveFn();
     }

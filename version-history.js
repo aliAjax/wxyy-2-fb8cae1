@@ -28,8 +28,15 @@
       const val = sample[f.key];
       snapshot[f.key] = Array.isArray(val) ? [...val] : (val ?? "");
     });
-    snapshot.hasPhoto = !!(sample.photo && String(sample.photo).trim().length > 0);
-    snapshot.annotationCount = Array.isArray(sample.annotations) ? sample.annotations.length : 0;
+    snapshot.photo = sample.photo ? String(sample.photo) : "";
+    snapshot.hasPhoto = snapshot.photo.trim().length > 0;
+    if (Array.isArray(sample.annotations)) {
+      snapshot.annotations = sample.annotations.map(a => ({ ...a }));
+      snapshot.annotationCount = sample.annotations.length;
+    } else {
+      snapshot.annotations = [];
+      snapshot.annotationCount = 0;
+    }
     return snapshot;
   }
 
@@ -42,10 +49,18 @@
         changed.push(f.key);
       }
     });
-    if (oldSnapshot.hasPhoto !== newSnapshot.hasPhoto) {
+    const oldPhoto = String(oldSnapshot.photo || "").trim();
+    const newPhoto = String(newSnapshot.photo || "").trim();
+    if (oldPhoto !== newPhoto) {
+      changed.push("photo");
+    } else if (oldSnapshot.hasPhoto !== newSnapshot.hasPhoto) {
       changed.push("hasPhoto");
     }
-    if (oldSnapshot.annotationCount !== newSnapshot.annotationCount) {
+    const oldAnnJson = JSON.stringify(oldSnapshot.annotations || []);
+    const newAnnJson = JSON.stringify(newSnapshot.annotations || []);
+    if (oldAnnJson !== newAnnJson) {
+      changed.push("annotations");
+    } else if (oldSnapshot.annotationCount !== newSnapshot.annotationCount) {
       changed.push("annotationCount");
     }
     return changed;
@@ -62,11 +77,13 @@
     const labels = changedFields.map(key => {
       const tracked = TRACKED_FIELDS.find(f => f.key === key);
       if (tracked) return tracked.label;
-      if (key === "hasPhoto") return "照片";
-      if (key === "annotationCount") return "标注";
+      if (key === "photo" || key === "hasPhoto") return "照片";
+      if (key === "annotations" || key === "annotationCount") return "标注";
       return key;
     });
-    return "变更：" + labels.join("、");
+    const unique = [];
+    labels.forEach(l => { if (!unique.includes(l)) unique.push(l); });
+    return "变更：" + unique.join("、");
   }
 
   function detectChangeType(changedFields) {
@@ -132,7 +149,16 @@
         });
       }
     });
-    if (v1.snapshot.hasPhoto !== v2.snapshot.hasPhoto) {
+    const oldPhoto = String(v1.snapshot.photo || "").trim();
+    const newPhoto = String(v2.snapshot.photo || "").trim();
+    if (oldPhoto !== newPhoto) {
+      result.push({
+        field: "photo",
+        label: "照片",
+        oldValue: { __type: "photo", data: oldPhoto },
+        newValue: { __type: "photo", data: newPhoto }
+      });
+    } else if (v1.snapshot.hasPhoto !== v2.snapshot.hasPhoto) {
       result.push({
         field: "hasPhoto",
         label: "照片",
@@ -140,7 +166,16 @@
         newValue: v2.snapshot.hasPhoto ? "有" : "无"
       });
     }
-    if (v1.snapshot.annotationCount !== v2.snapshot.annotationCount) {
+    const oldAnn = v1.snapshot.annotations || [];
+    const newAnn = v2.snapshot.annotations || [];
+    if (JSON.stringify(oldAnn) !== JSON.stringify(newAnn)) {
+      result.push({
+        field: "annotations",
+        label: "标注",
+        oldValue: { __type: "annotations", data: oldAnn },
+        newValue: { __type: "annotations", data: newAnn }
+      });
+    } else if (v1.snapshot.annotationCount !== v2.snapshot.annotationCount) {
       result.push({
         field: "annotationCount",
         label: "标注",
@@ -176,6 +211,20 @@
         }
       }
     });
+
+    const curPhoto = String(currentSnapshot.photo || "").trim();
+    const tgtPhoto = String(targetSnapshot.photo || "").trim();
+    if (curPhoto !== tgtPhoto) {
+      updates.photo = targetSnapshot.photo || "";
+    }
+
+    const curAnnJson = JSON.stringify(currentSnapshot.annotations || []);
+    const tgtAnnJson = JSON.stringify(targetSnapshot.annotations || []);
+    if (curAnnJson !== tgtAnnJson) {
+      updates.annotations = Array.isArray(targetSnapshot.annotations)
+        ? targetSnapshot.annotations.map(a => ({ ...a }))
+        : [];
+    }
 
     if (Object.keys(updates).length === 0) return null;
 
@@ -260,6 +309,24 @@
 
   function formatFieldValue(field, value) {
     if (value === null || value === undefined || value === "") return "—";
+    if (value && typeof value === "object" && value.__type === "photo") {
+      const data = value.data || "";
+      if (!data) return '<span class="vh-photo-empty">（无照片）</span>';
+      if (data.startsWith("data:image/")) {
+        return `<img src="${data}" class="vh-diff-photo" alt="照片">`;
+      }
+      return `<a href="${escapeHtml(data)}" target="_blank" class="vh-photo-link">📷 查看照片</a>`;
+    }
+    if (value && typeof value === "object" && value.__type === "annotations") {
+      const arr = value.data || [];
+      if (!arr.length) return '<span class="vh-photo-empty">（无标注）</span>';
+      return arr.map((a, i) => {
+        const label = a.label || `标注${i + 1}`;
+        const coords = a.x !== undefined && a.y !== undefined ? `（x:${Math.round(a.x)}, y:${Math.round(a.y)}）` : "";
+        const text = a.text ? `：${String(a.text).slice(0, 40)}` : "";
+        return `<div class="vh-ann-item">${escapeHtml(label)}${coords}${escapeHtml(text)}</div>`;
+      }).join("");
+    }
     if (Array.isArray(value)) return value.join("；") || "—";
     return String(value);
   }
@@ -312,13 +379,17 @@
           </tr>
         </thead>
         <tbody>
-          ${diff.map(d => `
+          ${diff.map(d => {
+            const isRich = d.field === "photo" || d.field === "annotations";
+            const oldHtml = isRich ? formatFieldValue(d.field, d.oldValue) : escapeHtml(formatFieldValue(d.field, d.oldValue));
+            const newHtml = isRich ? formatFieldValue(d.field, d.newValue) : escapeHtml(formatFieldValue(d.field, d.newValue));
+            return `
             <tr class="vh-diff-row">
               <td class="vh-diff-field">${escapeHtml(d.label)}</td>
-              <td class="vh-diff-old">${escapeHtml(formatFieldValue(d.field, d.oldValue))}</td>
-              <td class="vh-diff-new">${escapeHtml(formatFieldValue(d.field, d.newValue))}</td>
+              <td class="vh-diff-old">${oldHtml}</td>
+              <td class="vh-diff-new">${newHtml}</td>
             </tr>
-          `).join("")}
+          `}).join("")}
         </tbody>
       </table>
     `;

@@ -318,7 +318,7 @@ form?.addEventListener("submit", async (event) => {
     annotations: [],
     createdAt: new Date().toISOString()
   };
-  window.DataManager.addSample(newSample);
+  await window.DataManager.addSample(newSample);
   pendingPhoto = "";
   photoInput.value = "";
   form.reset();
@@ -330,7 +330,7 @@ form?.addEventListener("submit", async (event) => {
   updateEntryAssistant();
 });
 
-function handleSampleGridClick(gridEl, event) {
+async function handleSampleGridClick(gridEl, event) {
   const deleteId = event.target.dataset.delete;
   const annotateId = event.target.dataset.annotate;
   const reviewId = event.target.dataset.reviewCard;
@@ -354,7 +354,7 @@ function handleSampleGridClick(gridEl, event) {
   }
   if (deleteId) {
     if (!confirm("确定删除该样本？删除后可在回收站中恢复。")) return;
-    window.DataManager.deleteSample(deleteId);
+    await window.DataManager.deleteSample(deleteId);
     renderAll();
   }
 }
@@ -1263,7 +1263,7 @@ function showImportPreview() {
   importConfirmBtn.disabled = importAnalysis.validCount === 0;
 }
 
-function confirmImport() {
+async function confirmImport() {
   if (!importPreviewData || !importAnalysis) return;
 
   const skipDup = importSkipDup?.checked ?? true;
@@ -1273,11 +1273,11 @@ function confirmImport() {
   const existingCodes = new Set(state.samples.map((s) => s.code));
   const importedCodes = new Set();
 
-  importAnalysis.validRows.forEach(({ sample }) => {
+  for (const { sample } of importAnalysis.validRows) {
     if (skipDup) {
       if (existingCodes.has(sample.code) || importedCodes.has(sample.code)) {
         skipped++;
-        return;
+        continue;
       }
     }
 
@@ -1295,10 +1295,10 @@ function confirmImport() {
       createdAt: new Date().toISOString()
     };
 
-    window.DataManager.addSample(newSample);
+    await window.DataManager.addSample(newSample);
     importedCodes.add(sample.code);
     imported++;
-  });
+  }
 
   renderAll();
 
@@ -3074,7 +3074,7 @@ function renderVersionHistoryContent(sampleId, sample, versions, body, footer) {
             alert("当前数据已是该版本，无需回滚。");
             return;
           }
-          window.DataManager.updateSample(sampleId, result.updates);
+          await window.DataManager.updateSample(sampleId, result.updates);
           await window.VersionHistory.recordVersion(sampleId, window.DataManager.getSampleById(sampleId), "rollback", result.targetSnapshot);
           state = window.DataManager.getState();
           renderAll();

@@ -107,7 +107,7 @@
           const changeType = window.VersionHistory.detectChangeType(
             Object.keys(updates).filter(k => {
               const tracked = window.VersionHistory.TRACKED_FIELDS.find(f => f.key === k);
-              return tracked || k === "hasPhoto" || k === "annotationCount";
+              return tracked || k === "photo" || k === "hasPhoto" || k === "annotations" || k === "annotationCount";
             })
           );
           await window.VersionHistory.recordVersion(id, state.samples[index], changeType, oldSnapshot);
