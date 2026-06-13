@@ -853,7 +853,7 @@
     singleViewerOverlay.id = "imageViewerOverlay";
     singleViewerOverlay.className = "iv-overlay-modal hidden";
     singleViewerOverlay.innerHTML = `
-      <div class="iv-modal">
+      <div class="iv-modal iv-modal-wide">
         <header class="iv-modal-header">
           <div>
             <h2 id="ivModalTitle">显微照片深度查看</h2>
@@ -861,7 +861,24 @@
           </div>
           <button type="button" id="ivModalCloseBtn" class="iv-close-btn">关闭</button>
         </header>
-        <div id="ivModalViewer" class="iv-modal-body"></div>
+        <div class="iv-modal-split">
+          <div id="ivModalViewer" class="iv-modal-body iv-viewer-pane"></div>
+          <aside class="iv-assistant-pane">
+            <div class="iv-assistant-header">
+              <h3>🔬 矿物鉴定辅助</h3>
+              <button type="button" id="ivToggleFeatures" class="iv-toggle-features">勾选观察特征</button>
+            </div>
+            <div id="ivAssistantInfo" class="iv-assistant-info"></div>
+            <div id="ivFeaturesPanel" class="iv-features-panel hidden">
+              <div id="ivFeaturesList"></div>
+              <div class="iv-features-actions">
+                <button type="button" id="ivClearFeatures" class="ghost">清空选择</button>
+                <button type="button" id="ivSaveFeatures" class="primary">保存特征</button>
+              </div>
+            </div>
+            <div id="ivAssistantResults" class="iv-assistant-results"></div>
+          </aside>
+        </div>
       </div>
     `;
     document.body.appendChild(singleViewerOverlay);
@@ -872,11 +889,48 @@
 
     document.getElementById("ivModalCloseBtn").addEventListener("click", closeSingleViewer);
 
+    document.getElementById("ivToggleFeatures").addEventListener("click", () => {
+      document.getElementById("ivFeaturesPanel").classList.toggle("hidden");
+    });
+
+    document.getElementById("ivClearFeatures").addEventListener("click", () => {
+      const panel = document.getElementById("ivFeaturesPanel");
+      panel.querySelectorAll(".ma-feature-checkbox").forEach((cb) => { cb.checked = false; });
+      updateViewerAssistantResults();
+    });
+
+    document.getElementById("ivSaveFeatures").addEventListener("click", async () => {
+      if (!currentSingleViewer || !currentSingleViewer.sampleId) return;
+      const selected = Array.from(
+        document.querySelectorAll("#ivFeaturesPanel .ma-feature-checkbox:checked")
+      ).map((cb) => cb.value);
+      if (window.DataManager) {
+        window.DataManager.updateSample(currentSingleViewer.sampleId, { observationFeatures: selected });
+      }
+      alert("观察特征已保存！");
+    });
+
     document.addEventListener("keydown", (e) => {
       if (e.key === "Escape" && !singleViewerOverlay.classList.contains("hidden")) {
         closeSingleViewer();
       }
     });
+  }
+
+  function updateViewerAssistantResults() {
+    if (!currentSingleViewer || !currentSingleViewer.sampleId || !window.MineralAssistant || !window.DataManager) return;
+    const state = window.DataManager.getState();
+    const sample = state.samples.find((s) => s.id === currentSingleViewer.sampleId);
+    if (!sample) return;
+
+    const selectedFeatures = Array.from(
+      document.querySelectorAll("#ivFeaturesPanel .ma-feature-checkbox:checked")
+    ).map((cb) => cb.value);
+
+    const tempSample = { ...sample, observationFeatures: selectedFeatures };
+    const analysis = window.MineralAssistant.analyzeSample(tempSample);
+    document.getElementById("ivAssistantResults").innerHTML =
+      window.MineralAssistant.getMineralSuggestionHTML(analysis);
   }
 
   let currentSingleViewer = null;
@@ -896,6 +950,24 @@
     document.getElementById("ivModalTitle").textContent = `深度查看：${sample.code}`;
     document.getElementById("ivModalSubtitle").textContent =
       `${sample.location || "未记录地点"} · ${sample.magnification || "未记录倍数"} · ${sample.polarization}`;
+
+    const infoEl = document.getElementById("ivAssistantInfo");
+    infoEl.innerHTML = `
+      <div class="iv-info-row"><span class="iv-info-label">偏光：</span><span>${sample.polarization || "未记录"}</span></div>
+      <div class="iv-info-row"><span class="iv-info-label">矿物：</span><span>${sample.minerals || "未记录"}</span></div>
+      <div class="iv-info-row"><span class="iv-info-label">结构：</span><span>${sample.texture || "未记录"}</span></div>
+      ${sample.comment ? `<div class="iv-info-row iv-info-comment"><span class="iv-info-label">批注：</span><span>${sample.comment}</span></div>` : ""}
+    `;
+
+    const featuresListEl = document.getElementById("ivFeaturesList");
+    const selectedFeatures = sample.observationFeatures || [];
+    featuresListEl.innerHTML = window.MineralAssistant
+      ? window.MineralAssistant.getObservationFeaturesHTML(selectedFeatures, sample.polarization)
+      : "";
+
+    featuresListEl.querySelectorAll(".ma-feature-checkbox").forEach((cb) => {
+      cb.addEventListener("change", updateViewerAssistantResults);
+    });
 
     const container = document.getElementById("ivModalViewer");
     container.innerHTML = "";
@@ -924,6 +996,7 @@
 
     setTimeout(() => {
       currentSingleViewer.fitToWindow();
+      updateViewerAssistantResults();
     }, 50);
   }
 

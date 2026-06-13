@@ -34,7 +34,7 @@
     </nav>
 
     <section id="tab-entry" class="tab-panel active">
-      <section class="layout">
+      <section class="layout layout-entry">
         <form id="sampleForm" class="editor">
           <h2>样本录入</h2>
           <label>显微照片<input id="photoInput" type="file" accept="image/*"></label>
@@ -43,16 +43,24 @@
           <div class="pair">
             <label>放大倍数<input name="magnification" placeholder="40x"></label>
             <label>偏光类型
-              <select name="polarization">
+              <select name="polarization" id="entryPolarization">
                 <option>单偏光</option>
                 <option>正交偏光</option>
                 <option>反射光</option>
               </select>
             </label>
           </div>
-          <label>主要矿物<input name="minerals" placeholder="石英、斜长石、黑云母"></label>
-          <label>颗粒结构<input name="texture" placeholder="半自形粒状、碎裂结构"></label>
-          <label>老师批注<textarea name="comment" rows="4" placeholder="记录鉴定依据或疑点"></textarea></label>
+          <label>主要矿物<input name="minerals" id="entryMinerals" placeholder="石英、斜长石、黑云母"></label>
+          <label>颗粒结构<input name="texture" id="entryTexture" placeholder="半自形粒状、碎裂结构"></label>
+          <label>老师批注<textarea name="comment" id="entryComment" rows="4" placeholder="记录鉴定依据或疑点"></textarea></label>
+
+          <div class="entry-features-toggle">
+            <button type="button" id="entryToggleFeatures" class="ghost">📋 勾选观察特征</button>
+          </div>
+          <div id="entryFeaturesPanel" class="entry-features-panel hidden">
+            <div id="entryFeaturesList"></div>
+          </div>
+
           <button type="submit">保存样本</button>
         </form>
 
@@ -64,7 +72,9 @@
         </section>
 
         <aside class="compare">
-          <h2>并排对比</h2>
+          <h2>矿物鉴定辅助</h2>
+          <div id="entryAssistantResults" class="entry-assistant"></div>
+          <h2 style="margin-top:20px;">并排对比</h2>
           <div id="comparePane" class="compare-pane"></div>
         </aside>
       </section>
@@ -490,6 +500,7 @@
   <script src="./data-manager.js"></script>
   <script src="./data-migration.js"></script>
   <script src="./backup-restore.js"></script>
+  <script src="./mineral-rules.js"></script>
   <script src="./lesson-package.js"></script>
   <script src="./annotation-view.js"></script>
   <script src="./image-viewer.js"></script>

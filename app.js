@@ -231,12 +231,77 @@ photoInput?.addEventListener("change", async () => {
   pendingPhoto = await readFileAsDataUrl(photoInput.files[0]);
 });
 
+function getEntrySelectedFeatures() {
+  const panel = document.getElementById("entryFeaturesPanel");
+  if (!panel) return [];
+  return Array.from(panel.querySelectorAll(".ma-feature-checkbox:checked")).map((cb) => cb.value);
+}
+
+function refreshEntryFeaturesList() {
+  const listEl = document.getElementById("entryFeaturesList");
+  const polarEl = document.getElementById("entryPolarization");
+  if (!listEl || !window.MineralAssistant) return;
+  const polarization = polarEl?.value || "";
+  const currentSelected = getEntrySelectedFeatures();
+  listEl.innerHTML = window.MineralAssistant.getObservationFeaturesHTML(currentSelected, polarization);
+  listEl.querySelectorAll(".ma-feature-checkbox").forEach((cb) => {
+    cb.addEventListener("change", updateEntryAssistant);
+  });
+  updateEntryAssistant();
+}
+
+function updateEntryAssistant() {
+  const resultsEl = document.getElementById("entryAssistantResults");
+  if (!resultsEl || !window.MineralAssistant) return;
+
+  const polarization = document.getElementById("entryPolarization")?.value || "";
+  const minerals = document.getElementById("entryMinerals")?.value || "";
+  const texture = document.getElementById("entryTexture")?.value || "";
+  const comment = document.getElementById("entryComment")?.value || "";
+  const selectedFeatures = getEntrySelectedFeatures();
+
+  const tempSample = {
+    polarization,
+    minerals,
+    texture,
+    comment,
+    observationFeatures: selectedFeatures
+  };
+
+  const analysis = window.MineralAssistant.analyzeSample(tempSample);
+  resultsEl.innerHTML = window.MineralAssistant.getMineralSuggestionHTML(analysis);
+}
+
+function initEntryAssistant() {
+  const toggleBtn = document.getElementById("entryToggleFeatures");
+  const featuresPanel = document.getElementById("entryFeaturesPanel");
+  toggleBtn?.addEventListener("click", () => {
+    featuresPanel?.classList.toggle("hidden");
+    if (!featuresPanel.classList.contains("hidden")) {
+      refreshEntryFeaturesList();
+    }
+  });
+
+  ["entryPolarization", "entryMinerals", "entryTexture", "entryComment"].forEach((id) => {
+    const el = document.getElementById(id);
+    if (!el) return;
+    el.addEventListener("input", updateEntryAssistant);
+    el.addEventListener("change", () => {
+      if (id === "entryPolarization") refreshEntryFeaturesList();
+      updateEntryAssistant();
+    });
+  });
+
+  updateEntryAssistant();
+}
+
 form?.addEventListener("submit", async (event) => {
   event.preventDefault();
   const data = new FormData(form);
   if (!pendingPhoto && photoInput?.files?.[0]) {
     pendingPhoto = await readFileAsDataUrl(photoInput.files[0]);
   }
+  const observationFeatures = getEntrySelectedFeatures();
   const newSample = {
     id: crypto.randomUUID(),
     photo: pendingPhoto,
@@ -247,6 +312,7 @@ form?.addEventListener("submit", async (event) => {
     minerals: data.get("minerals").trim(),
     texture: data.get("texture").trim(),
     comment: data.get("comment").trim(),
+    observationFeatures,
     annotations: [],
     createdAt: new Date().toISOString()
   };
@@ -254,7 +320,12 @@ form?.addEventListener("submit", async (event) => {
   pendingPhoto = "";
   photoInput.value = "";
   form.reset();
+  if (document.getElementById("entryFeaturesPanel")) {
+    document.getElementById("entryFeaturesPanel").classList.add("hidden");
+    document.getElementById("entryFeaturesList").innerHTML = "";
+  }
   renderAll();
+  updateEntryAssistant();
 });
 
 function handleSampleGridClick(gridEl, event) {
@@ -302,6 +373,18 @@ $("#exportBtn")?.addEventListener("click", () => {
   const checklist = state.samples.map((sample) => {
     const reviewStatus = window.ReviewModule ? window.ReviewModule.getReviewStatusLabel(sample) : "";
     const completeness = window.ReviewModule ? window.ReviewModule.calcCompleteness(sample).percent + "%" : "";
+
+    let possibleMinerals = "";
+    let suggestedObservations = "";
+    if (window.MineralAssistant) {
+      const analysis = window.MineralAssistant.analyzeSample(sample);
+      possibleMinerals = analysis.minerals
+        .filter((m) => m.confidence >= 20)
+        .map((m) => `${m.name}(${Math.round(m.confidence)}%)`)
+        .join("; ");
+      suggestedObservations = analysis.suggestions.join("; ");
+    }
+
     return {
       样本编号: sample.code,
       采样地点: sample.location,
@@ -310,6 +393,9 @@ $("#exportBtn")?.addEventListener("click", () => {
       主要矿物: sample.minerals,
       颗粒结构: sample.texture,
       老师批注: sample.comment,
+      观察特征: (sample.observationFeatures || []).join("; "),
+      可能矿物_辅助: possibleMinerals,
+      待观察项_辅助: suggestedObservations,
       资料完整度: completeness,
       审核状态: reviewStatus,
       复核意见: sample.reviewComment || "",
@@ -2828,6 +2914,7 @@ async function initApp() {
 
     initBackupRestoreUI();
     initLessonUI();
+    initEntryAssistant();
 
     renderAll();
   } catch (err) {
