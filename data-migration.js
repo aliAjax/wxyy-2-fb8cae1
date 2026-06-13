@@ -32,22 +32,27 @@
 
     const migrationDone = await window.StorageLayer.AppStateStore.getMigrationStatus();
     if (migrationDone) {
+      await migrateAppStateSchema();
       return { migrated: false, reason: "already_migrated" };
     }
 
     const legacyData = readLegacyData();
     if (!legacyData) {
       await window.StorageLayer.AppStateStore.setMigrationStatus(true);
-      await window.StorageLayer.AppStateStore.setSchemaVersion(MIGRATION_VERSION);
+      await migrateAppStateSchema();
       return { migrated: false, reason: "no_legacy_data" };
     }
 
     const samples = legacyData.samples || [];
     const tasks = legacyData.tasks || [];
     const compareList = legacyData.compare || [];
+    const submissions = legacyData.submissions || [];
+    const rubrics = legacyData.rubrics || [];
+    const lessonMetas = legacyData.lessonMetas || {};
 
     let sampleCount = 0;
     let taskCount = 0;
+    let submissionCount = 0;
 
     if (samples.length > 0) {
       const samplesWithDefaults = samples.map(s => ({
@@ -64,6 +69,7 @@
         reviewStatus: s.reviewStatus || null,
         reviewComment: s.reviewComment || "",
         reviewedAt: s.reviewedAt || null,
+        lessonPackageId: s.lessonPackageId || "",
         createdAt: s.createdAt || new Date().toISOString()
       }));
 
@@ -80,6 +86,7 @@
         sampleIds: t.sampleIds || [],
         completedSamples: t.completedSamples || [],
         comments: t.comments || [],
+        lessonPackageId: t.lessonPackageId || "",
         createdAt: t.createdAt || new Date().toISOString()
       }));
 
@@ -93,14 +100,48 @@
       await window.StorageLayer.AppStateStore.setCompareList(compareList);
     }
 
+    if (submissions.length > 0 || rubrics.length > 0 || Object.keys(lessonMetas).length > 0) {
+      if (submissions.length > 0) {
+        const submissionsWithDefaults = submissions.map(sub => ({
+          id: sub.id || crypto.randomUUID(),
+          packageId: sub.packageId || crypto.randomUUID(),
+          lessonPackageId: sub.lessonPackageId || "",
+          lessonTitle: sub.lessonTitle || "",
+          importedAt: sub.importedAt || new Date().toISOString(),
+          studentInfo: sub.studentInfo || { name: "", studentId: "", className: "" },
+          tasks: sub.tasks || [],
+          answers: sub.answers || {},
+          taskProgress: sub.taskProgress || {},
+          scores: sub.scores || {},
+          finalScore: sub.finalScore !== undefined ? sub.finalScore : null,
+          gradedAt: sub.gradedAt || null,
+          gradedBy: sub.gradedBy || ""
+        }));
+        await window.StorageLayer.setAppState("submissions", submissionsWithDefaults);
+        submissionCount = submissionsWithDefaults.length;
+      }
+      if (rubrics.length > 0) {
+        await window.StorageLayer.setAppState("rubrics", rubrics);
+      }
+      if (lessonMetas && typeof lessonMetas === "object" && Object.keys(lessonMetas).length > 0) {
+        await window.StorageLayer.setAppState("lessonMetas", lessonMetas);
+      }
+    }
+
+    const localAnswers = legacyData.localAnswers || [];
+    if (localAnswers.length > 0 && window.StorageLayer.AnswerStore) {
+      await window.StorageLayer.AnswerStore.bulkSave(localAnswers);
+    }
+
     await window.StorageLayer.AppStateStore.setMigrationStatus(true);
-    await window.StorageLayer.AppStateStore.setSchemaVersion(MIGRATION_VERSION);
+    await migrateAppStateSchema();
 
     return {
       migrated: true,
       sampleCount,
       taskCount,
-      compareCount: compareList.length
+      compareCount: compareList.length,
+      submissionCount
     };
   }
 
@@ -130,12 +171,19 @@
       const submissions = await window.StorageLayer.getAppState("submissions", []);
       if (Array.isArray(submissions)) {
         const migrated = submissions.map(sub => ({
-          ...sub,
+          id: sub.id || crypto.randomUUID(),
+          packageId: sub.packageId || crypto.randomUUID(),
+          lessonPackageId: sub.lessonPackageId || "",
+          lessonTitle: sub.lessonTitle || "",
+          importedAt: sub.importedAt || new Date().toISOString(),
+          studentInfo: sub.studentInfo || { name: "", studentId: "", className: "" },
+          tasks: sub.tasks || [],
+          answers: sub.answers || {},
+          taskProgress: sub.taskProgress || {},
           scores: sub.scores || {},
           finalScore: sub.finalScore !== undefined ? sub.finalScore : null,
           gradedAt: sub.gradedAt || null,
-          gradedBy: sub.gradedBy || "",
-          lessonTitle: sub.lessonTitle || ""
+          gradedBy: sub.gradedBy || ""
         }));
         await window.StorageLayer.setAppState("submissions", migrated);
       }
@@ -148,6 +196,19 @@
       const lessonMetas = await window.StorageLayer.getAppState("lessonMetas", {});
       if (!lessonMetas || typeof lessonMetas !== "object" || Array.isArray(lessonMetas)) {
         await window.StorageLayer.setAppState("lessonMetas", {});
+      } else {
+        const normalized = {};
+        Object.entries(lessonMetas).forEach(([pkgId, meta]) => {
+          normalized[pkgId] = {
+            packageId: meta.packageId || pkgId,
+            title: meta.title || "",
+            description: meta.description || "",
+            importedAt: meta.importedAt || new Date().toISOString(),
+            rubrics: (meta.rubrics && Array.isArray(meta.rubrics)) ? meta.rubrics : [],
+            referenceAnswers: (meta.referenceAnswers && typeof meta.referenceAnswers === "object") ? meta.referenceAnswers : {}
+          };
+        });
+        await window.StorageLayer.setAppState("lessonMetas", normalized);
       }
     }
 

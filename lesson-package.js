@@ -140,7 +140,16 @@
     state.rubrics = Array.isArray(rubrics) ? rubrics : [];
     state.lessonMetas = (lessonMetas && typeof lessonMetas === "object" && !Array.isArray(lessonMetas)) ? lessonMetas : {};
 
-    migrateSubmissionsSchema();
+    const dirty = migrateSubmissionsSchema();
+    const metaDirty = migrateLessonMetasSchema();
+
+    if (dirty || metaDirty) {
+      try {
+        await saveState();
+      } catch (e) {
+        console.warn("持久化迁移后的课堂包状态失败:", e);
+      }
+    }
 
     return state;
   }
@@ -148,10 +157,34 @@
   function migrateSubmissionsSchema() {
     let dirty = false;
     state.submissions.forEach(sub => {
+      if (!sub.id) { sub.id = generateId(); dirty = true; }
       if (!sub.scores) { sub.scores = {}; dirty = true; }
       if (sub.finalScore === undefined) { sub.finalScore = null; dirty = true; }
       if (!sub.gradedAt) { sub.gradedAt = null; dirty = true; }
       if (!sub.gradedBy) { sub.gradedBy = ""; dirty = true; }
+      if (!sub.lessonTitle) { sub.lessonTitle = ""; dirty = true; }
+      if (!sub.taskProgress) { sub.taskProgress = {}; dirty = true; }
+      if (!sub.importedAt) { sub.importedAt = new Date().toISOString(); dirty = true; }
+    });
+    return dirty;
+  }
+
+  function migrateLessonMetasSchema() {
+    let dirty = false;
+    Object.keys(state.lessonMetas).forEach(pkgId => {
+      const meta = state.lessonMetas[pkgId];
+      if (!meta.packageId) { meta.packageId = pkgId; dirty = true; }
+      if (!meta.title) { meta.title = ""; dirty = true; }
+      if (!meta.description) { meta.description = ""; dirty = true; }
+      if (!meta.importedAt) { meta.importedAt = new Date().toISOString(); dirty = true; }
+      if (!meta.rubrics || !Array.isArray(meta.rubrics)) {
+        meta.rubrics = buildDefaultRubrics();
+        dirty = true;
+      }
+      if (!meta.referenceAnswers || typeof meta.referenceAnswers !== "object") {
+        meta.referenceAnswers = {};
+        dirty = true;
+      }
     });
     return dirty;
   }

@@ -2749,13 +2749,17 @@ async function showMigrationDialog() {
         progressFill.style.width = "100%";
 
         if (result.migrated) {
-          statusEl.textContent = `迁移完成！${result.sampleCount} 个样本、${result.taskCount} 个任务`;
+          const parts = [];
+          if (result.sampleCount) parts.push(`${result.sampleCount} 个样本`);
+          if (result.taskCount) parts.push(`${result.taskCount} 个任务`);
+          if (result.submissionCount) parts.push(`${result.submissionCount} 份作答`);
+          statusEl.textContent = "迁移完成！" + parts.join("、");
           setTimeout(() => {
             overlay.remove();
             resolve({ migrated: true });
           }, 1500);
         } else {
-          statusEl.textContent = "无需迁移";
+          statusEl.textContent = "数据结构已更新";
           setTimeout(() => {
             overlay.remove();
             resolve({ migrated: false });
@@ -2769,7 +2773,12 @@ async function showMigrationDialog() {
       }
     });
 
-    skipBtn.addEventListener("click", () => {
+    skipBtn.addEventListener("click", async () => {
+      try {
+        await window.DataMigration.migrateAppStateSchema();
+      } catch (e) {
+        console.warn("Schema 迁移失败:", e);
+      }
       overlay.remove();
       resolve({ migrated: false, skipped: true });
     });
@@ -2779,16 +2788,16 @@ async function showMigrationDialog() {
 async function initApp() {
   try {
     await window.StorageLayer.initDB();
-    await window.DataManager.init();
-
-    if (window.LessonPackage) {
-      await window.LessonPackage.init();
-    }
 
     const needsMigration = await window.DataMigration.checkAndMigrate();
     if (needsMigration) {
       await showMigrationDialog();
-      await window.DataManager.reload();
+    }
+
+    await window.DataManager.init();
+
+    if (window.LessonPackage) {
+      await window.LessonPackage.init();
     }
 
     state = window.DataManager.getState();
