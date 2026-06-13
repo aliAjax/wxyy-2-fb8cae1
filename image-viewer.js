@@ -5,6 +5,7 @@
   const MAX_SCALE = 10;
   const SCALE_STEP = 0.1;
   const WHEEL_SCALE_FACTOR = 0.0015;
+  const SYNC_THROTTLE_MS = 16;
 
   let getState = null;
   let saveFn = null;
@@ -60,6 +61,12 @@
 
       this.syncEnabled = false;
       this.syncPartner = null;
+      this.isSyncing = false;
+      this.syncTimer = null;
+      this.lastSyncAt = 0;
+
+      this.sampleId = null;
+      this.calibrating = false;
 
       this.init();
     }
@@ -234,6 +241,7 @@
       });
 
       this.canvasContainer.addEventListener("touchstart", (e) => {
+        if (this.calibrating) return;
         if (e.touches.length === 1) {
           const touch = e.touches[0];
           if (this.isMeasuring) {
@@ -258,6 +266,7 @@
       }, { passive: false });
 
       this.canvasContainer.addEventListener("touchmove", (e) => {
+        if (this.calibrating) return;
         if (e.touches.length === 1 && this.isDragging) {
           e.preventDefault();
           const touch = e.touches[0];
@@ -288,13 +297,15 @@
       }, { passive: false });
 
       this.canvasContainer.addEventListener("touchend", (e) => {
+        if (this.calibrating) return;
         if (e.touches.length === 0) {
           this.isDragging = false;
           this.pinching = false;
         }
 
-        if (this.isMeasuring && this.measureStart && e.touches.length === 0) {
-          this.handleMeasureEnd();
+        if (this.isMeasuring && this.measureStart && e.touches.length === 0 && e.changedTouches.length > 0) {
+          const touch = e.changedTouches[0];
+          this.handleMeasureEnd(touch);
         }
       });
 
@@ -580,26 +591,48 @@
 
       const self = this;
       const originalMeasureMode = this.isMeasuring;
+      const originalCalibrating = this.calibrating;
       this.isMeasuring = true;
+      this.calibrating = true;
       this.canvasContainer.style.cursor = "crosshair";
       let tempLineEl = null;
       let startCoords = null;
+      let pointerActive = false;
 
-      function onMouseDown(e) {
-        if (e.button !== 0) return;
-        startCoords = self.getImageCoords(e.clientX, e.clientY);
-        document.addEventListener("mousemove", onMouseMove);
-        document.addEventListener("mouseup", onMouseUp);
+      function getPointFromEvent(e) {
+        if (e.touches && e.touches.length > 0) {
+          return { clientX: e.touches[0].clientX, clientY: e.touches[0].clientY };
+        }
+        return { clientX: e.clientX, clientY: e.clientY };
       }
 
-      function onMouseMove(e) {
-        if (!startCoords) return;
+      function onPointerDown(e) {
+        if (e.type === "mousedown" && e.button !== 0) return;
+        if (pointerActive) return;
+        pointerActive = true;
+        e.preventDefault();
+        const pt = getPointFromEvent(e);
+        startCoords = self.getImageCoords(pt.clientX, pt.clientY);
+        if (e.type === "mousedown") {
+          document.addEventListener("mousemove", onPointerMove);
+          document.addEventListener("mouseup", onPointerUp);
+        } else {
+          document.addEventListener("touchmove", onPointerMove, { passive: false });
+          document.addEventListener("touchend", onPointerUp);
+          document.addEventListener("touchcancel", onPointerUp);
+        }
+      }
+
+      function onPointerMove(e) {
+        if (!startCoords || !pointerActive) return;
+        e.preventDefault();
         if (!tempLineEl) {
           tempLineEl = document.createElement("div");
           tempLineEl.className = "iv-measure-line iv-calibration-line";
           self.measureLayer.appendChild(tempLineEl);
         }
-        const endCoords = self.getImageCoords(e.clientX, e.clientY);
+        const pt = getPointFromEvent(e);
+        const endCoords = self.getImageCoords(pt.clientX, pt.clientY);
         const left = Math.min(startCoords.x, endCoords.x) * self.scale;
         const top = Math.min(startCoords.y, endCoords.y) * self.scale;
         const width = Math.abs(endCoords.x - startCoords.x) * self.scale;
@@ -615,14 +648,10 @@
         tempLineEl.style.display = "block";
       }
 
-      function onMouseUp(e) {
-        document.removeEventListener("mousemove", onMouseMove);
-        document.removeEventListener("mouseup", onMouseUp);
-        self.canvasContainer.removeEventListener("mousedown", onMouseDown);
-
+      function finishCalibration(endPt) {
         if (!startCoords) return;
 
-        const endCoords = self.getImageCoords(e.clientX, e.clientY);
+        const endCoords = self.getImageCoords(endPt.clientX, endPt.clientY);
         const pixelDistance = Math.hypot(endCoords.x - startCoords.x, endCoords.y - startCoords.y);
 
         if (tempLineEl) {
@@ -633,19 +662,62 @@
         if (pixelDistance < 5) {
           alert("绘制的线段太短，请重新校准。");
           self.isMeasuring = originalMeasureMode;
+          self.calibrating = originalCalibrating;
           self.canvasContainer.style.cursor = self.isMeasuring ? "crosshair" : "";
           return;
         }
 
         self.scaleBarPixels = pixelDistance;
         self.isMeasuring = originalMeasureMode;
+        self.calibrating = originalCalibrating;
         self.canvasContainer.style.cursor = self.isMeasuring ? "crosshair" : "";
 
         self.updateScaleBar();
+        self.saveCalibrationToSample();
         alert("比例尺已校准：" + self.scaleBarPixels.toFixed(1) + " 像素 = " + self.scaleBarLength + " " + self.scaleBarUnit);
       }
 
-      this.canvasContainer.addEventListener("mousedown", onMouseDown);
+      function onPointerUp(e) {
+        document.removeEventListener("mousemove", onPointerMove);
+        document.removeEventListener("mouseup", onPointerUp);
+        document.removeEventListener("touchmove", onPointerMove);
+        document.removeEventListener("touchend", onPointerUp);
+        document.removeEventListener("touchcancel", onPointerUp);
+        self.canvasContainer.removeEventListener("mousedown", onPointerDown);
+        self.canvasContainer.removeEventListener("touchstart", onPointerDown);
+
+        if (!pointerActive) return;
+        pointerActive = false;
+
+        let endPt;
+        if (e.changedTouches && e.changedTouches.length > 0) {
+          endPt = { clientX: e.changedTouches[0].clientX, clientY: e.changedTouches[0].clientY };
+        } else {
+          endPt = { clientX: e.clientX, clientY: e.clientY };
+        }
+        finishCalibration(endPt);
+      }
+
+      this.canvasContainer.addEventListener("mousedown", onPointerDown);
+      this.canvasContainer.addEventListener("touchstart", onPointerDown, { passive: false });
+    }
+
+    saveCalibrationToSample() {
+      if (!this.sampleId) return;
+      const state = getStateRef();
+      if (!state) return;
+      const sample = state.samples.find(s => s.id === this.sampleId);
+      if (!sample) return;
+
+      sample.scaleBar = {
+        unit: this.scaleBarUnit,
+        length: this.scaleBarLength,
+        pixels: this.scaleBarPixels
+      };
+
+      if (typeof saveFn === "function") {
+        try { saveFn(); } catch (e) {}
+      }
     }
 
     updateScaleBar() {
@@ -695,22 +767,50 @@
 
     syncToPartner() {
       if (!this.syncEnabled || !this.syncPartner || !this.syncPartner.syncEnabled) return;
+      if (this.isSyncing) return;
 
-      this.syncPartner.scale = this.scale;
-      this.syncPartner.translateX = this.translateX;
-      this.syncPartner.translateY = this.translateY;
-      this.syncPartner.brightness = this.brightness;
-      this.syncPartner.contrast = this.contrast;
+      const now = Date.now();
+      if (now - this.lastSyncAt < SYNC_THROTTLE_MS) {
+        if (this.syncTimer) return;
+        this.syncTimer = setTimeout(() => {
+          this.syncTimer = null;
+          this.doSyncToPartner();
+        }, SYNC_THROTTLE_MS);
+        return;
+      }
+      this.doSyncToPartner();
+    }
 
-      this.syncPartner.updateTransform();
-      this.syncPartner.updateImageFilters();
+    doSyncToPartner() {
+      if (!this.syncEnabled || !this.syncPartner || !this.syncPartner.syncEnabled) return;
+      if (this.isSyncing) return;
 
-      const brightnessSlider = this.syncPartner.container.querySelector('[data-adjust="brightness"]');
-      const contrastSlider = this.syncPartner.container.querySelector('[data-adjust="contrast"]');
-      if (brightnessSlider) brightnessSlider.value = this.brightness;
-      if (contrastSlider) contrastSlider.value = this.contrast;
-      if (this.syncPartner.brightnessDisplay) this.syncPartner.brightnessDisplay.textContent = this.brightness;
-      if (this.syncPartner.contrastDisplay) this.syncPartner.contrastDisplay.textContent = this.contrast;
+      this.isSyncing = true;
+      this.lastSyncAt = Date.now();
+
+      try {
+        this.syncPartner.scale = Math.max(MIN_SCALE, Math.min(MAX_SCALE, this.scale));
+        this.syncPartner.translateX = this.translateX;
+        this.syncPartner.translateY = this.translateY;
+        this.syncPartner.brightness = Math.max(0, Math.min(200, this.brightness));
+        this.syncPartner.contrast = Math.max(0, Math.min(200, this.contrast));
+
+        this.syncPartner.updateTransform();
+        this.syncPartner.updateImageFilters();
+
+        const brightnessSlider = this.syncPartner.container.querySelector('[data-adjust="brightness"]');
+        const contrastSlider = this.syncPartner.container.querySelector('[data-adjust="contrast"]');
+        if (brightnessSlider) brightnessSlider.value = String(this.syncPartner.brightness);
+        if (contrastSlider) contrastSlider.value = String(this.syncPartner.contrast);
+        if (this.syncPartner.brightnessDisplay) this.syncPartner.brightnessDisplay.textContent = String(this.syncPartner.brightness);
+        if (this.syncPartner.contrastDisplay) this.syncPartner.contrastDisplay.textContent = String(this.syncPartner.contrast);
+      } finally {
+        this.syncPartner.isSyncing = true;
+        setTimeout(() => {
+          this.isSyncing = false;
+          if (this.syncPartner) this.syncPartner.isSyncing = false;
+        }, SYNC_THROTTLE_MS * 2);
+      }
     }
 
     setImage(src) {
@@ -816,6 +916,8 @@
       enableMeasure: true,
       enableSync: false
     });
+
+    currentSingleViewer.sampleId = sampleId;
 
     if (sample.scaleBar) {
       currentSingleViewer.setScaleBar(
@@ -938,6 +1040,9 @@
       enableMeasure: true,
       enableSync: true
     });
+
+    compareViewerLeft.sampleId = leftSample.id;
+    compareViewerRight.sampleId = rightSample.id;
 
     compareViewerLeft.setSyncPartner(compareViewerRight);
     compareViewerRight.setSyncPartner(compareViewerLeft);
