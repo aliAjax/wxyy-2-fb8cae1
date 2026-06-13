@@ -138,10 +138,10 @@
       const sample = getCurrentSample();
       if (!sample || !sample.annotations || sample.annotations.length === 0) return;
       if (!confirm(`确定清空该样本的全部 ${sample.annotations.length} 条标注？此操作不可撤销。`)) return;
-      sample.annotations = [];
       if (window.DataManager) {
         await window.DataManager.updateSample(sample.id, { annotations: [] });
       } else {
+        sample.annotations = [];
         saveFn();
       }
       renderAnnotations();
@@ -306,7 +306,7 @@
     return null;
   }
 
-  function addAnnotation(partial) {
+  async function addAnnotation(partial) {
     const sample = getCurrentSample();
     if (!sample) return;
     sample.annotations = sample.annotations || [];
@@ -316,10 +316,10 @@
       sampleId: sample.id
     }, partial);
     const newAnnotations = [...sample.annotations, annotation];
-    sample.annotations = newAnnotations;
     if (window.DataManager) {
-      window.DataManager.updateSample(sample.id, { annotations: newAnnotations });
+      await window.DataManager.updateSample(sample.id, { annotations: newAnnotations });
     } else {
+      sample.annotations = newAnnotations;
       saveFn();
     }
     renderAnnotations();
@@ -327,15 +327,15 @@
     renderAllFn();
   }
 
-  function deleteAnnotation(id) {
+  async function deleteAnnotation(id) {
     const sample = getCurrentSample();
     if (!sample || !sample.annotations) return;
     const newAnnotations = sample.annotations.filter((a) => a.id !== id);
-    sample.annotations = newAnnotations;
     if (selectedAnnotationId === id) clearSelection();
     if (window.DataManager) {
-      window.DataManager.updateSample(sample.id, { annotations: newAnnotations });
+      await window.DataManager.updateSample(sample.id, { annotations: newAnnotations });
     } else {
+      sample.annotations = newAnnotations;
       saveFn();
     }
     renderAnnotations();
