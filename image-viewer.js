@@ -792,18 +792,8 @@
         this.syncPartner.scale = Math.max(MIN_SCALE, Math.min(MAX_SCALE, this.scale));
         this.syncPartner.translateX = this.translateX;
         this.syncPartner.translateY = this.translateY;
-        this.syncPartner.brightness = Math.max(0, Math.min(200, this.brightness));
-        this.syncPartner.contrast = Math.max(0, Math.min(200, this.contrast));
 
         this.syncPartner.updateTransform();
-        this.syncPartner.updateImageFilters();
-
-        const brightnessSlider = this.syncPartner.container.querySelector('[data-adjust="brightness"]');
-        const contrastSlider = this.syncPartner.container.querySelector('[data-adjust="contrast"]');
-        if (brightnessSlider) brightnessSlider.value = String(this.syncPartner.brightness);
-        if (contrastSlider) contrastSlider.value = String(this.syncPartner.contrast);
-        if (this.syncPartner.brightnessDisplay) this.syncPartner.brightnessDisplay.textContent = String(this.syncPartner.brightness);
-        if (this.syncPartner.contrastDisplay) this.syncPartner.contrastDisplay.textContent = String(this.syncPartner.contrast);
       } finally {
         this.syncPartner.isSyncing = true;
         setTimeout(() => {
