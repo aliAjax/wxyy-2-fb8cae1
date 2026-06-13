@@ -503,6 +503,8 @@
     STORES,
     DB_NAME,
     DB_VERSION,
+    getAppState,
+    setAppState,
     SampleStore,
     AnnotationStore,
     AnswerStore,
