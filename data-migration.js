@@ -2,7 +2,7 @@
   "use strict";
 
   const LEGACY_STORAGE_KEY = "wxyy-2-thin-section-index";
-  const MIGRATION_VERSION = 1;
+  const MIGRATION_VERSION = 3;
 
   function hasLegacyData() {
     try {
@@ -38,6 +38,7 @@
     const legacyData = readLegacyData();
     if (!legacyData) {
       await window.StorageLayer.AppStateStore.setMigrationStatus(true);
+      await window.StorageLayer.AppStateStore.setSchemaVersion(MIGRATION_VERSION);
       return { migrated: false, reason: "no_legacy_data" };
     }
 
@@ -110,7 +111,51 @@
     if (!migrationDone && hasLegacy) {
       return true;
     }
+
+    const schemaVersion = await window.StorageLayer.AppStateStore.getSchemaVersion();
+    if (schemaVersion < MIGRATION_VERSION) {
+      return true;
+    }
+
     return false;
+  }
+
+  async function migrateAppStateSchema() {
+    if (!window.StorageLayer) return;
+
+    const schemaVersion = await window.StorageLayer.AppStateStore.getSchemaVersion();
+    if (schemaVersion >= MIGRATION_VERSION) return;
+
+    if (schemaVersion < 2) {
+      const submissions = await window.StorageLayer.getAppState("submissions", []);
+      if (Array.isArray(submissions)) {
+        const migrated = submissions.map(sub => ({
+          ...sub,
+          scores: sub.scores || {},
+          finalScore: sub.finalScore !== undefined ? sub.finalScore : null,
+          gradedAt: sub.gradedAt || null,
+          gradedBy: sub.gradedBy || "",
+          lessonTitle: sub.lessonTitle || ""
+        }));
+        await window.StorageLayer.setAppState("submissions", migrated);
+      }
+
+      const rubrics = await window.StorageLayer.getAppState("rubrics", []);
+      if (!Array.isArray(rubrics)) {
+        await window.StorageLayer.setAppState("rubrics", []);
+      }
+
+      const lessonMetas = await window.StorageLayer.getAppState("lessonMetas", {});
+      if (!lessonMetas || typeof lessonMetas !== "object" || Array.isArray(lessonMetas)) {
+        await window.StorageLayer.setAppState("lessonMetas", {});
+      }
+    }
+
+    if (schemaVersion < 3) {
+      await window.StorageLayer.initDB();
+    }
+
+    await window.StorageLayer.AppStateStore.setSchemaVersion(MIGRATION_VERSION);
   }
 
   function clearLegacyData() {
@@ -130,6 +175,7 @@
     readLegacyData,
     runMigration,
     checkAndMigrate,
+    migrateAppStateSchema,
     clearLegacyData
   };
 

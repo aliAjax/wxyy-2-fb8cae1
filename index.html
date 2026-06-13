@@ -29,6 +29,8 @@
       <button class="tab-btn" data-tab="samples">样本列表</button>
       <button class="tab-btn" data-tab="review">审核工作台</button>
       <button class="tab-btn" data-tab="tasks">观察任务</button>
+      <button class="tab-btn" data-tab="lesson">课堂包管理</button>
+      <button class="tab-btn" data-tab="grading">作业评分</button>
     </nav>
 
     <section id="tab-entry" class="tab-panel active">
@@ -210,6 +212,185 @@
         </section>
       </div>
     </section>
+
+    <section id="tab-lesson" class="tab-panel">
+      <div class="lesson-layout">
+        <section class="lesson-panel">
+          <div class="lesson-header">
+            <h2>课堂包管理</h2>
+            <p class="lesson-subtitle">打包导出课堂教学资料，或导入课堂包开始作答</p>
+          </div>
+
+          <div class="lesson-actions">
+            <button type="button" id="exportLessonBtn" class="primary">📦 导出课堂包（老师）</button>
+            <button type="button" id="importLessonBtn" class="ghost">📥 导入课堂包（学生）</button>
+            <button type="button" id="exportAnswerBtn" class="primary">📤 导出作答包（学生）</button>
+          </div>
+
+          <div class="lesson-section">
+            <h3>📚 已导入的课堂包</h3>
+            <div id="importedPackageList" class="imported-package-list"></div>
+          </div>
+
+          <div class="lesson-section">
+            <h3>📝 我的课堂任务</h3>
+            <div id="lessonTaskList" class="lesson-task-list"></div>
+          </div>
+
+          <div class="lesson-section">
+            <h3>✍️ 作答管理</h3>
+            <div id="answerList" class="answer-list"></div>
+          </div>
+        </section>
+      </div>
+    </section>
+
+    <section id="tab-grading" class="tab-panel">
+      <div class="grading-layout">
+        <section class="grading-filters">
+          <div class="grading-header">
+            <h2>作业评分工作台</h2>
+            <p class="grading-subtitle">按学生、任务、样本查看作答并给出评分</p>
+          </div>
+
+          <div class="grading-filter-row">
+            <select id="filterLesson">
+              <option value="">全部课堂包</option>
+            </select>
+            <select id="filterStudent">
+              <option value="">全部学生</option>
+            </select>
+            <select id="filterTask">
+              <option value="">全部任务</option>
+            </select>
+            <select id="filterGraded">
+              <option value="">全部状态</option>
+              <option value="false">未评分</option>
+              <option value="true">已评分</option>
+            </select>
+            <input id="searchStudent" placeholder="搜索学生姓名...">
+            <button type="button" id="importAnswerBtn" class="primary">📥 导入作答包</button>
+            <button type="button" id="batchImportAnswerBtn" class="ghost">📥 批量导入</button>
+          </div>
+
+          <div class="grading-stats">
+            <div class="stat-card">
+              <span class="stat-label">总提交数</span>
+              <span class="stat-value" id="statTotal">0</span>
+            </div>
+            <div class="stat-card">
+              <span class="stat-label">已评分</span>
+              <span class="stat-value success" id="statGraded">0</span>
+            </div>
+            <div class="stat-card">
+              <span class="stat-label">待评分</span>
+              <span class="stat-value warning" id="statUngraded">0</span>
+            </div>
+            <div class="stat-card">
+              <span class="stat-label">平均分</span>
+              <span class="stat-value" id="statAvg">0</span>
+            </div>
+          </div>
+
+          <div class="grading-view-toggle">
+            <button type="button" class="view-toggle-btn active" data-grading-view="student">按学生</button>
+            <button type="button" class="view-toggle-btn" data-grading-view="task">按任务</button>
+            <button type="button" class="view-toggle-btn" data-grading-view="sample">按样本</button>
+            <button type="button" id="exportGradingBtn" class="ghost" style="margin-left:auto;">📊 导出评分结果</button>
+          </div>
+        </section>
+
+        <div class="grading-main" id="gradingMainContent">
+          <section class="submission-list-panel" id="gradingListPanel">
+            <h3 id="gradingListTitle">提交列表</h3>
+            <div id="submissionList" class="submission-list"></div>
+          </section>
+
+          <section class="grading-detail-panel">
+            <div id="gradingEmpty" class="grading-empty">
+              <p>请选择左侧的提交记录查看作答详情</p>
+            </div>
+            <div id="gradingDetail" class="grading-detail hidden"></div>
+          </section>
+        </div>
+
+        <div class="grading-aggregate hidden" id="gradingAggregate"></div>
+      </div>
+    </section>
+
+    <div id="lessonModal" class="modal-overlay hidden">
+      <div class="modal-content lesson-modal">
+        <header class="modal-header">
+          <h2 id="lessonModalTitle">导出课堂包</h2>
+          <button type="button" class="modal-close" id="lessonModalClose">×</button>
+        </header>
+        <div class="modal-body" id="lessonModalBody"></div>
+        <footer class="modal-footer" id="lessonModalFooter"></footer>
+      </div>
+    </div>
+
+    <div id="answerModal" class="modal-overlay hidden">
+      <div class="modal-content answer-modal">
+        <header class="modal-header">
+          <h2 id="answerModalTitle">填写作答</h2>
+          <button type="button" class="modal-close" id="answerModalClose">×</button>
+        </header>
+        <div class="modal-body" id="answerModalBody"></div>
+        <footer class="modal-footer" id="answerModalFooter"></footer>
+      </div>
+    </div>
+
+    <div id="conflictModal" class="modal-overlay hidden">
+      <div class="modal-content conflict-modal">
+        <header class="modal-header">
+          <h2>导入冲突</h2>
+          <button type="button" class="modal-close" id="conflictModalClose">×</button>
+        </header>
+        <div class="modal-body">
+          <p class="conflict-desc">检测到以下样本编号与已有数据重复，请选择处理方式：</p>
+          <div id="conflictList" class="conflict-list"></div>
+          <div class="conflict-strategy">
+            <h4>处理方式</h4>
+            <label class="strategy-option">
+              <input type="radio" name="conflictStrategy" value="skip" checked>
+              <span><strong>跳过重复</strong> — 保留已有样本，跳过导入包中的重复项</span>
+            </label>
+            <label class="strategy-option">
+              <input type="radio" name="conflictStrategy" value="rename">
+              <span><strong>重命名导入</strong> — 给导入的重复样本自动加后缀</span>
+            </label>
+            <label class="strategy-option">
+              <input type="radio" name="conflictStrategy" value="overwrite">
+              <span><strong>覆盖已有</strong> — 删除已有样本，用导入包的数据替换</span>
+            </label>
+          </div>
+        </div>
+        <footer class="modal-footer">
+          <button type="button" class="ghost" id="conflictCancelBtn">取消导入</button>
+          <button type="button" class="primary" id="conflictConfirmBtn">确认继续</button>
+        </footer>
+      </div>
+    </div>
+
+    <div id="duplicateModal" class="modal-overlay hidden">
+      <div class="modal-content duplicate-modal">
+        <header class="modal-header">
+          <h2>作答重复</h2>
+          <button type="button" class="modal-close" id="duplicateModalClose">×</button>
+        </header>
+        <div class="modal-body">
+          <p class="duplicate-desc" id="duplicateDesc"></p>
+        </div>
+        <footer class="modal-footer">
+          <button type="button" class="ghost" id="duplicateSkipBtn">跳过不导入</button>
+          <button type="button" class="primary" id="duplicateOverwriteBtn">覆盖已有</button>
+        </footer>
+      </div>
+    </div>
+
+    <input type="file" id="lessonFileInput" accept=".json,application/json" hidden>
+    <input type="file" id="answerFileInput" accept=".json,application/json" hidden>
+    <input type="file" id="batchAnswerFileInput" accept=".json,application/json" multiple hidden>
   </main>
   <div id="importOverlay" class="import-overlay hidden">
     <div class="import-modal">
@@ -309,6 +490,7 @@
   <script src="./data-manager.js"></script>
   <script src="./data-migration.js"></script>
   <script src="./backup-restore.js"></script>
+  <script src="./lesson-package.js"></script>
   <script src="./annotation-view.js"></script>
   <script src="./image-viewer.js"></script>
   <script src="./review.js"></script>

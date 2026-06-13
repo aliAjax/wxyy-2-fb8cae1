@@ -2,14 +2,15 @@
   "use strict";
 
   const DB_NAME = "wxyy-thin-section-db";
-  const DB_VERSION = 1;
+  const DB_VERSION = 2;
 
   const STORES = {
     SAMPLES: "samples",
     PHOTOS: "photos",
     TASKS: "tasks",
     APP_STATE: "appState",
-    ANNOTATIONS: "annotations"
+    ANNOTATIONS: "annotations",
+    STUDENT_ANSWERS: "studentAnswers"
   };
 
   let db = null;
@@ -54,6 +55,14 @@
         if (!database.objectStoreNames.contains(STORES.ANNOTATIONS)) {
           const annStore = database.createObjectStore(STORES.ANNOTATIONS, { keyPath: "id" });
           annStore.createIndex("sampleId", "sampleId", { unique: false });
+        }
+
+        if (!database.objectStoreNames.contains(STORES.STUDENT_ANSWERS)) {
+          const ansStore = database.createObjectStore(STORES.STUDENT_ANSWERS, { keyPath: "id" });
+          ansStore.createIndex("lessonPackageId", "lessonPackageId", { unique: false });
+          ansStore.createIndex("taskId", "taskId", { unique: false });
+          ansStore.createIndex("sampleId", "sampleId", { unique: false });
+          ansStore.createIndex("updatedAt", "updatedAt", { unique: false });
         }
       };
     });
@@ -337,6 +346,65 @@
     }
   };
 
+  const AnswerStore = {
+    async getAll() {
+      const answers = await getAll(STORES.STUDENT_ANSWERS);
+      return answers.sort((a, b) => new Date(b.updatedAt) - new Date(a.updatedAt));
+    },
+
+    async getById(id) {
+      return getById(STORES.STUDENT_ANSWERS, id);
+    },
+
+    async getByLessonPackageId(lessonPackageId) {
+      return getByIndex(STORES.STUDENT_ANSWERS, "lessonPackageId", lessonPackageId);
+    },
+
+    async getByTaskId(taskId) {
+      return getByIndex(STORES.STUDENT_ANSWERS, "taskId", taskId);
+    },
+
+    async getBySampleId(sampleId) {
+      return getByIndex(STORES.STUDENT_ANSWERS, "sampleId", sampleId);
+    },
+
+    async save(answer) {
+      const existing = await this.getById(answer.id);
+      const data = {
+        ...answer,
+        updatedAt: new Date().toISOString()
+      };
+      if (!existing) {
+        data.createdAt = data.updatedAt;
+      }
+      return put(STORES.STUDENT_ANSWERS, data);
+    },
+
+    async bulkSave(answers) {
+      const items = answers.map(a => ({
+        ...a,
+        updatedAt: new Date().toISOString(),
+        createdAt: a.createdAt || new Date().toISOString()
+      }));
+      return bulkPut(STORES.STUDENT_ANSWERS, items);
+    },
+
+    async remove(id) {
+      return remove(STORES.STUDENT_ANSWERS, id);
+    },
+
+    async removeByTaskId(taskId) {
+      const answers = await this.getByTaskId(taskId);
+      for (const a of answers) {
+        await remove(STORES.STUDENT_ANSWERS, a.id);
+      }
+    },
+
+    async clearAll() {
+      return clearStore(STORES.STUDENT_ANSWERS);
+    }
+  };
+
   const AppStateStore = {
     async getCompareList() {
       return getAppState("compareList", []);
@@ -426,6 +494,7 @@
     await initDB();
     await SampleStore.clearAll();
     await TaskStore.clearAll();
+    await AnswerStore.clearAll();
     await clearStore(STORES.APP_STATE);
   }
 
@@ -436,6 +505,7 @@
     DB_VERSION,
     SampleStore,
     AnnotationStore,
+    AnswerStore,
     TaskStore,
     AppStateStore,
     exportAllData,

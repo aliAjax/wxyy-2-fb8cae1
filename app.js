@@ -199,6 +199,8 @@ function switchTab(tabName) {
     window.ReviewModule.renderReviewBoard();
     updateReviewStats();
   }
+  if (tabName === "lesson") renderLessonPage();
+  if (tabName === "grading") renderGradingPage();
 }
 
 function updateReviewStats() {
@@ -1257,6 +1259,1399 @@ document.addEventListener("keydown", (e) => {
   }
 });
 
+let lessonState = {
+  selectedTaskIds: new Set(),
+  selectedAnswerTaskIds: new Set(),
+  currentAnswers: {},
+  selectedSubmissionId: null,
+  studentInfo: { name: "", studentId: "", className: "" },
+  gradingView: "student"
+};
+
+let lessonModuleState = null;
+
+function escapeHtml(s) {
+  return String(s || "").replace(/[&<>"']/g, (c) => ({
+    "&": "&amp;",
+    "<": "&lt;",
+    ">": "&gt;",
+    '"': "&quot;",
+    "'": "&#39;"
+  }[c]));
+}
+
+let conflictResolve = null;
+let duplicateResolve = null;
+
+function showConflictModal(conflicts) {
+  return new Promise((resolve) => {
+    const modal = $("#conflictModal");
+    const list = $("#conflictList");
+
+    list.innerHTML = conflicts.slice(0, 20).map(c => `
+      <div class="conflict-item">
+        <span class="conflict-code">${escapeHtml(c.code)}</span>
+        <span class="conflict-label">与已有样本编号重复</span>
+      </div>
+    `).join("") + (conflicts.length > 20 ? `<div class="conflict-more">... 还有 ${conflicts.length - 20} 个重复</div>` : "");
+
+    $$('input[name="conflictStrategy"]', modal).forEach(r => { r.checked = r.value === "skip"; });
+
+    modal.classList.remove("hidden");
+    conflictResolve = resolve;
+  });
+}
+
+function initConflictModalEvents() {
+  $("#conflictModalClose")?.addEventListener("click", () => {
+    $("#conflictModal")?.classList.add("hidden");
+    if (conflictResolve) { conflictResolve(null); conflictResolve = null; }
+  });
+  $("#conflictCancelBtn")?.addEventListener("click", () => {
+    $("#conflictModal")?.classList.add("hidden");
+    if (conflictResolve) { conflictResolve(null); conflictResolve = null; }
+  });
+  $("#conflictConfirmBtn")?.addEventListener("click", () => {
+    const selected = $('input[name="conflictStrategy"]:checked', $("#conflictModal"));
+    const strategy = selected ? selected.value : "skip";
+    $("#conflictModal")?.classList.add("hidden");
+    if (conflictResolve) { conflictResolve(strategy); conflictResolve = null; }
+  });
+  $("#conflictModal")?.addEventListener("click", (e) => {
+    if (e.target.id === "conflictModal") {
+      $("#conflictModal")?.classList.add("hidden");
+      if (conflictResolve) { conflictResolve(null); conflictResolve = null; }
+    }
+  });
+}
+
+function showDuplicateModal(studentInfo, existingSubmission) {
+  return new Promise((resolve) => {
+    const modal = $("#duplicateModal");
+    const desc = $("#duplicateDesc");
+    desc.innerHTML = `学号 <strong>${escapeHtml(studentInfo.studentId)}</strong>（${escapeHtml(studentInfo.name)}）的作答已存在（提交于 ${formatDateTime(existingSubmission.importedAt)}），是否覆盖？`;
+    modal.classList.remove("hidden");
+    duplicateResolve = resolve;
+  });
+}
+
+function initDuplicateModalEvents() {
+  $("#duplicateModalClose")?.addEventListener("click", () => {
+    $("#duplicateModal")?.classList.add("hidden");
+    if (duplicateResolve) { duplicateResolve(null); duplicateResolve = null; }
+  });
+  $("#duplicateSkipBtn")?.addEventListener("click", () => {
+    $("#duplicateModal")?.classList.add("hidden");
+    if (duplicateResolve) { duplicateResolve(false); duplicateResolve = null; }
+  });
+  $("#duplicateOverwriteBtn")?.addEventListener("click", () => {
+    $("#duplicateModal")?.classList.add("hidden");
+    if (duplicateResolve) { duplicateResolve(true); duplicateResolve = null; }
+  });
+  $("#duplicateModal")?.addEventListener("click", (e) => {
+    if (e.target.id === "duplicateModal") {
+      $("#duplicateModal")?.classList.add("hidden");
+      if (duplicateResolve) { duplicateResolve(null); duplicateResolve = null; }
+    }
+  });
+}
+
+function initLessonUI() {
+  if (!window.LessonPackage) return;
+
+  const exportLessonBtn = $("#exportLessonBtn");
+  const importLessonBtn = $("#importLessonBtn");
+  const exportAnswerBtn = $("#exportAnswerBtn");
+  const lessonFileInput = $("#lessonFileInput");
+  const answerFileInput = $("#answerFileInput");
+  const importAnswerBtn = $("#importAnswerBtn");
+
+  exportLessonBtn?.addEventListener("click", showExportLessonModal);
+  importLessonBtn?.addEventListener("click", () => lessonFileInput?.click());
+  exportAnswerBtn?.addEventListener("click", showExportAnswerModal);
+  importAnswerBtn?.addEventListener("click", () => answerFileInput?.click());
+
+  lessonFileInput?.addEventListener("change", async (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    try {
+      const result = await window.LessonPackage.importLessonPackage(file, {
+        conflictStrategy: window.LessonPackage.CONFLICT_STRATEGIES.SKIP,
+        onConflict: showConflictModal
+      });
+      alert(`导入成功！\n导入了 ${result.sampleCount} 个样本、${result.taskCount} 个任务${result.skippedCount > 0 ? `\n跳过了 ${result.skippedCount} 个重复样本` : ""}`);
+      state = window.DataManager.getState();
+      renderAll();
+      renderLessonPage();
+    } catch (err) {
+      if (err.message !== "用户取消导入") {
+        alert("导入失败：" + err.message);
+      }
+    } finally {
+      lessonFileInput.value = "";
+    }
+  });
+
+  answerFileInput?.addEventListener("change", async (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    try {
+      const result = await window.LessonPackage.importAnswerPackage(file, {
+        onDuplicate: showDuplicateModal
+      });
+      alert(result.isUpdate ? "作答包已更新！" : "作答包导入成功！");
+      renderGradingPage();
+    } catch (err) {
+      if (err.message !== "用户取消导入") {
+        alert("导入失败：" + err.message);
+      }
+    } finally {
+      answerFileInput.value = "";
+    }
+  });
+
+  $("#lessonModalClose")?.addEventListener("click", closeLessonModal);
+  $("#answerModalClose")?.addEventListener("click", closeAnswerModal);
+
+  $("#lessonModal")?.addEventListener("click", (e) => {
+    if (e.target.id === "lessonModal") closeLessonModal();
+  });
+  $("#answerModal")?.addEventListener("click", (e) => {
+    if (e.target.id === "answerModal") closeAnswerModal();
+  });
+
+  document.addEventListener("keydown", (e) => {
+    if (e.key === "Escape") {
+      if (!$("#lessonModal")?.classList.contains("hidden")) closeLessonModal();
+      if (!$("#answerModal")?.classList.contains("hidden")) closeAnswerModal();
+      if (!$("#conflictModal")?.classList.contains("hidden")) {
+        $("#conflictModal")?.classList.add("hidden");
+        if (conflictResolve) { conflictResolve(null); conflictResolve = null; }
+      }
+      if (!$("#duplicateModal")?.classList.contains("hidden")) {
+        $("#duplicateModal")?.classList.add("hidden");
+        if (duplicateResolve) { duplicateResolve(null); duplicateResolve = null; }
+      }
+    }
+  });
+
+  initConflictModalEvents();
+  initDuplicateModalEvents();
+  initGradingFilters();
+}
+
+function renderLessonPage() {
+  if (!window.LessonPackage) return;
+  renderImportedPackages();
+  renderLessonTaskList();
+  renderAnswerList();
+}
+
+function renderImportedPackages() {
+  const container = $("#importedPackageList");
+  if (!container) return;
+
+  const packages = window.LessonPackage.getImportedLessonPackages();
+
+  if (packages.length === 0) {
+    container.innerHTML = '<p style="padding:20px;text-align:center;color:var(--muted);">还没有导入课堂包，点击上方「导入课堂包」开始</p>';
+    return;
+  }
+
+  container.innerHTML = packages.map(pkg => {
+    const lessonTasks = state.tasks.filter(t => t.lessonPackageId === pkg.packageId);
+    const sampleCount = new Set(lessonTasks.flatMap(t => t.sampleIds)).size;
+    return `
+      <div class="imported-package-card">
+        <div class="imported-package-header">
+          <h4>${escapeHtml(pkg.title)}</h4>
+          <span class="badge lesson-badge">${pkg.submissionCount} 份提交</span>
+        </div>
+        ${pkg.description ? `<p class="imported-package-desc">${escapeHtml(pkg.description)}</p>` : ""}
+        <div class="imported-package-meta">
+          <span>${lessonTasks.length} 个任务</span>
+          <span>${sampleCount} 个样本</span>
+          <span>${pkg.rubrics.length} 个评分项</span>
+          <span>导入于 ${formatDateTime(pkg.importedAt)}</span>
+        </div>
+      </div>
+    `;
+  }).join("");
+}
+
+function renderLessonTaskList() {
+  const container = $("#lessonTaskList");
+  if (!container) return;
+
+  if (state.tasks.length === 0) {
+    container.innerHTML = '<p style="padding:20px;text-align:center;color:var(--muted);">还没有观察任务，请先到「观察任务」页创建</p>';
+    return;
+  }
+
+  const lessonTasks = state.tasks.filter(t => t.lessonPackageId);
+  const regularTasks = state.tasks.filter(t => !t.lessonPackageId);
+
+  let html = "";
+
+  if (lessonTasks.length > 0) {
+    html += `<h4 style="margin:16px 0 8px;color:var(--primary);">📦 导入的课堂任务</h4>`;
+    html += lessonTasks.map(task => renderLessonTaskCard(task, true)).join("");
+  }
+
+  if (regularTasks.length > 0) {
+    html += `<h4 style="margin:16px 0 8px;color:var(--muted);">📝 我的任务（可用于导出课堂包）</h4>`;
+    html += regularTasks.map(task => renderLessonTaskCard(task, false)).join("");
+  }
+
+  container.innerHTML = html;
+
+  $$('[data-answer-task]', container).forEach(btn => {
+    btn.addEventListener("click", (e) => {
+      const taskId = e.currentTarget.dataset.answerTask;
+      openAnswerModal(taskId);
+    });
+  });
+}
+
+function renderLessonTaskCard(task, isImported) {
+  const progress = getTaskProgress(task);
+  return `
+    <div class="lesson-task-card ${isImported ? "imported" : ""}">
+      <div class="lesson-task-header">
+        <h4>${escapeHtml(task.title)}</h4>
+        ${isImported ? '<span class="badge lesson-badge">课堂任务</span>' : ""}
+      </div>
+      <p class="lesson-task-desc">${escapeHtml(task.objective || "").slice(0, 100)}</p>
+      <div class="lesson-task-meta">
+        <span>关联 ${task.sampleIds.length} 个样本</span>
+        <span>完成 ${progress.completed}/${progress.total}</span>
+      </div>
+      <div class="lesson-task-actions">
+        ${isImported ? `<button type="button" class="primary" data-answer-task="${task.id}">✍️ 填写作答</button>` : ""}
+      </div>
+    </div>
+  `;
+}
+
+function renderAnswerList() {
+  const container = $("#answerList");
+  if (!container) return;
+
+  const sampleIds = new Set();
+  state.tasks.forEach(t => t.sampleIds.forEach(sid => sampleIds.add(sid)));
+
+  const answeredCount = Object.keys(lessonState.currentAnswers).length;
+
+  if (sampleIds.size === 0) {
+    container.innerHTML = '<p style="padding:20px;text-align:center;color:var(--muted);">导入课堂包后即可开始作答</p>';
+    return;
+  }
+
+  container.innerHTML = `
+    <div class="answer-summary">
+      <div class="answer-stat">
+        <span class="stat-label">待作答样本</span>
+        <span class="stat-value">${sampleIds.size}</span>
+      </div>
+      <div class="answer-stat">
+        <span class="stat-label">已作答</span>
+        <span class="stat-value success">${answeredCount}</span>
+      </div>
+      <div class="answer-stat">
+        <span class="stat-label">完成进度</span>
+        <span class="stat-value">${sampleIds.size > 0 ? Math.round((answeredCount / sampleIds.size) * 100) : 0}%</span>
+      </div>
+    </div>
+  `;
+}
+
+function showExportLessonModal() {
+  lessonState.selectedTaskIds.clear();
+
+  const modal = $("#lessonModal");
+  const title = $("#lessonModalTitle");
+  const body = $("#lessonModalBody");
+  const footer = $("#lessonModalFooter");
+
+  const defaultRubrics = window.LessonPackage.getRubrics();
+
+  title.textContent = "📦 导出课堂包";
+
+  body.innerHTML = `
+    <div class="form-group">
+      <label>课堂包标题 <span style="color:var(--danger);">*</span></label>
+      <input type="text" id="lessonTitleInput" placeholder="例如：第三章 沉积岩结构观察作业" required>
+    </div>
+    <div class="form-group">
+      <label>课堂说明</label>
+      <textarea id="lessonDescInput" rows="3" placeholder="描述本次课堂的要求和说明..."></textarea>
+    </div>
+    <div class="form-group">
+      <label>选择要导出的任务 <span style="color:var(--danger);">*</span></label>
+      <div class="task-picker-list" id="exportTaskPicker">
+        ${state.tasks.length === 0 ? '<p style="padding:20px;text-align:center;color:var(--muted);">还没有任务，请先创建</p>' :
+          state.tasks.map(task => `
+            <label class="picker-checkbox">
+              <input type="checkbox" value="${task.id}">
+              <span class="picker-label">
+                <strong>${escapeHtml(task.title)}</strong>
+                <small>（${task.sampleIds.length} 个样本）</small>
+              </span>
+            </label>
+          `).join("")
+        }
+      </div>
+    </div>
+    <div class="form-group">
+      <label>评分项配置</label>
+      <div id="rubricEditor" class="rubric-editor">
+        ${defaultRubrics.map((r, i) => `
+          <div class="rubric-row" data-rubric-index="${i}">
+            <input type="text" class="rubric-name" value="${escapeHtml(r.name)}" placeholder="评分项名称">
+            <input type="number" class="rubric-score" value="${r.maxScore}" min="0" placeholder="满分">
+            <input type="text" class="rubric-desc" value="${escapeHtml(r.description)}" placeholder="评分说明">
+            <button type="button" class="ghost rubric-remove" data-remove-rubric="${i}">✕</button>
+          </div>
+        `).join("")}
+      </div>
+      <button type="button" class="ghost" id="addRubricBtn">+ 添加评分项</button>
+    </div>
+    <div class="form-group">
+      <label class="inline-label">
+        <input type="checkbox" id="includePhotos" checked>
+        包含照片数据（文件会较大，但学生可离线查看）
+      </label>
+    </div>
+  `;
+
+  footer.innerHTML = `
+    <button type="button" class="ghost" onclick="closeLessonModal()">取消</button>
+    <button type="button" class="primary" id="confirmExportLessonBtn" disabled>导出课堂包</button>
+  `;
+
+  $$('input[type="checkbox"]', body).forEach(cb => {
+    cb.addEventListener("change", () => {
+      const checked = $$('input[type="checkbox"]:not(#includePhotos):checked', body);
+      $("#confirmExportLessonBtn").disabled = checked.length === 0;
+    });
+  });
+
+  let rubricIndex = defaultRubrics.length;
+  $("#addRubricBtn")?.addEventListener("click", () => {
+    const editor = $("#rubricEditor");
+    const row = document.createElement("div");
+    row.className = "rubric-row";
+    row.dataset.rubricIndex = rubricIndex;
+    row.innerHTML = `
+      <input type="text" class="rubric-name" value="" placeholder="评分项名称">
+      <input type="number" class="rubric-score" value="10" min="0" placeholder="满分">
+      <input type="text" class="rubric-desc" value="" placeholder="评分说明">
+      <button type="button" class="ghost rubric-remove" data-remove-rubric="${rubricIndex}">✕</button>
+    `;
+    editor.appendChild(row);
+    rubricIndex++;
+    bindRubricRemoveButtons();
+  });
+
+  function bindRubricRemoveButtons() {
+    $$('[data-remove-rubric]', body).forEach(btn => {
+      btn.onclick = () => {
+        const row = btn.closest(".rubric-row");
+        if (row) row.remove();
+      };
+    });
+  }
+  bindRubricRemoveButtons();
+
+  $("#confirmExportLessonBtn").addEventListener("click", async () => {
+    const title = $("#lessonTitleInput").value.trim();
+    const description = $("#lessonDescInput").value.trim();
+    const includePhotos = $("#includePhotos").checked;
+    const taskIds = $$('input[type="checkbox"]:not(#includePhotos):checked', body).map(cb => cb.value);
+
+    if (!title || taskIds.length === 0) return;
+
+    const rubricRows = $$(".rubric-row", body);
+    const rubrics = [];
+    rubricRows.forEach(row => {
+      const name = row.querySelector(".rubric-name").value.trim();
+      const maxScore = parseInt(row.querySelector(".rubric-score").value, 10) || 0;
+      const desc = row.querySelector(".rubric-desc").value.trim();
+      if (name && maxScore > 0) {
+        rubrics.push({ id: crypto.randomUUID(), name, maxScore, description: desc });
+      }
+    });
+
+    try {
+      $("#confirmExportLessonBtn").disabled = true;
+      $("#confirmExportLessonBtn").textContent = "导出中...";
+
+      await window.LessonPackage.downloadLessonPackage({
+        taskIds,
+        title,
+        description,
+        includePhotos,
+        rubrics: rubrics.length > 0 ? rubrics : null
+      });
+
+      closeLessonModal();
+      alert("课堂包导出成功！");
+    } catch (err) {
+      alert("导出失败：" + err.message);
+    } finally {
+      $("#confirmExportLessonBtn").disabled = false;
+      $("#confirmExportLessonBtn").textContent = "导出课堂包";
+    }
+  });
+
+  modal.classList.remove("hidden");
+}
+
+function closeLessonModal() {
+  $("#lessonModal")?.classList.add("hidden");
+  lessonState.selectedTaskIds.clear();
+}
+
+function openAnswerModal(taskId) {
+  const task = state.tasks.find(t => t.id === taskId);
+  if (!task) return;
+
+  const modal = $("#answerModal");
+  const title = $("#answerModalTitle");
+  const body = $("#answerModalBody");
+  const footer = $("#answerModalFooter");
+
+  title.textContent = `✍️ 作答：${task.title}`;
+
+  const samples = task.sampleIds
+    .map(sid => state.samples.find(s => s.id === sid))
+    .filter(Boolean);
+
+  if (samples.length === 0) {
+    body.innerHTML = '<p style="padding:40px;text-align:center;color:var(--muted);">该任务没有关联样本</p>';
+    footer.innerHTML = '<button type="button" class="ghost" onclick="closeAnswerModal()">关闭</button>';
+    modal.classList.remove("hidden");
+    return;
+  }
+
+  body.innerHTML = `
+    <div class="student-info-section">
+      <h4>学生信息</h4>
+      <div class="student-info-grid">
+        <div class="form-group">
+          <label>姓名 <span style="color:var(--danger);">*</span></label>
+          <input type="text" id="studentName" value="${escapeHtml(lessonState.studentInfo.name)}" placeholder="请输入姓名">
+        </div>
+        <div class="form-group">
+          <label>学号 <span style="color:var(--danger);">*</span></label>
+          <input type="text" id="studentId" value="${escapeHtml(lessonState.studentInfo.studentId)}" placeholder="请输入学号">
+        </div>
+        <div class="form-group">
+          <label>班级</label>
+          <input type="text" id="studentClass" value="${escapeHtml(lessonState.studentInfo.className)}" placeholder="请输入班级">
+        </div>
+      </div>
+    </div>
+
+    <div class="answer-samples-nav">
+      <h4>样本列表</h4>
+      <div class="answer-samples-tabs" id="answerSamplesTabs">
+        ${samples.map((s, i) => `
+          <button type="button" class="answer-tab ${i === 0 ? "active" : ""}" data-answer-tab="${s.id}">
+            ${escapeHtml(s.code)}
+            ${lessonState.currentAnswers[s.id] ? '<span class="tab-dot done"></span>' : '<span class="tab-dot"></span>'}
+          </button>
+        `).join("")}
+      </div>
+    </div>
+
+    <div class="answer-form-container" id="answerFormContainer">
+      ${renderAnswerForm(samples[0])}
+    </div>
+  `;
+
+  footer.innerHTML = `
+    <button type="button" class="ghost" onclick="closeAnswerModal()">取消</button>
+    <button type="button" class="primary" id="saveAnswerBtn">保存作答</button>
+    <button type="button" class="primary" id="exportAnswerBtn2">导出作答包</button>
+  `;
+
+  $$('[data-answer-tab]', body).forEach(tab => {
+    tab.addEventListener("click", () => {
+      saveCurrentAnswer();
+      const sampleId = tab.dataset.answerTab;
+      const sample = samples.find(s => s.id === sampleId);
+      if (sample) {
+        $$('[data-answer-tab]', body).forEach(t => t.classList.remove("active"));
+        tab.classList.add("active");
+        $("#answerFormContainer").innerHTML = renderAnswerForm(sample);
+        bindAnswerFormEvents(sample);
+      }
+    });
+  });
+
+  $("#saveAnswerBtn").addEventListener("click", () => {
+    saveCurrentAnswer();
+    alert("作答已保存到本地！");
+    renderAnswerList();
+    updateAnswerTabs();
+  });
+
+  $("#exportAnswerBtn2").addEventListener("click", async () => {
+    saveCurrentAnswer();
+
+    const studentInfo = {
+      name: $("#studentName").value.trim(),
+      studentId: $("#studentId").value.trim(),
+      className: $("#studentClass").value.trim()
+    };
+
+    if (!studentInfo.name || !studentInfo.studentId) {
+      alert("请填写姓名和学号");
+      return;
+    }
+
+    lessonState.studentInfo = studentInfo;
+
+    try {
+      await window.LessonPackage.downloadAnswerPackage({
+        lessonPackageId: task.lessonPackageId || "",
+        studentInfo,
+        taskIds: [taskId],
+        answers: lessonState.currentAnswers
+      });
+      alert("作答包导出成功！请交给老师评分。");
+    } catch (err) {
+      alert("导出失败：" + err.message);
+    }
+  });
+
+  bindAnswerFormEvents(samples[0]);
+
+  modal.classList.remove("hidden");
+}
+
+function renderAnswerForm(sample) {
+  const answer = lessonState.currentAnswers[sample.id] || {};
+  return `
+    <div class="answer-form">
+      <div class="answer-sample-header">
+        ${sample.photo ? `<img src="${sample.photo}" alt="${escapeHtml(sample.code)}" class="answer-sample-photo">` : '<div class="photo-placeholder" style="aspect-ratio:4/3;">暂无照片</div>'}
+        <div class="answer-sample-info">
+          <h4>${escapeHtml(sample.code)}</h4>
+          <p>${escapeHtml(sample.location || "未记录地点")} · ${escapeHtml(sample.magnification || "")} · ${escapeHtml(sample.polarization || "")}</p>
+        </div>
+      </div>
+
+      <div class="form-group">
+        <label>观察到的主要矿物</label>
+        <input type="text" name="minerals" value="${escapeHtml(answer.minerals || "")}" placeholder="例如：石英、斜长石、黑云母">
+      </div>
+
+      <div class="form-group">
+        <label>颗粒结构描述</label>
+        <input type="text" name="texture" value="${escapeHtml(answer.texture || "")}" placeholder="例如：半自形粒状结构、碎裂结构">
+      </div>
+
+      <div class="form-group">
+        <label>观察结论与分析 <span style="color:var(--danger);">*</span></label>
+        <textarea name="observation" rows="5" placeholder="详细描述你的观察结果和地质分析..." required>${escapeHtml(answer.observation || "")}</textarea>
+      </div>
+
+      <div class="form-group">
+        <label>备注</label>
+        <textarea name="comment" rows="2" placeholder="其他需要说明的内容...">${escapeHtml(answer.comment || "")}</textarea>
+      </div>
+    </div>
+  `;
+}
+
+function bindAnswerFormEvents(sample) {
+  const container = $("#answerFormContainer");
+  if (!container) return;
+
+  let autoSaveTimer = null;
+
+  $$("input, textarea", container).forEach(field => {
+    field.addEventListener("input", () => {
+      const formData = new FormData();
+      $$("input, textarea", container).forEach(f => {
+        formData.set(f.name, f.value);
+      });
+      const answer = {
+        id: `answer-${sample.id}`,
+        sampleId: sample.id,
+        sampleCode: sample.code,
+        lessonPackageId: sample.lessonPackageId || "",
+        taskId: "",
+        minerals: formData.get("minerals") || "",
+        texture: formData.get("texture") || "",
+        observation: formData.get("observation") || "",
+        comment: formData.get("comment") || "",
+        answeredAt: new Date().toISOString()
+      };
+      lessonState.currentAnswers[sample.id] = answer;
+
+      if (autoSaveTimer) clearTimeout(autoSaveTimer);
+      autoSaveTimer = setTimeout(async () => {
+        if (window.LessonPackage) {
+          try {
+            await window.LessonPackage.saveLocalAnswer(answer);
+          } catch (e) {}
+        }
+      }, 1000);
+    });
+  });
+}
+
+function saveCurrentAnswer() {
+  const activeTab = $(".answer-tab.active");
+  if (!activeTab) return;
+
+  const sampleId = activeTab.dataset.answerTab;
+  const container = $("#answerFormContainer");
+  if (!container || !sampleId) return;
+
+  const formData = new FormData();
+  $$("input, textarea", container).forEach(f => {
+    formData.set(f.name, f.value);
+  });
+
+  const answer = {
+    sampleId,
+    sampleCode: "",
+    minerals: formData.get("minerals") || "",
+    texture: formData.get("texture") || "",
+    observation: formData.get("observation") || "",
+    comment: formData.get("comment") || "",
+    answeredAt: new Date().toISOString()
+  };
+
+  if (answer.observation || answer.minerals || answer.texture) {
+    lessonState.currentAnswers[sampleId] = answer;
+  }
+}
+
+function updateAnswerTabs() {
+  $$('[data-answer-tab]').forEach(tab => {
+    const sampleId = tab.dataset.answerTab;
+    const dot = tab.querySelector(".tab-dot");
+    if (dot) {
+      dot.classList.toggle("done", !!lessonState.currentAnswers[sampleId]);
+    }
+  });
+}
+
+function closeAnswerModal() {
+  $("#answerModal")?.classList.add("hidden");
+}
+
+function showExportAnswerModal() {
+  const lessonTasks = state.tasks.filter(t => t.lessonPackageId);
+
+  if (lessonTasks.length === 0) {
+    alert("还没有导入的课堂任务，请先导入课堂包");
+    return;
+  }
+
+  const modal = $("#answerModal");
+  const title = $("#answerModalTitle");
+  const body = $("#answerModalBody");
+  const footer = $("#answerModalFooter");
+
+  title.textContent = "📤 导出作答包";
+
+  body.innerHTML = `
+    <div class="student-info-section">
+      <h4>学生信息</h4>
+      <div class="student-info-grid">
+        <div class="form-group">
+          <label>姓名 <span style="color:var(--danger);">*</span></label>
+          <input type="text" id="exportStudentName" value="${escapeHtml(lessonState.studentInfo.name)}" placeholder="请输入姓名">
+        </div>
+        <div class="form-group">
+          <label>学号 <span style="color:var(--danger);">*</span></label>
+          <input type="text" id="exportStudentId" value="${escapeHtml(lessonState.studentInfo.studentId)}" placeholder="请输入学号">
+        </div>
+        <div class="form-group">
+          <label>班级</label>
+          <input type="text" id="exportStudentClass" value="${escapeHtml(lessonState.studentInfo.className)}" placeholder="请输入班级">
+        </div>
+      </div>
+    </div>
+
+    <div class="form-group">
+      <label>选择要导出的任务 <span style="color:var(--danger);">*</span></label>
+      <div class="task-picker-list" id="exportAnswerTaskPicker">
+        ${lessonTasks.map(task => `
+          <label class="picker-checkbox">
+            <input type="checkbox" value="${task.id}">
+            <span class="picker-label">
+              <strong>${escapeHtml(task.title)}</strong>
+              <small>（${task.sampleIds.length} 个样本）</small>
+            </span>
+          </label>
+        `).join("")}
+      </div>
+    </div>
+  `;
+
+  footer.innerHTML = `
+    <button type="button" class="ghost" onclick="closeAnswerModal()">取消</button>
+    <button type="button" class="primary" id="confirmExportAnswerBtn" disabled>导出作答包</button>
+  `;
+
+  $$('input[type="checkbox"]', body).forEach(cb => {
+    cb.addEventListener("change", () => {
+      const checked = $$('input[type="checkbox"]:checked', body);
+      $("#confirmExportAnswerBtn").disabled = checked.length === 0;
+    });
+  });
+
+  $("#confirmExportAnswerBtn").addEventListener("click", async () => {
+    const studentInfo = {
+      name: $("#exportStudentName").value.trim(),
+      studentId: $("#exportStudentId").value.trim(),
+      className: $("#exportStudentClass").value.trim()
+    };
+
+    const taskIds = $$('input[type="checkbox"]:checked', body).map(cb => cb.value);
+
+    if (!studentInfo.name || !studentInfo.studentId || taskIds.length === 0) {
+      alert("请填写学生信息并选择任务");
+      return;
+    }
+
+    lessonState.studentInfo = studentInfo;
+
+    try {
+      $("#confirmExportAnswerBtn").disabled = true;
+      $("#confirmExportAnswerBtn").textContent = "导出中...";
+
+      await window.LessonPackage.downloadAnswerPackage({
+        lessonPackageId: lessonTasks[0]?.lessonPackageId || "",
+        studentInfo,
+        taskIds,
+        answers: lessonState.currentAnswers
+      });
+
+      closeAnswerModal();
+      alert("作答包导出成功！请交给老师评分。");
+    } catch (err) {
+      alert("导出失败：" + err.message);
+    } finally {
+      $("#confirmExportAnswerBtn").disabled = false;
+      $("#confirmExportAnswerBtn").textContent = "导出作答包";
+    }
+  });
+
+  modal.classList.remove("hidden");
+}
+
+let gradingFilters = {
+  lessonPackageId: "",
+  studentId: "",
+  taskId: "",
+  graded: undefined,
+  studentName: ""
+};
+
+let gradingState = {
+  selectedSubmissionId: null,
+  selectedSampleId: null,
+  currentScores: {}
+};
+
+function initGradingFilters() {
+  $("#filterLesson")?.addEventListener("change", (e) => {
+    gradingFilters.lessonPackageId = e.target.value;
+    renderGradingPage();
+  });
+
+  $("#filterStudent")?.addEventListener("change", (e) => {
+    gradingFilters.studentId = e.target.value;
+    renderGradingPage();
+  });
+
+  $("#filterTask")?.addEventListener("change", (e) => {
+    gradingFilters.taskId = e.target.value;
+    renderGradingPage();
+  });
+
+  $("#filterGraded")?.addEventListener("change", (e) => {
+    const val = e.target.value;
+    gradingFilters.graded = val === "" ? undefined : val === "true";
+    renderGradingPage();
+  });
+
+  $("#searchStudent")?.addEventListener("input", (e) => {
+    gradingFilters.studentName = e.target.value.trim();
+    renderGradingPage();
+  });
+
+  $$('[data-grading-view]').forEach(btn => {
+    btn.addEventListener("click", () => {
+      lessonState.gradingView = btn.dataset.gradingView;
+      $$('[data-grading-view]').forEach(b => b.classList.remove("active"));
+      btn.classList.add("active");
+      renderGradingPage();
+    });
+  });
+
+  $("#batchImportAnswerBtn")?.addEventListener("click", () => {
+    $("#batchAnswerFileInput")?.click();
+  });
+
+  $("#batchAnswerFileInput")?.addEventListener("change", async (e) => {
+    const files = Array.from(e.target.files || []);
+    if (files.length === 0) return;
+
+    try {
+      const result = await window.LessonPackage.batchImportAnswerPackages(files, {
+        onDuplicate: showDuplicateModal
+      });
+
+      let msg = `批量导入完成！\n成功：${result.totalSuccess} 份\n失败：${result.totalErrors} 份`;
+      if (result.errors.length > 0) {
+        msg += "\n\n失败详情：\n";
+        result.errors.slice(0, 5).forEach(err => {
+          msg += `  - ${err.file}: ${err.cancelled ? "已跳过" : err.error}\n`;
+        });
+        if (result.errors.length > 5) {
+          msg += `  ... 还有 ${result.errors.length - 5} 个错误`;
+        }
+      }
+      alert(msg);
+      renderGradingPage();
+    } catch (err) {
+      alert("批量导入失败：" + err.message);
+    } finally {
+      e.target.value = "";
+    }
+  });
+
+  $("#exportGradingBtn")?.addEventListener("click", async () => {
+    if (!gradingFilters.lessonPackageId) {
+      alert("请先选择一个课堂包");
+      return;
+    }
+
+    try {
+      await window.LessonPackage.downloadGradingResults(gradingFilters.lessonPackageId);
+      alert("评分结果导出成功！");
+    } catch (err) {
+      alert("导出失败：" + err.message);
+    }
+  });
+}
+
+function renderGradingPage() {
+  if (!window.LessonPackage) return;
+
+  updateGradingFilterOptions();
+  updateGradingStats();
+
+  const view = lessonState.gradingView || "student";
+
+  if (view === "student") {
+    renderSubmissionList();
+    renderGradingDetail();
+    $("#gradingMainContent")?.classList.remove("hidden");
+    $("#gradingAggregate")?.classList.add("hidden");
+  } else if (view === "task") {
+    renderAggregateByTask();
+    $("#gradingMainContent")?.classList.add("hidden");
+    $("#gradingAggregate")?.classList.remove("hidden");
+  } else if (view === "sample") {
+    renderAggregateBySample();
+    $("#gradingMainContent")?.classList.add("hidden");
+    $("#gradingAggregate")?.classList.remove("hidden");
+  }
+}
+
+function updateGradingFilterOptions() {
+  const lessons = window.LessonPackage.getUniqueLessons();
+  const students = window.LessonPackage.getUniqueStudents();
+
+  const lessonSelect = $("#filterLesson");
+  if (lessonSelect) {
+    const currentVal = lessonSelect.value;
+    lessonSelect.innerHTML = '<option value="">全部课堂包</option>' +
+      lessons.map(l => `<option value="${l.lessonPackageId}">${escapeHtml(l.title)} (${l.submissionCount}份)</option>`).join("");
+    lessonSelect.value = currentVal;
+  }
+
+  const studentSelect = $("#filterStudent");
+  if (studentSelect) {
+    const currentVal = studentSelect.value;
+    studentSelect.innerHTML = '<option value="">全部学生</option>' +
+      students.map(s => `<option value="${s.studentId}">${escapeHtml(s.name)} (${s.studentId})</option>`).join("");
+    studentSelect.value = currentVal;
+  }
+
+  const taskSelect = $("#filterTask");
+  if (taskSelect) {
+    const currentVal = taskSelect.value;
+    const allTasks = new Set();
+    window.LessonPackage.getAllSubmissions().forEach(sub => {
+      sub.tasks.forEach(t => allTasks.add(t.title));
+    });
+    taskSelect.innerHTML = '<option value="">全部任务</option>' +
+      Array.from(allTasks).map(t => `<option value="${escapeHtml(t)}">${escapeHtml(t)}</option>`).join("");
+    taskSelect.value = currentVal;
+  }
+}
+
+function updateGradingStats() {
+  const submissions = window.LessonPackage.getAllSubmissions();
+  const graded = submissions.filter(s => Object.keys(s.scores || {}).length > 0);
+  const ungraded = submissions.filter(s => Object.keys(s.scores || {}).length === 0);
+  const scored = submissions.filter(s => s.finalScore !== null);
+  const avg = scored.length > 0
+    ? Math.round(scored.reduce((sum, s) => sum + (s.finalScore || 0), 0) / scored.length)
+    : 0;
+
+  if ($("#statTotal")) $("#statTotal").textContent = submissions.length;
+  if ($("#statGraded")) $("#statGraded").textContent = graded.length;
+  if ($("#statUngraded")) $("#statUngraded").textContent = ungraded.length;
+  if ($("#statAvg")) $("#statAvg").textContent = avg;
+}
+
+function renderSubmissionList() {
+  const container = $("#submissionList");
+  if (!container) return;
+
+  const submissions = window.LessonPackage.getFilteredSubmissions(gradingFilters);
+
+  if (submissions.length === 0) {
+    container.innerHTML = '<p style="padding:40px;text-align:center;color:var(--muted);">暂无提交记录</p>';
+    return;
+  }
+
+  container.innerHTML = submissions.map(sub => {
+    const isGraded = Object.keys(sub.scores || {}).length > 0;
+    const sampleCount = Object.keys(sub.answers || {}).length;
+    return `
+      <div class="submission-card ${sub.id === gradingState.selectedSubmissionId ? "active" : ""}" data-submission-id="${sub.id}">
+        <div class="submission-header">
+          <h4>${escapeHtml(sub.studentInfo.name)}</h4>
+          <span class="badge ${isGraded ? "completed" : "pending"}">${isGraded ? "已评分" : "待评分"}</span>
+        </div>
+        <div class="submission-meta">
+          <span>学号：${escapeHtml(sub.studentInfo.studentId)}</span>
+          ${sub.studentInfo.className ? `<span>班级：${escapeHtml(sub.studentInfo.className)}</span>` : ""}
+        </div>
+        <div class="submission-stats">
+          <span>作答 ${sampleCount} 个样本</span>
+          ${sub.finalScore !== null ? `<span class="score">${sub.finalScore} 分</span>` : ""}
+        </div>
+        <div class="submission-date">
+          提交：${formatDateTime(sub.importedAt)}
+        </div>
+      </div>
+    `;
+  }).join("");
+
+  $$('[data-submission-id]', container).forEach(card => {
+    card.addEventListener("click", () => {
+      gradingState.selectedSubmissionId = card.dataset.submissionId;
+      renderSubmissionList();
+      renderGradingDetail();
+    });
+  });
+}
+
+function renderGradingDetail() {
+  const emptyEl = $("#gradingEmpty");
+  const detailEl = $("#gradingDetail");
+
+  if (!gradingState.selectedSubmissionId) {
+    emptyEl?.classList.remove("hidden");
+    detailEl?.classList.add("hidden");
+    return;
+  }
+
+  const submission = window.LessonPackage.getSubmissionById(gradingState.selectedSubmissionId);
+  if (!submission) {
+    emptyEl?.classList.remove("hidden");
+    detailEl?.classList.add("hidden");
+    return;
+  }
+
+  emptyEl?.classList.add("hidden");
+  detailEl?.classList.remove("hidden");
+
+  const rubrics = window.LessonPackage.getRubrics();
+  const answers = Object.entries(submission.answers || {});
+
+  detailEl.innerHTML = `
+    <div class="grading-detail-header">
+      <div>
+        <h3>${escapeHtml(submission.studentInfo.name)} 的作答</h3>
+        <p>学号：${escapeHtml(submission.studentInfo.studentId)}${submission.studentInfo.className ? ` · 班级：${escapeHtml(submission.studentInfo.className)}` : ""}</p>
+      </div>
+      <div class="grading-detail-actions">
+        ${submission.finalScore !== null ? `<span class="final-score">总分：${submission.finalScore} 分</span>` : ""}
+        <button type="button" class="danger" id="deleteSubmissionBtn">删除</button>
+      </div>
+    </div>
+
+    <div class="grading-samples-nav">
+      ${answers.map(([sampleId, answer], i) => {
+        const score = submission.scores?.[sampleId];
+        const isActive = sampleId === gradingState.selectedSampleId || (i === 0 && !gradingState.selectedSampleId);
+        if (i === 0 && !gradingState.selectedSampleId) gradingState.selectedSampleId = sampleId;
+        return `
+          <button type="button" class="grading-tab ${isActive ? "active" : ""}" data-grading-tab="${sampleId}">
+            ${escapeHtml(answer.sampleCode || sampleId.slice(0, 8))}
+            ${score ? '<span class="tab-dot done"></span>' : '<span class="tab-dot"></span>'}
+          </button>
+        `;
+      }).join("")}
+    </div>
+
+    <div class="grading-content" id="gradingContent">
+      ${renderGradingSampleContent(submission, gradingState.selectedSampleId || answers[0]?.[0], rubrics)}
+    </div>
+  `;
+
+  $$('[data-grading-tab]', detailEl).forEach(tab => {
+    tab.addEventListener("click", () => {
+      saveCurrentScore();
+      gradingState.selectedSampleId = tab.dataset.gradingTab;
+      renderGradingDetail();
+    });
+  });
+
+  $("#deleteSubmissionBtn")?.addEventListener("click", async () => {
+    if (!confirm("确定删除该学生的作答记录？此操作不可撤销。")) return;
+    await window.LessonPackage.deleteSubmission(gradingState.selectedSubmissionId);
+    gradingState.selectedSubmissionId = null;
+    gradingState.selectedSampleId = null;
+    renderGradingPage();
+  });
+
+  bindGradingFormEvents(submission, gradingState.selectedSampleId || answers[0]?.[0], rubrics);
+}
+
+function renderGradingSampleContent(submission, sampleId, rubrics) {
+  const answer = submission.answers?.[sampleId];
+  const existingScore = submission.scores?.[sampleId];
+
+  if (!answer) {
+    return '<p style="padding:40px;text-align:center;color:var(--muted);">该样本没有作答记录</p>';
+  }
+
+  const sample = state.samples.find(s => s.id === sampleId);
+
+  const referenceAnswers = window.LessonPackage.getReferenceAnswersForLesson(submission.lessonPackageId);
+  const refAnswer = referenceAnswers[sampleId] || null;
+
+  const lessonMeta = window.LessonPackage.getLessonMeta(submission.lessonPackageId);
+  const lessonRubrics = submission.lessonPackageId
+    ? window.LessonPackage.getRubricsForLesson(submission.lessonPackageId)
+    : rubrics;
+
+  let referenceSection = "";
+  if (refAnswer) {
+    referenceSection = `
+      <div class="reference-section">
+        <h4>📋 参考答案</h4>
+        <div class="reference-compare">
+          <div class="compare-col student-col">
+            <h5>学生作答</h5>
+            <div class="compare-field">
+              <span class="compare-label">主要矿物</span>
+              <span class="compare-value ${refAnswer.minerals && !answer.minerals ? 'missing' : ''}">${escapeHtml(answer.minerals || "未填写")}</span>
+            </div>
+            <div class="compare-field">
+              <span class="compare-label">颗粒结构</span>
+              <span class="compare-value ${refAnswer.texture && !answer.texture ? 'missing' : ''}">${escapeHtml(answer.texture || "未填写")}</span>
+            </div>
+            <div class="compare-field">
+              <span class="compare-label">观察结论</span>
+              <span class="compare-value ${!answer.observation ? 'missing' : ''}">${escapeHtml(answer.observation || "未填写")}</span>
+            </div>
+          </div>
+          <div class="compare-col reference-col">
+            <h5>参考答案</h5>
+            <div class="compare-field">
+              <span class="compare-label">主要矿物</span>
+              <span class="compare-value">${escapeHtml(refAnswer.minerals || "—")}</span>
+            </div>
+            <div class="compare-field">
+              <span class="compare-label">颗粒结构</span>
+              <span class="compare-value">${escapeHtml(refAnswer.texture || "—")}</span>
+            </div>
+            <div class="compare-field">
+              <span class="compare-label">老师批注</span>
+              <span class="compare-value">${escapeHtml(refAnswer.comment || "—")}</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    `;
+  }
+
+  return `
+    <div class="grading-sample-content">
+      <div class="answer-sample-header">
+        ${sample?.photo ? `<img src="${sample.photo}" alt="${escapeHtml(answer.sampleCode || "")}" class="answer-sample-photo">` : '<div class="photo-placeholder" style="aspect-ratio:4/3;">暂无照片</div>'}
+        <div class="answer-sample-info">
+          <h4>${escapeHtml(answer.sampleCode || "未知样本")}</h4>
+          ${answer.answeredAt ? `<p>作答时间：${formatDateTime(answer.answeredAt)}</p>` : ""}
+          ${lessonMeta ? `<p>课堂包：${escapeHtml(lessonMeta.title || "未知")}</p>` : ""}
+        </div>
+      </div>
+
+      ${!refAnswer ? `
+      <div class="answer-display">
+        <div class="answer-field">
+          <label>主要矿物</label>
+          <p>${escapeHtml(answer.minerals || "未填写")}</p>
+        </div>
+        <div class="answer-field">
+          <label>颗粒结构</label>
+          <p>${escapeHtml(answer.texture || "未填写")}</p>
+        </div>
+        <div class="answer-field">
+          <label>观察结论与分析</label>
+          <p style="white-space:pre-wrap;">${escapeHtml(answer.observation || "未填写")}</p>
+        </div>
+        ${answer.comment ? `
+          <div class="answer-field">
+            <label>备注</label>
+            <p>${escapeHtml(answer.comment)}</p>
+          </div>
+        ` : ""}
+      </div>
+      ` : ""}
+
+      ${referenceSection}
+
+      <div class="scoring-section">
+        <h4>评分项${lessonMeta ? `（${escapeHtml(lessonMeta.title)}）` : ""}</h4>
+        <div class="scoring-form">
+          ${lessonRubrics.map(r => {
+            const score = existingScore?.[r.id] ?? "";
+            return `
+              <div class="scoring-item">
+                <label>
+                  <span>${escapeHtml(r.name)} <small>（满分 ${r.maxScore} 分）</small></span>
+                  <small class="scoring-desc">${escapeHtml(r.description)}</small>
+                </label>
+                <input type="number" name="${r.id}" min="0" max="${r.maxScore}" value="${score}" placeholder="0-${r.maxScore}">
+              </div>
+            `;
+          }).join("")}
+          <div class="scoring-item">
+            <label>老师评语</label>
+            <textarea name="teacherComment" rows="3" placeholder="给学生的反馈意见...">${existingScore?.comment || ""}</textarea>
+          </div>
+        </div>
+        <div class="scoring-actions">
+          <button type="button" class="primary" id="saveScoreBtn">保存评分</button>
+        </div>
+      </div>
+    </div>
+  `;
+}
+
+function bindGradingFormEvents(submission, sampleId, rubrics) {
+  const container = $("#gradingContent");
+  if (!container) return;
+
+  $("#saveScoreBtn")?.addEventListener("click", async () => {
+    await saveCurrentScore();
+    alert("评分已保存！");
+    renderGradingPage();
+  });
+}
+
+async function saveCurrentScore() {
+  if (!gradingState.selectedSubmissionId || !gradingState.selectedSampleId) return;
+
+  const container = $("#gradingContent");
+  if (!container) return;
+
+  const submission = window.LessonPackage.getSubmissionById(gradingState.selectedSubmissionId);
+  const rubrics = submission?.lessonPackageId
+    ? window.LessonPackage.getRubricsForLesson(submission.lessonPackageId)
+    : window.LessonPackage.getRubrics();
+
+  const scores = {};
+
+  rubrics.forEach(r => {
+    const input = container.querySelector(`input[name="${r.id}"]`);
+    if (input) {
+      const val = parseFloat(input.value);
+      if (!isNaN(val) && val >= 0 && val <= r.maxScore) {
+        scores[r.id] = val;
+      }
+    }
+  });
+
+  const commentInput = container.querySelector('textarea[name="teacherComment"]');
+  const comment = commentInput?.value || "";
+
+  if (Object.keys(scores).length > 0) {
+    await window.LessonPackage.saveScore(
+      gradingState.selectedSubmissionId,
+      gradingState.selectedSampleId,
+      scores,
+      comment
+    );
+  }
+}
+
+function renderAggregateByTask() {
+  const container = $("#gradingAggregate");
+  if (!container) return;
+
+  const lessonId = gradingFilters.lessonPackageId;
+  if (!lessonId) {
+    container.innerHTML = '<div class="aggregate-empty"><p>请先选择一个课堂包查看按任务汇总</p></div>';
+    return;
+  }
+
+  const tasks = window.LessonPackage.getAggregatedByTask(lessonId);
+
+  if (tasks.length === 0) {
+    container.innerHTML = '<div class="aggregate-empty"><p>暂无任务数据</p></div>';
+    return;
+  }
+
+  container.innerHTML = `
+    <div class="aggregate-header">
+      <h3>按任务汇总</h3>
+      <p class="aggregate-subtitle">共 ${tasks.length} 个任务</p>
+    </div>
+    <div class="aggregate-tasks">
+      ${tasks.map(task => {
+        const avgScore = task.students.length > 0
+          ? Math.round(task.students.reduce((sum, s) => sum + (s.finalScore || 0), 0) / task.students.length)
+          : 0;
+        const gradedCount = task.students.filter(s => Object.keys(s.scores || {}).length > 0).length;
+        return `
+          <div class="aggregate-task-card">
+            <div class="aggregate-task-header">
+              <h4>${escapeHtml(task.taskTitle)}</h4>
+              <span class="badge">${task.sampleIds.length} 个样本</span>
+            </div>
+            <div class="aggregate-task-stats">
+              <div class="stat-mini">
+                <span class="stat-mini-label">提交人数</span>
+                <span class="stat-mini-value">${task.students.length}</span>
+              </div>
+              <div class="stat-mini">
+                <span class="stat-mini-label">已评分</span>
+                <span class="stat-mini-value success">${gradedCount}</span>
+              </div>
+              <div class="stat-mini">
+                <span class="stat-mini-label">平均分</span>
+                <span class="stat-mini-value">${avgScore}</span>
+              </div>
+            </div>
+            <div class="aggregate-student-list">
+              ${task.students.map(student => {
+                const hasScore = Object.keys(student.scores || {}).length > 0;
+                return `
+                  <div class="aggregate-student-item">
+                    <span class="student-name">${escapeHtml(student.studentInfo.name)}</span>
+                    <span class="student-id">${escapeHtml(student.studentInfo.studentId)}</span>
+                    <span class="student-score ${hasScore ? '' : 'pending'}">
+                      ${student.finalScore !== null ? student.finalScore + '分' : '待评分'}
+                    </span>
+                  </div>
+                `;
+              }).join("")}
+            </div>
+          </div>
+        `;
+      }).join("")}
+    </div>
+  `;
+}
+
+function renderAggregateBySample() {
+  const container = $("#gradingAggregate");
+  if (!container) return;
+
+  const lessonId = gradingFilters.lessonPackageId;
+  if (!lessonId) {
+    container.innerHTML = '<div class="aggregate-empty"><p>请先选择一个课堂包查看按样本汇总</p></div>';
+    return;
+  }
+
+  const samples = window.LessonPackage.getAggregatedBySample(lessonId);
+  const referenceAnswers = window.LessonPackage.getReferenceAnswersForLesson(lessonId);
+
+  if (samples.length === 0) {
+    container.innerHTML = '<div class="aggregate-empty"><p>暂无样本数据</p></div>';
+    return;
+  }
+
+  container.innerHTML = `
+    <div class="aggregate-header">
+      <h3>按样本汇总</h3>
+      <p class="aggregate-subtitle">共 ${samples.length} 个样本</p>
+    </div>
+    <div class="aggregate-samples">
+      ${samples.map(sample => {
+        const refAnswer = referenceAnswers[sample.sampleId];
+        const avgScore = sample.students.length > 0
+          ? Math.round(sample.students.reduce((sum, s) => {
+              const score = s.score;
+              if (!score) return sum;
+              const sampleTotal = Object.entries(score)
+                .filter(([k]) => k !== "comment" && k !== "scoredAt")
+                .reduce((acc, [, v]) => acc + (typeof v === "number" ? v : 0), 0);
+              return sum + sampleTotal;
+            }, 0) / sample.students.length)
+          : 0;
+        const sampleInfo = state.samples.find(s => s.id === sample.sampleId);
+        return `
+          <div class="aggregate-sample-card">
+            <div class="aggregate-sample-header">
+              <h4>${escapeHtml(sampleInfo?.code || sample.sampleId.slice(0, 8))}</h4>
+              <span class="badge">${sample.students.length} 人作答</span>
+            </div>
+            ${refAnswer ? `
+              <div class="aggregate-ref-answer">
+                <span class="ref-label">参考答案：</span>
+                <span class="ref-value">${escapeHtml(refAnswer.minerals || "—")}</span>
+              </div>
+            ` : ""}
+            <div class="aggregate-sample-stats">
+              <span>平均分：${avgScore} 分</span>
+            </div>
+            <div class="aggregate-student-list">
+              ${sample.students.map(student => {
+                const score = student.score;
+                const hasScore = !!score;
+                const scoreTotal = hasScore
+                  ? Object.entries(score)
+                      .filter(([k]) => k !== "comment" && k !== "scoredAt")
+                      .reduce((acc, [, v]) => acc + (typeof v === "number" ? v : 0), 0)
+                  : null;
+                return `
+                  <div class="aggregate-student-item">
+                    <span class="student-name">${escapeHtml(student.studentInfo.name)}</span>
+                    <span class="student-id">${escapeHtml(student.studentInfo.studentId)}</span>
+                    <span class="student-score ${hasScore ? '' : 'pending'}">
+                      ${scoreTotal !== null ? scoreTotal + '分' : '待评分'}
+                    </span>
+                  </div>
+                `;
+              }).join("")}
+            </div>
+          </div>
+        `;
+      }).join("")}
+    </div>
+  `;
+}
+
 function initBackupRestoreUI() {
   const backupBtn = $("#backupBtn");
   const restoreBtn = $("#restoreBtn");
@@ -1386,6 +2781,10 @@ async function initApp() {
     await window.StorageLayer.initDB();
     await window.DataManager.init();
 
+    if (window.LessonPackage) {
+      await window.LessonPackage.init();
+    }
+
     const needsMigration = await window.DataMigration.checkAndMigrate();
     if (needsMigration) {
       await showMigrationDialog();
@@ -1419,6 +2818,7 @@ async function initApp() {
     }
 
     initBackupRestoreUI();
+    initLessonUI();
 
     renderAll();
   } catch (err) {
