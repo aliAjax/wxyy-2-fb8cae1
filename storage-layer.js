@@ -690,6 +690,14 @@
       return put(STORES.RECYCLE_BIN, itemData);
     },
 
+    async bulkAdd(items) {
+      const itemDataList = items.map(item => ({
+        ...item,
+        projectId: item.projectId || DEFAULT_PROJECT_ID
+      }));
+      return bulkPut(STORES.RECYCLE_BIN, itemDataList);
+    },
+
     async remove(id) {
       return remove(STORES.RECYCLE_BIN, id);
     },
