@@ -115,6 +115,9 @@
     if (isProjectBackup) {
       if (window.ProjectManager && window.StorageLayer) {
         const result = await window.StorageLayer.importProjectData(data, { renameProject });
+        if (window.ProjectManager.refreshProjectsCache) {
+          await window.ProjectManager.refreshProjectsCache();
+        }
         if (onProgress) onProgress(1.0, "导入完成");
         return {
           success: true,
@@ -131,6 +134,9 @@
       for (let i = 0; i < totalProjects; i++) {
         if (onProgress) onProgress(0.2 + (i / totalProjects) * 0.7, `导入项目 ${i + 1}/${totalProjects}`);
         await window.StorageLayer.importProjectData(data.projects[i], {});
+      }
+      if (window.ProjectManager.refreshProjectsCache) {
+        await window.ProjectManager.refreshProjectsCache();
       }
       if (onProgress) onProgress(1.0, "导入完成");
       return {
@@ -269,6 +275,10 @@
           sampleId: idMapping[ans.sampleId] || ans.sampleId
         });
       }
+    }
+
+    if (window.ProjectManager && window.ProjectManager.refreshProjectsCache) {
+      await window.ProjectManager.refreshProjectsCache();
     }
 
     return {

@@ -1,5 +1,6 @@
 let state = null;
 let showArchivedProjects = false;
+let showArchivedInManager = false;
 let currentProjectFormMode = "create";
 let currentEditingProjectId = null;
 
@@ -8,13 +9,13 @@ const $$ = (sel, scope = document) => Array.from(scope.querySelectorAll(sel));
 
 const projectSelector = $("#projectSelector");
 const appShell = $("#appShell");
-const projectGrid = $("#projectGrid");
+const projectGrid = $("#projectList");
 const projectEmpty = $("#projectEmpty");
-const showArchivedToggle = $("#showArchivedToggle");
+const showArchivedToggle = $("#showArchivedProjects");
 const createProjectBtn = $("#createProjectBtn");
 const importProjectBtn = $("#importProjectBtn");
-const importProjectBackupBtn = $("#importProjectBackupBtn");
-const importProjectBackupInput = $("#importProjectBackupInput");
+const importProjectBackupBtn = $("#importProjectBtn");
+const importProjectBackupInput = $("#importProjectFileInput");
 const currentProjectBtn = $("#currentProjectBtn");
 const currentProjectName = $("#currentProjectName");
 const projectDropdown = $("#projectDropdown");
@@ -22,13 +23,14 @@ const projectDropdownList = $("#projectDropdownList");
 const dropdownCreateBtn = $("#dropdownCreateBtn");
 const dropdownImportBtn = $("#dropdownImportBtn");
 const manageProjectsBtn = $("#manageProjectsBtn");
-const openProjectManagerBtn = $("#openProjectManagerBtn");
+const openProjectManagerBtn = null;
 const projectManagerModal = $("#projectManagerModal");
 const projectManagerClose = $("#projectManagerClose");
-const projectManagerList = $("#projectManagerList");
-const projectManagerNewBtn = $("#projectManagerNewBtn");
-const projectManagerImportBtn = $("#projectManagerImportBtn");
-const projectManagerImportInput = $("#projectManagerImportInput");
+const projectManagerList = $("#pmProjectList");
+const projectManagerNewBtn = $("#pmCreateBtn");
+const projectManagerImportBtn = $("#pmImportBtn");
+const projectManagerImportInput = $("#importProjectFileInput");
+const pmShowArchivedCheckbox = $("#pmShowArchived");
 const projectFormModal = $("#projectFormModal");
 const projectForm = $("#projectForm");
 const projectFormClose = $("#projectFormClose");
@@ -2835,11 +2837,31 @@ function initBackupRestoreUI() {
 
       const result = await window.BackupRestore.importBackupFile(file, { merge: false });
 
-      await window.DataManager.reload();
-      state = window.DataManager.getState();
+      if (window.ProjectManager && window.ProjectManager.refreshProjectsCache) {
+        await window.ProjectManager.refreshProjectsCache();
+      }
+      if (window.ProjectManager && window.ProjectManager.getCurrentProjectId) {
+        const pid = window.ProjectManager.getCurrentProjectId();
+        if (pid) {
+          await window.DataManager.reloadForProject();
+          state = window.DataManager.getState();
+        }
+      } else {
+        await window.DataManager.reload();
+        state = window.DataManager.getState();
+      }
+
+      updateHeaderProjectName();
+      await renderProjectList();
       renderAll();
 
-      alert(`恢复成功！\n导入了 ${result.sampleCount} 个样本、${result.taskCount} 个任务`);
+      if (result.project) {
+        alert(`恢复成功！\n导入了项目「${result.project.name}」\n包含 ${result.sampleCount || 0} 个样本、${result.taskCount || 0} 个任务`);
+      } else if (result.projectCount) {
+        alert(`恢复成功！\n导入了 ${result.projectCount} 个项目`);
+      } else {
+        alert(`恢复成功！\n导入了 ${result.sampleCount || 0} 个样本、${result.taskCount || 0} 个任务`);
+      }
     } catch (err) {
       console.error("恢复失败:", err);
       alert("恢复失败：" + err.message);
@@ -2945,13 +2967,8 @@ async function initApp() {
       await reloadDataForProject();
     });
 
-    const hasCurrentProject = !!window.ProjectManager.getCurrentProjectId();
-    if (!hasCurrentProject) {
-      showProjectSelector();
-      return;
-    }
-
-    await loadProjectDataAndUI();
+    await renderProjectList();
+    await showProjectSelector();
   } catch (err) {
     console.error("初始化失败:", err);
     alert("应用初始化失败：" + err.message);
@@ -3046,10 +3063,10 @@ async function reloadDataForProject() {
   }
 }
 
-function showProjectSelector() {
+async function showProjectSelector() {
   if (projectSelector) projectSelector.classList.remove("hidden");
   if (appShell) appShell.classList.add("hidden");
-  renderProjectList();
+  await renderProjectList();
 }
 
 function showAppShell() {
@@ -3066,9 +3083,9 @@ function initProjectUI() {
     await handleImportProjectBackup(e.target.files[0]);
     importProjectBackupInput.value = "";
   });
-  showArchivedToggle?.addEventListener("change", (e) => {
+  showArchivedToggle?.addEventListener("change", async (e) => {
     showArchivedProjects = e.target.checked;
-    renderProjectList();
+    await renderProjectList();
   });
 
   currentProjectBtn?.addEventListener("click", (e) => {
@@ -3106,7 +3123,11 @@ function initProjectUI() {
   projectManagerImportInput?.addEventListener("change", async (e) => {
     await handleImportProjectBackup(e.target.files[0]);
     projectManagerImportInput.value = "";
-    renderManagerList();
+    await renderManagerList();
+  });
+  pmShowArchivedCheckbox?.addEventListener("change", async (e) => {
+    showArchivedInManager = e.target.checked;
+    await renderManagerList();
   });
 
   projectFormClose?.addEventListener("click", () => closeProjectForm());
@@ -3169,7 +3190,7 @@ function renderProjectDropdown() {
   });
 }
 
-function renderProjectList() {
+async function renderProjectList() {
   if (!projectGrid) return;
   const allProjects = window.ProjectManager?.getProjects?.() || [];
   const projects = allProjects.filter(p => showArchivedProjects ? true : !p.isArchived);
@@ -3182,13 +3203,19 @@ function renderProjectList() {
   projectGrid.classList.remove("hidden");
   projectEmpty?.classList.add("hidden");
 
-  projectGrid.innerHTML = projects.map(p => {
-    const stats = window.ProjectManager?.getProjectStats?.(p.id) || { sampleCount: 0, taskCount: 0 };
+  const cards = [];
+  for (const p of projects) {
+    let stats = { sampleCount: 0, taskCount: 0 };
+    try {
+      if (window.ProjectManager?.getProjectStats) {
+        stats = await window.ProjectManager.getProjectStats(p.id);
+      }
+    } catch (e) { console.warn(e); }
     const createdStr = p.createdAt ? formatDateTime(p.createdAt).split(" ")[0] : "";
     const classes = ["project-card"];
     if (p.id === "default-project") classes.push("default-project");
     if (p.isArchived) classes.push("archived");
-    return `
+    cards.push(`
       <div class="${classes.join(" ")}" data-project-id="${p.id}">
         <div class="project-card-head">
           <h3 class="project-card-title">${escapeHtml(p.name)}</h3>
@@ -3201,8 +3228,10 @@ function renderProjectList() {
         </div>
         <div class="project-card-meta">创建于 ${createdStr}</div>
       </div>
-    `;
-  }).join("");
+    `);
+  }
+
+  projectGrid.innerHTML = cards.join("");
 
   projectGrid.querySelectorAll(".project-card").forEach(card => {
     card.addEventListener("click", async (e) => {
@@ -3293,22 +3322,22 @@ async function handleProjectAction(projectId, action) {
       if (confirm(`确定要归档项目「${project.name}」吗？归档后项目将从主列表中隐藏。`)) {
         await window.ProjectManager.archiveProject(projectId);
         if (window.ProjectManager.getCurrentProjectId() === projectId) {
-          showProjectSelector();
+          await showProjectSelector();
         } else {
-          renderProjectList();
+          await renderProjectList();
           updateHeaderProjectName();
         }
       }
       break;
     case "unarchive":
       await window.ProjectManager.unarchiveProject(projectId);
-      renderProjectList();
+      await renderProjectList();
       break;
     case "duplicate":
       const newName = prompt(`输入新项目名称：`, `${project.name} (副本)`);
       if (newName?.trim()) {
         await window.ProjectManager.duplicateProject(projectId, newName.trim());
-        renderProjectList();
+        await renderProjectList();
       }
       break;
     case "export":
@@ -3318,9 +3347,9 @@ async function handleProjectAction(projectId, action) {
       if (confirm(`确定要删除项目「${project.name}」吗？所有数据将被永久删除，此操作不可撤销！`)) {
         await window.ProjectManager.deleteProject(projectId);
         if (window.ProjectManager.getCurrentProjectId() === projectId) {
-          showProjectSelector();
+          await showProjectSelector();
         } else {
-          renderProjectList();
+          await renderProjectList();
         }
       }
       break;
@@ -3332,16 +3361,16 @@ async function handleImportProjectBackup(file) {
   try {
     const result = await window.ProjectManager.importProjectBackup(file);
     alert(`项目「${result.project.name}」导入成功！包含 ${result.sampleCount || result.stats?.sampleCount || 0} 个样本、${result.taskCount || result.stats?.taskCount || 0} 个任务。`);
-    renderProjectList();
+    await renderProjectList();
   } catch (e) {
     alert("导入失败：" + e.message);
   }
 }
 
-function openProjectManager() {
+async function openProjectManager() {
   projectManagerModal?.classList.remove("hidden");
   document.body.style.overflow = "hidden";
-  renderManagerList();
+  await renderManagerList();
 }
 
 function closeProjectManager() {
@@ -3349,23 +3378,30 @@ function closeProjectManager() {
   document.body.style.overflow = "";
 }
 
-function renderManagerList() {
+async function renderManagerList() {
   if (!projectManagerList) return;
-  const projects = window.ProjectManager?.getProjects?.() || [];
+  const allProjects = window.ProjectManager?.getProjects?.() || [];
+  const projects = allProjects.filter(p => showArchivedInManager ? true : !p.isArchived);
 
   if (projects.length === 0) {
     projectManagerList.innerHTML = '<p class="vh-empty">还没有项目，点击右上角创建。</p>';
     return;
   }
 
-  projectManagerList.innerHTML = projects.map(p => {
-    const stats = window.ProjectManager?.getProjectStats?.(p.id) || { sampleCount: 0, taskCount: 0 };
+  const rows = [];
+  for (const p of projects) {
+    let stats = { sampleCount: 0, taskCount: 0 };
+    try {
+      if (window.ProjectManager?.getProjectStats) {
+        stats = await window.ProjectManager.getProjectStats(p.id);
+      }
+    } catch (e) { console.warn(e); }
     const isDefault = p.id === "default-project";
     const badges = [];
     if (isDefault) badges.push('<span class="manager-row-badge default-badge">默认</span>');
     if (p.isArchived) badges.push('<span class="manager-row-badge archived-badge">已归档</span>');
     const updatedStr = p.updatedAt ? formatDateTime(p.updatedAt) : "-";
-    return `
+    rows.push(`
       <div class="manager-row ${p.isArchived ? "archived" : ""}">
         <div class="manager-row-info">
           <div class="manager-row-name">
@@ -3390,8 +3426,10 @@ function renderManagerList() {
           <button type="button" class="danger-btn" data-mgr-delete="${p.id}" ${isDefault ? "disabled" : ""}>删除</button>
         </div>
       </div>
-    `;
-  }).join("");
+    `);
+  }
+
+  projectManagerList.innerHTML = rows.join("");
 
   projectManagerList.querySelectorAll("[data-mgr-open]").forEach(b => {
     b.addEventListener("click", async () => {
@@ -3448,10 +3486,10 @@ function renderManagerList() {
       const p = window.ProjectManager.getProjectById(pid);
       if (confirm(`彻底删除「${p?.name}」？此操作不可撤销！`)) {
         await window.ProjectManager.deleteProject(pid);
-        renderManagerList();
+        await renderManagerList();
         if (window.ProjectManager.getCurrentProjectId() === pid) {
           closeProjectManager();
-          showProjectSelector();
+          await showProjectSelector();
         }
       }
     });
@@ -3527,8 +3565,8 @@ async function handleProjectFormSubmit() {
       await window.ProjectManager.updateProjectDescription(currentEditingProjectId, description);
       closeProjectForm();
       updateHeaderProjectName();
-      renderProjectList();
-      renderManagerList();
+      await renderProjectList();
+      await renderManagerList();
     }
   } catch (e) {
     alert("保存失败：" + e.message);
