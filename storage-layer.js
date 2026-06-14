@@ -2,7 +2,7 @@
   "use strict";
 
   const DB_NAME = "wxyy-thin-section-db";
-  const DB_VERSION = 4;
+  const DB_VERSION = 5;
   const DEFAULT_PROJECT_ID = "default-project";
 
   const STORES = {
@@ -48,10 +48,21 @@
           sampleStore.createIndex("createdAt", "createdAt", { unique: false });
           sampleStore.createIndex("polarization", "polarization", { unique: false });
           sampleStore.createIndex("projectId", "projectId", { unique: false });
+          sampleStore.createIndex("groupId", "groupId", { unique: false });
         } else if (oldVersion < 4) {
           const sampleStore = event.target.transaction.objectStore(STORES.SAMPLES);
           if (!sampleStore.indexNames.contains("projectId")) {
             sampleStore.createIndex("projectId", "projectId", { unique: false });
+          }
+        }
+
+        if (oldVersion < 5) {
+          let sampleStore;
+          if (database.objectStoreNames.contains(STORES.SAMPLES)) {
+            sampleStore = event.target.transaction.objectStore(STORES.SAMPLES);
+            if (!sampleStore.indexNames.contains("groupId")) {
+              sampleStore.createIndex("groupId", "groupId", { unique: false });
+            }
           }
         }
 
@@ -799,6 +810,42 @@
       const views = await this.getFilterViews(projectId);
       const filtered = views.filter(v => v.id !== viewId);
       return this.setFilterViews(filtered, projectId);
+    },
+
+    async getSampleGroups(projectId = DEFAULT_PROJECT_ID) {
+      return getAppState(`sampleGroups_${projectId}`, []);
+    },
+
+    async setSampleGroups(groups, projectId = DEFAULT_PROJECT_ID) {
+      return setAppState(`sampleGroups_${projectId}`, groups);
+    },
+
+    async addSampleGroup(group, projectId = DEFAULT_PROJECT_ID) {
+      const groups = await this.getSampleGroups(projectId);
+      const newGroup = {
+        id: group.id || crypto.randomUUID(),
+        name: group.name || "",
+        sampleIds: group.sampleIds || [],
+        createdAt: group.createdAt || new Date().toISOString()
+      };
+      groups.push(newGroup);
+      await this.setSampleGroups(groups, projectId);
+      return newGroup;
+    },
+
+    async updateSampleGroup(groupId, updates, projectId = DEFAULT_PROJECT_ID) {
+      const groups = await this.getSampleGroups(projectId);
+      const idx = groups.findIndex(g => g.id === groupId);
+      if (idx === -1) return null;
+      groups[idx] = { ...groups[idx], ...updates };
+      await this.setSampleGroups(groups, projectId);
+      return groups[idx];
+    },
+
+    async deleteSampleGroup(groupId, projectId = DEFAULT_PROJECT_ID) {
+      const groups = await this.getSampleGroups(projectId);
+      const filtered = groups.filter(g => g.id !== groupId);
+      await this.setSampleGroups(filtered, projectId);
     }
   };
 
@@ -830,10 +877,11 @@
     const compareList = await AppStateStore.getCompareList(projectId);
     const filteredCompare = compareList.filter(id => sampleIds.has(id));
     const filterViews = await AppStateStore.getFilterViews(projectId);
+    const sampleGroups = await AppStateStore.getSampleGroups(projectId);
 
     const result = {
       format: "wxyy-thin-section-project-backup",
-      version: 1,
+      version: 2,
       exportDate: new Date().toISOString(),
       project: {
         id: project.id,
@@ -844,6 +892,7 @@
       },
       samples: samplesWithPhotos,
       tasks: tasks,
+      sampleGroups: sampleGroups,
       appState: {
         compareList: filteredCompare,
         filterViews: filterViews
@@ -970,6 +1019,26 @@
         id: crypto.randomUUID()
       }));
       await AppStateStore.setFilterViews(viewsWithNewIds, newProjectId);
+    }
+
+    if (data.sampleGroups && Array.isArray(data.sampleGroups)) {
+      const groupIdMapping = {};
+      const mappedGroups = data.sampleGroups.map(g => {
+        const newGroupId = g.id || crypto.randomUUID();
+        groupIdMapping[g.id] = newGroupId;
+        return {
+          ...g,
+          id: newGroupId,
+          sampleIds: (g.sampleIds || []).map(sid => idMapping[sid] || sid)
+        };
+      });
+      await AppStateStore.setSampleGroups(mappedGroups, newProjectId);
+
+      for (const s of samplesWithNewIds) {
+        if (s.groupId && groupIdMapping[s.groupId]) {
+          await SampleStore.update(s.id, { groupId: groupIdMapping[s.groupId] });
+        }
+      }
     }
 
     return {

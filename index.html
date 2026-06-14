@@ -98,6 +98,11 @@
               </select>
             </label>
           </div>
+          <label>配对到样本组
+            <select name="groupId" id="entryGroupId">
+              <option value="">新建独立样本</option>
+            </select>
+          </label>
           <label>主要矿物<input name="minerals" id="entryMinerals" placeholder="石英、斜长石、黑云母"></label>
           <label>颗粒结构<input name="texture" id="entryTexture" placeholder="半自形粒状、碎裂结构"></label>
           <label>老师批注<textarea name="comment" id="entryComment" rows="4" placeholder="记录鉴定依据或疑点"></textarea></label>
@@ -223,6 +228,10 @@
               <div class="selector-header">
                 <h3>关联样本</h3>
                 <span id="selectedCount">已选 0 个</span>
+              </div>
+              <div class="selector-group-actions">
+                <button type="button" id="selectAllGroupsBtn" class="ghost small">按组全选</button>
+                <button type="button" id="clearGroupSelectionBtn" class="ghost small">清除组选</button>
               </div>
               <div id="taskSamplePicker" class="sample-picker"></div>
             </div>

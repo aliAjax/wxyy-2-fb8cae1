@@ -158,10 +158,15 @@ function sampleCardHTML(sample, showActions = true) {
   const annSummary = window.AnnotationView ? window.AnnotationView.annotationSummaryHTML(sample) : "";
   const reviewBadge = window.ReviewModule ? window.ReviewModule.reviewStatusBadgeHTML(sample) : "";
   const completenessBar = window.ReviewModule ? window.ReviewModule.completenessBarHTML(sample) : "";
+  const group = sample.groupId ? (state.sampleGroups || []).find(g => g.id === sample.groupId) : null;
+  const groupBadge = group ? `<span class="badge group-badge">📋 ${group.name || sample.code}</span>` : "";
+  const polarBadge = sample.polarization ? `<span class="badge polar-badge">${sample.polarization}</span>` : "";
   return `
-    <article class="sample-card ${window.ReviewModule ? "review-" + window.ReviewModule.getReviewStatusClass(sample) : ""}">
+    <article class="sample-card ${window.ReviewModule ? "review-" + window.ReviewModule.getReviewStatusClass(sample) : ""}" ${group ? `data-group-id="${group.id}"` : ""}>
       <div class="sample-card-badges">
         ${reviewBadge}
+        ${groupBadge}
+        ${polarBadge}
       </div>
       ${sample.photo ? `<img src="${sample.photo}" alt="${sample.code}显微照片">` : '<div class="photo-placeholder">暂无照片</div>'}
       <div class="sample-body">
@@ -178,6 +183,7 @@ function sampleCardHTML(sample, showActions = true) {
           <label><input type="checkbox" data-compare="${sample.id}" ${state.compare.includes(sample.id) ? "checked" : ""}>对比</label>
           <div class="card-action-btns">
             <button type="button" data-view="${sample.id}" class="view-btn">🔬查看</button>
+            ${group ? `<button type="button" data-view-group="${group.id}" class="view-btn">🔬组对比</button>` : ""}
             <button type="button" data-annotate="${sample.id}">标注</button>
             <button type="button" data-review-card="${sample.id}">审核</button>
             <button type="button" data-history="${sample.id}">历史</button>
@@ -189,9 +195,43 @@ function sampleCardHTML(sample, showActions = true) {
   `;
 }
 
+function renderGroupSection(group, samples) {
+  const polarOrder = ["单偏光", "正交偏光", "反射光"];
+  const sorted = [...samples].sort((a, b) => polarOrder.indexOf(a.polarization) - polarOrder.indexOf(b.polarization));
+  const groupName = group.name || sorted[0]?.code || "未命名组";
+  return `
+    <div class="sample-group-section" data-group-section="${group.id}">
+      <div class="sample-group-header">
+        <h3 class="sample-group-title">📋 样本组：${escapeHtml(groupName)}</h3>
+        <span class="sample-group-count">${sorted.length} 张照片</span>
+        <button type="button" data-view-group="${group.id}" class="ghost small">🔬 组内对比查看</button>
+        <button type="button" data-ungroup="${group.id}" class="ghost small">取消分组</button>
+      </div>
+      <div class="sample-group-grid">
+        ${sorted.map(s => sampleCardHTML(s, true)).join("")}
+      </div>
+    </div>
+  `;
+}
+
 function renderSamples() {
   const rows = filteredSamples();
   const emptyHTML = "<p style=\"grid-column:1/-1;text-align:center;padding:40px;color:var(--muted);\">还没有样本，先从左侧录入一张薄片照片。</p>";
+
+  const { groups, groupedIds } = window.DataManager ? window.DataManager.getGroupsAsSampleArrays() : { groups: [], groupedIds: new Set() };
+  const ungroupedRows = rows.filter(s => !groupedIds.has(s.id));
+
+  function buildHTML(samples) {
+    let html = "";
+    groups.forEach(({ group, samples: groupSamples }) => {
+      const filteredGroupSamples = groupSamples.filter(s => rows.some(r => r.id === s.id));
+      if (filteredGroupSamples.length > 0) {
+        html += renderGroupSection(group, filteredGroupSamples);
+      }
+    });
+    html += ungroupedRows.map(s => sampleCardHTML(s, true)).join("");
+    return html || emptyHTML;
+  }
 
   if (sampleGrid) {
     const recent = state.samples.slice(0, 12);
@@ -199,7 +239,7 @@ function renderSamples() {
   }
 
   if (sampleGridFull) {
-    sampleGridFull.innerHTML = rows.length ? rows.map((s) => sampleCardHTML(s, true)).join("") : emptyHTML;
+    sampleGridFull.innerHTML = buildHTML(rows);
   }
 }
 
@@ -707,6 +747,34 @@ form?.addEventListener("submit", async (event) => {
     pendingPhoto = await readFileAsDataUrl(photoInput.files[0]);
   }
   const observationFeatures = getEntrySelectedFeatures();
+  const selectedGroupId = data.get("groupId") || "";
+
+  if (selectedGroupId && !state.sampleGroups?.find(g => g.id === selectedGroupId)) {
+    const existingPolarization = data.get("polarization");
+    const existingSamples = state.samples.filter(s => s.groupId === selectedGroupId);
+    const alreadyHasPolar = existingSamples.some(s => s.polarization === existingPolarization);
+    if (alreadyHasPolar) {
+      alert(`该样本组已有「${existingPolarization}」照片，请选择不同的偏光类型。`);
+      return;
+    }
+  }
+
+  let groupId = selectedGroupId;
+  if (!groupId && existingSamplesWithSameCode(data.get("code").trim()).length > 0) {
+    const sameCodeSamples = existingSamplesWithSameCode(data.get("code").trim());
+    if (sameCodeSamples.length === 1 && !sameCodeSamples[0].groupId) {
+      groupId = crypto.randomUUID();
+      await window.DataManager.addSampleGroup({
+        id: groupId,
+        name: data.get("code").trim(),
+        sampleIds: [sameCodeSamples[0].id]
+      });
+      await window.DataManager.updateSample(sameCodeSamples[0].id, { groupId });
+    } else if (sameCodeSamples.length >= 1 && sameCodeSamples[0].groupId) {
+      groupId = sameCodeSamples[0].groupId;
+    }
+  }
+
   const newSample = {
     id: crypto.randomUUID(),
     photo: pendingPhoto,
@@ -719,15 +787,25 @@ form?.addEventListener("submit", async (event) => {
     comment: data.get("comment").trim(),
     observationFeatures,
     annotations: [],
+    groupId: groupId || "",
     createdAt: new Date().toISOString()
   };
   await window.DataManager.addSample(newSample);
+
+  if (groupId && !selectedGroupId) {
+    await window.DataManager.addSampleGroup({
+      id: groupId,
+      name: data.get("code").trim(),
+      sampleIds: [newSample.id]
+    });
+  }
 
   clearEntryAutoFillState();
 
   pendingPhoto = "";
   photoInput.value = "";
   form.reset();
+  refreshGroupSelector();
   if (document.getElementById("entryFeaturesPanel")) {
     document.getElementById("entryFeaturesPanel").classList.add("hidden");
     document.getElementById("entryFeaturesList").innerHTML = "";
@@ -754,11 +832,55 @@ function clearEntryAutoFillState() {
   });
 }
 
+function existingSamplesWithSameCode(code) {
+  if (!code) return [];
+  return state.samples.filter(s => s.code === code);
+}
+
+function refreshGroupSelector() {
+  const select = document.getElementById("entryGroupId");
+  if (!select) return;
+  const currentValue = select.value;
+  const groups = state.sampleGroups || [];
+  let html = '<option value="">新建独立样本</option>';
+  groups.forEach(g => {
+    const groupSamples = (g.sampleIds || [])
+      .map(sid => state.samples.find(s => s.id === sid))
+      .filter(Boolean);
+    const polars = groupSamples.map(s => s.polarization).join("、");
+    const label = g.name || (groupSamples[0]?.code || "未命名");
+    html += `<option value="${g.id}">${escapeHtml(label)}（${polars || "空"}）</option>`;
+  });
+  select.innerHTML = html;
+  if (currentValue && groups.some(g => g.id === currentValue)) {
+    select.value = currentValue;
+  }
+}
+
 async function handleSampleGridClick(gridEl, event) {
   const deleteId = event.target.dataset.delete;
   const annotateId = event.target.dataset.annotate;
   const reviewId = event.target.dataset.reviewCard;
   const viewId = event.target.dataset.view;
+  const viewGroupId = event.target.dataset.viewGroup;
+  const ungroupId = event.target.dataset.ungroup;
+  if (viewGroupId) {
+    if (window.ImageViewerModule) window.ImageViewerModule.openGroupViewer(viewGroupId);
+    return;
+  }
+  if (ungroupId) {
+    const group = (state.sampleGroups || []).find(g => g.id === ungroupId);
+    if (!group) return;
+    if (!confirm(`确定取消样本组「${group.name || "未命名"}」的分组？样本将变为独立样本。`)) return;
+    for (const sid of group.sampleIds) {
+      await window.DataManager.updateSample(sid, { groupId: "" });
+    }
+    await window.DataManager.deleteSampleGroup(ungroupId);
+    state = window.DataManager.getState();
+    renderAll();
+    refreshGroupSelector();
+    return;
+  }
   if (viewId) {
     if (window.ImageViewerModule) window.ImageViewerModule.openSingleViewer(viewId);
     return;
@@ -779,7 +901,9 @@ async function handleSampleGridClick(gridEl, event) {
   if (deleteId) {
     if (!confirm("确定删除该样本？删除后可在回收站中恢复。")) return;
     await window.DataManager.deleteSample(deleteId);
+    state = window.DataManager.getState();
     renderAll();
+    refreshGroupSelector();
   }
 }
 
@@ -1101,9 +1225,55 @@ function renderDetailSamples(task) {
     return;
   }
 
-  detailSamples.innerHTML = samples.map((sample) => {
+  const groupMap = new Map();
+  const ungrouped = [];
+  samples.forEach(sample => {
+    if (sample.groupId) {
+      if (!groupMap.has(sample.groupId)) groupMap.set(sample.groupId, []);
+      groupMap.get(sample.groupId).push(sample);
+    } else {
+      ungrouped.push(sample);
+    }
+  });
+
+  let html = "";
+
+  groupMap.forEach((groupSamples, groupId) => {
+    const group = (state.sampleGroups || []).find(g => g.id === groupId);
+    const groupName = group ? group.name : groupSamples[0]?.code || "未命名组";
+    html += `
+      <div class="detail-sample-group">
+        <div class="detail-sample-group-header">
+          <h4>📋 样本组：${escapeHtml(groupName)}</h4>
+          <button type="button" data-view-group="${groupId}" class="ghost small">🔬 组对比</button>
+        </div>
+        ${groupSamples.map(sample => {
+          const completed = task.completedSamples?.includes(sample.id);
+          return `
+            <article class="detail-sample ${completed ? "completed-flag" : ""}">
+              <div class="detail-sample-header">
+                <h4>${sample.code} <span class="badge polar-badge">${sample.polarization}</span></h4>
+                <label>
+                  <input type="checkbox" data-complete-sample="${sample.id}" ${completed ? "checked" : ""}>
+                  完成
+                </label>
+              </div>
+              ${sample.photo ? `<img src="${sample.photo}" alt="${sample.code}">` : '<div class="photo-placeholder">暂无照片</div>'}
+              <div class="detail-sample-body">
+                <p>${sample.location || "未记录地点"} · ${sample.magnification || ""}</p>
+                <p>矿物：${sample.minerals || "未记录"}</p>
+                <p>结构：${sample.texture || "未记录"}</p>
+              </div>
+            </article>
+          `;
+        }).join("")}
+      </div>
+    `;
+  });
+
+  ungrouped.forEach(sample => {
     const completed = task.completedSamples?.includes(sample.id);
-    return `
+    html += `
       <article class="detail-sample ${completed ? "completed-flag" : ""}">
         <div class="detail-sample-header">
           <h4>${sample.code}</h4>
@@ -1120,7 +1290,9 @@ function renderDetailSamples(task) {
         </div>
       </article>
     `;
-  }).join("");
+  });
+
+  detailSamples.innerHTML = html;
 
   $$('[data-complete-sample]', detailSamples).forEach((cb) => {
     cb.addEventListener("change", (e) => {
@@ -1133,6 +1305,12 @@ function renderDetailSamples(task) {
       }
       window.DataManager.updateTask(task.id, { completedSamples: task.completedSamples });
       renderTasks();
+    });
+  });
+
+  detailSamples.querySelectorAll('[data-view-group]').forEach(btn => {
+    btn.addEventListener("click", () => {
+      if (window.ImageViewerModule) window.ImageViewerModule.openGroupViewer(btn.dataset.viewGroup);
     });
   });
 }
@@ -1263,12 +1441,56 @@ function renderSamplePicker() {
   if (state.samples.length === 0) {
     taskSamplePicker.innerHTML = `<p style="grid-column:1/-1;text-align:center;padding:20px;color:var(--muted);font-size:13px;">暂无可选样本，请先到「样本录入」页添加</p>`;
   } else {
-    taskSamplePicker.innerHTML = state.samples.map((sample) => `
-      <div class="picker-item ${pickerSelectedIds.has(sample.id) ? "selected" : ""}" data-sample-id="${sample.id}">
-        ${sample.photo ? `<img src="${sample.photo}" alt="${sample.code}">` : '<div class="photo-placeholder" style="aspect-ratio:4/3;border-radius:6px;margin-bottom:6px;">暂无</div>'}
-        <div class="picker-code">${sample.code}</div>
-      </div>
-    `).join("");
+    const { groups, groupedIds } = window.DataManager ? window.DataManager.getGroupsAsSampleArrays() : { groups: [], groupedIds: new Set() };
+    const ungrouped = state.samples.filter(s => !groupedIds.has(s.id));
+    let html = "";
+
+    groups.forEach(({ group, samples: groupSamples }) => {
+      const allSelected = groupSamples.every(s => pickerSelectedIds.has(s.id));
+      const someSelected = groupSamples.some(s => pickerSelectedIds.has(s.id));
+      html += `
+        <div class="picker-group">
+          <div class="picker-group-header ${allSelected ? "all-selected" : someSelected ? "some-selected" : ""}" data-picker-group-id="${group.id}">
+            <input type="checkbox" data-picker-group-check="${group.id}" ${allSelected ? "checked" : ""}>
+            <span class="picker-group-name">📋 ${escapeHtml(group.name || groupSamples[0]?.code || "未命名组")}</span>
+            <span class="picker-group-count">${groupSamples.length}张</span>
+          </div>
+          <div class="picker-group-samples">
+            ${groupSamples.map(sample => `
+              <div class="picker-item ${pickerSelectedIds.has(sample.id) ? "selected" : ""}" data-sample-id="${sample.id}">
+                ${sample.photo ? `<img src="${sample.photo}" alt="${sample.code}">` : '<div class="photo-placeholder" style="aspect-ratio:4/3;border-radius:6px;margin-bottom:6px;">暂无</div>'}
+                <div class="picker-code">${sample.code} <span class="picker-polar">${sample.polarization}</span></div>
+              </div>
+            `).join("")}
+          </div>
+        </div>
+      `;
+    });
+
+    if (ungrouped.length > 0) {
+      html += ungrouped.map(sample => `
+        <div class="picker-item ${pickerSelectedIds.has(sample.id) ? "selected" : ""}" data-sample-id="${sample.id}">
+          ${sample.photo ? `<img src="${sample.photo}" alt="${sample.code}">` : '<div class="photo-placeholder" style="aspect-ratio:4/3;border-radius:6px;margin-bottom:6px;">暂无</div>'}
+          <div class="picker-code">${sample.code}</div>
+        </div>
+      `).join("");
+    }
+
+    taskSamplePicker.innerHTML = html;
+
+    taskSamplePicker.querySelectorAll("[data-picker-group-check]").forEach(cb => {
+      cb.addEventListener("change", (e) => {
+        const groupId = e.target.dataset.pickerGroupCheck;
+        const group = (state.sampleGroups || []).find(g => g.id === groupId);
+        if (!group) return;
+        if (e.target.checked) {
+          group.sampleIds.forEach(sid => pickerSelectedIds.add(sid));
+        } else {
+          group.sampleIds.forEach(sid => pickerSelectedIds.delete(sid));
+        }
+        renderSamplePicker();
+      });
+    });
 
     $$(".picker-item", taskSamplePicker).forEach((item) => {
       item.addEventListener("click", () => {
@@ -1335,6 +1557,7 @@ function renderAll() {
   renderSamples();
   renderCompare();
   renderFilterViews();
+  refreshGroupSelector();
   if ($("#tab-tasks").classList.contains("active")) renderTasks();
   if ($("#tab-review").classList.contains("active") && window.ReviewModule) {
     window.ReviewModule.renderReviewBoard();
@@ -1353,7 +1576,8 @@ const FIELD_ALIASES = {
   minerals: ["主要矿物", "矿物", "矿物成分", "minerals"],
   texture: ["颗粒结构", "结构", "构造", "texture"],
   comment: ["老师批注", "批注", "备注", "说明", "comment"],
-  photo: ["照片", "图片", "显微照片", "照片URL", "photo", "image"]
+  photo: ["照片", "图片", "显微照片", "照片URL", "photo", "image"],
+  groupId: ["样本组ID", "组ID", "groupId", "group_id", "样本组"]
 };
 
 const REQUIRED_FIELDS = ["code"];
@@ -1366,7 +1590,8 @@ const FIELD_LABELS = {
   minerals: "主要矿物",
   texture: "颗粒结构",
   comment: "老师批注",
-  photo: "照片"
+  photo: "照片",
+  groupId: "样本组"
 };
 
 let importPreviewData = null;
@@ -2295,15 +2520,23 @@ async function confirmImport() {
   }
 
   let imported = 0;
-  const importedCodes = new Set();
+  const importedCodes = new Map();
+  const importedGroupIds = new Map();
   const existingCodes = new Set(state.samples.map((s) => s.code));
   const duplicateSkipped = [];
 
   for (const row of rowsToImport) {
     const sample = row.sample;
 
-    if (existingCodes.has(sample.code) || importedCodes.has(sample.code)) {
-      duplicateSkipped.push(sample.code);
+    const existingSameCode = state.samples.find(
+      (s) => s.code === sample.code && s.polarization === (sample.polarization || "单偏光")
+    );
+    const importedSameCodePolar = [...importedCodes.entries()].find(
+      ([code, pol]) => code === sample.code && pol === (sample.polarization || "单偏光")
+    );
+
+    if (existingSameCode || importedSameCodePolar) {
+      duplicateSkipped.push(sample.code + "(" + (sample.polarization || "单偏光") + ")");
       continue;
     }
 
@@ -2318,12 +2551,57 @@ async function confirmImport() {
       texture: sample.texture || "",
       comment: sample.comment || "",
       annotations: [],
+      groupId: sample.groupId || "",
       createdAt: new Date().toISOString()
     };
 
     await window.DataManager.addSample(newSample);
-    importedCodes.add(sample.code);
+
+    if (sample.groupId && !importedGroupIds.has(sample.groupId)) {
+      importedGroupIds.set(sample.groupId, { id: sample.groupId, sampleIds: [newSample.id] });
+    } else if (sample.groupId && importedGroupIds.has(sample.groupId)) {
+      importedGroupIds.get(sample.groupId).sampleIds.push(newSample.id);
+    }
+
+    importedCodes.set(sample.code, sample.polarization || "单偏光");
     imported++;
+  }
+
+  for (const [oldGroupId, groupData] of importedGroupIds) {
+    const existingGroup = state.sampleGroups.find(g => g.id === oldGroupId);
+    if (existingGroup) {
+      const mergedIds = [...new Set([...existingGroup.sampleIds, ...groupData.sampleIds])];
+      await window.DataManager.updateSampleGroup(oldGroupId, { sampleIds: mergedIds });
+    } else {
+      await window.DataManager.addSampleGroup({
+        id: groupData.id,
+        name: state.samples.find(s => s.groupId === oldGroupId)?.code || groupData.sampleIds[0],
+        sampleIds: groupData.sampleIds
+      });
+    }
+  }
+
+  const groupCodes = new Map();
+  const newlyImportedSamples = state.samples.filter(s => importedCodes.has(s.code) && !s.groupId);
+  newlyImportedSamples.forEach(s => {
+    if (!groupCodes.has(s.code)) groupCodes.set(s.code, []);
+    groupCodes.get(s.code).push(s);
+  });
+
+  for (const [code, samples] of groupCodes) {
+    if (samples.length > 1) {
+      const polars = new Set(samples.map(s => s.polarization));
+      if (polars.size < 2) continue;
+      const groupId = crypto.randomUUID();
+      await window.DataManager.addSampleGroup({
+        id: groupId,
+        name: code,
+        sampleIds: samples.map(s => s.id)
+      });
+      for (const s of samples) {
+        await window.DataManager.updateSample(s.id, { groupId });
+      }
+    }
   }
 
   renderAll();

@@ -1009,12 +1009,163 @@
       currentSingleViewer = null;
     }
 
+    groupViewers.forEach(v => destroyViewer(v.container));
+    groupViewers.length = 0;
+
     singleViewerOverlay.classList.add("hidden");
     document.body.style.overflow = "";
   }
 
   let compareViewerLeft = null;
   let compareViewerRight = null;
+
+  const groupViewers = [];
+
+  function openGroupViewer(groupId) {
+    const state = getStateRef();
+    if (!state) return;
+
+    const group = (state.sampleGroups || []).find(g => g.id === groupId);
+    if (!group) return;
+
+    const groupSamples = (group.sampleIds || [])
+      .map(sid => state.samples.find(s => s.id === sid))
+      .filter(Boolean);
+
+    if (groupSamples.length === 0) {
+      alert("该样本组没有照片。");
+      return;
+    }
+
+    ensureSingleViewerOverlay();
+
+    document.getElementById("ivModalTitle").textContent = `样本组对比：${group.name || groupSamples[0]?.code || "未命名"}`;
+    document.getElementById("ivModalSubtitle").textContent =
+      `${groupSamples.length} 张偏光照片 · ${groupSamples.map(s => s.polarization).join(" / ")}`;
+
+    const infoEl = document.getElementById("ivAssistantInfo");
+    infoEl.innerHTML = `
+      <div class="iv-info-row"><span class="iv-info-label">样本组：</span><span>${escapeHtml(group.name || "未命名")}</span></div>
+      ${groupSamples.map(s => `<div class="iv-info-row"><span class="iv-info-label">${s.polarization}：</span><span>${s.code}</span></div>`).join("")}
+    `;
+
+    const featuresListEl = document.getElementById("ivFeaturesList");
+    featuresListEl.innerHTML = "";
+
+    const container = document.getElementById("ivModalViewer");
+    container.innerHTML = "";
+
+    groupViewers.forEach(v => destroyViewer(v.container));
+    groupViewers.length = 0;
+
+    const gridEl = document.createElement("div");
+    gridEl.className = "iv-group-grid";
+    gridEl.style.display = "grid";
+    gridEl.style.gridTemplateColumns = `repeat(${Math.min(groupSamples.length, 3)}, 1fr)`;
+    gridEl.style.gap = "8px";
+    gridEl.style.height = "100%";
+    container.appendChild(gridEl);
+
+    const polarOrder = ["单偏光", "正交偏光", "反射光"];
+    const sortedSamples = [...groupSamples].sort(
+      (a, b) => polarOrder.indexOf(a.polarization) - polarOrder.indexOf(b.polarization)
+    );
+
+    sortedSamples.forEach(sample => {
+      const pane = document.createElement("div");
+      pane.className = "iv-group-pane";
+      pane.style.position = "relative";
+      pane.style.overflow = "hidden";
+      pane.style.minHeight = "300px";
+
+      const label = document.createElement("div");
+      label.className = "iv-group-pane-label";
+      label.style.position = "absolute";
+      label.style.top = "8px";
+      label.style.left = "8px";
+      label.style.zIndex = "10";
+      label.style.background = "rgba(0,0,0,0.6)";
+      label.style.color = "#fff";
+      label.style.padding = "4px 8px";
+      label.style.borderRadius = "4px";
+      label.style.fontSize = "13px";
+      label.textContent = `${sample.code} · ${sample.polarization}`;
+      pane.appendChild(label);
+
+      gridEl.appendChild(pane);
+
+      const viewer = createViewer(pane, {
+        standalone: false,
+        enableTools: true,
+        enableMeasure: true,
+        enableSync: true
+      });
+
+      viewer.sampleId = sample.id;
+      if (sample.scaleBar) {
+        viewer.setScaleBar(sample.scaleBar.unit, sample.scaleBar.length, sample.scaleBar.pixels);
+      }
+      viewer.setImage(sample.photo);
+
+      groupViewers.push(viewer);
+    });
+
+    for (let i = 0; i < groupViewers.length; i++) {
+      for (let j = 0; j < groupViewers.length; j++) {
+        if (i !== j) {
+          groupViewers[i].syncPartner = null;
+        }
+      }
+    }
+
+    groupViewers.forEach((viewer, idx) => {
+      viewer._syncGroup = groupViewers;
+      const origSync = viewer.syncToPartner.bind(viewer);
+      viewer.syncToPartner = function() {
+        if (!viewer.syncEnabled) return;
+        if (viewer.isSyncing) return;
+        const now = Date.now();
+        if (now - viewer.lastSyncAt < SYNC_THROTTLE_MS) return;
+        viewer.lastSyncAt = now;
+        viewer.isSyncing = true;
+        try {
+          (viewer._syncGroup || []).forEach((partner, pIdx) => {
+            if (pIdx === idx) return;
+            partner.scale = Math.max(MIN_SCALE, Math.min(MAX_SCALE, viewer.scale));
+            partner.translateX = viewer.translateX;
+            partner.translateY = viewer.translateY;
+            partner.updateTransform();
+          });
+        } finally {
+          setTimeout(() => {
+            (viewer._syncGroup || []).forEach(v => { v.isSyncing = false; });
+          }, SYNC_THROTTLE_MS * 2);
+        }
+      };
+
+      if (viewer.syncCheckbox) {
+        viewer.syncCheckbox.checked = true;
+        viewer.syncEnabled = true;
+      }
+    });
+
+    singleViewerOverlay.classList.remove("hidden");
+    document.body.style.overflow = "hidden";
+
+    setTimeout(() => {
+      groupViewers.forEach(v => v.fitToWindow());
+    }, 50);
+  }
+
+  function escapeHtml(s) {
+    return String(s || "").replace(/[&<>"']/g, (c) => ({
+      "&": "&amp;",
+      "<": "&lt;",
+      ">": "&gt;",
+      '"': "&quot;",
+      "'": "&#39;"
+    }[c]));
+  }
 
   function renderCompareWithViewer() {
     const state = getStateRef();
@@ -1143,6 +1294,7 @@
     destroyViewer,
     openSingleViewer,
     closeSingleViewer,
+    openGroupViewer,
     renderCompareWithViewer,
     ImageViewer
   };

@@ -6,7 +6,8 @@
     samples: [],
     compare: [],
     tasks: [],
-    filterViews: []
+    filterViews: [],
+    sampleGroups: []
   };
 
   let saveTimeout = null;
@@ -38,11 +39,13 @@
     const tasks = await window.StorageLayer.TaskStore.getAll(projectId);
     const compare = await window.StorageLayer.AppStateStore.getCompareList(projectId);
     const filterViews = await window.StorageLayer.AppStateStore.getFilterViews(projectId);
+    const sampleGroups = await window.StorageLayer.AppStateStore.getSampleGroups(projectId);
 
     state.samples = samples;
     state.tasks = tasks;
     state.compare = compare;
     state.filterViews = filterViews;
+    state.sampleGroups = sampleGroups;
 
     return state;
   }
@@ -111,6 +114,17 @@
   async function addSample(sample) {
     const projectId = getCurrentProjectId();
     const sampleWithProject = { ...sample, projectId };
+
+    if (sampleWithProject.groupId) {
+      const group = state.sampleGroups.find(g => g.id === sampleWithProject.groupId);
+      if (group) {
+        if (!group.sampleIds.includes(sampleWithProject.id)) {
+          group.sampleIds.push(sampleWithProject.id);
+        }
+        await window.StorageLayer.AppStateStore.updateSampleGroup(group.id, { sampleIds: group.sampleIds }, projectId);
+      }
+    }
+
     state.samples.unshift(sampleWithProject);
     save();
 
@@ -128,6 +142,31 @@
     if (index !== -1) {
       const oldSample = { ...state.samples[index] };
       state.samples[index] = { ...state.samples[index], ...updates };
+
+      if (updates.groupId !== undefined && updates.groupId !== oldSample.groupId) {
+        const projectId = getCurrentProjectId();
+        if (oldSample.groupId) {
+          const oldGroup = state.sampleGroups.find(g => g.id === oldSample.groupId);
+          if (oldGroup) {
+            oldGroup.sampleIds = oldGroup.sampleIds.filter(sid => sid !== id);
+            await window.StorageLayer.AppStateStore.updateSampleGroup(oldGroup.id, { sampleIds: oldGroup.sampleIds }, projectId);
+            if (oldGroup.sampleIds.length === 0) {
+              state.sampleGroups = state.sampleGroups.filter(g => g.id !== oldGroup.id);
+              await window.StorageLayer.AppStateStore.deleteSampleGroup(oldGroup.id, projectId);
+            }
+          }
+        }
+        if (updates.groupId) {
+          const newGroup = state.sampleGroups.find(g => g.id === updates.groupId);
+          if (newGroup) {
+            if (!newGroup.sampleIds.includes(id)) {
+              newGroup.sampleIds.push(id);
+            }
+            await window.StorageLayer.AppStateStore.updateSampleGroup(newGroup.id, { sampleIds: newGroup.sampleIds }, projectId);
+          }
+        }
+      }
+
       save();
 
       if (window.VersionHistory) {
@@ -158,6 +197,19 @@
         await window.VersionHistory.moveToRecycleBin({ ...sample, projectId: getCurrentProjectId() });
       } catch (e) {
         console.warn("移入回收站失败:", e);
+      }
+    }
+
+    if (sample && sample.groupId) {
+      const projectId = getCurrentProjectId();
+      const group = state.sampleGroups.find(g => g.id === sample.groupId);
+      if (group) {
+        group.sampleIds = group.sampleIds.filter(sid => sid !== id);
+        await window.StorageLayer.AppStateStore.updateSampleGroup(group.id, { sampleIds: group.sampleIds }, projectId);
+        if (group.sampleIds.length === 0) {
+          state.sampleGroups = state.sampleGroups.filter(g => g.id !== group.id);
+          await window.StorageLayer.AppStateStore.deleteSampleGroup(group.id, projectId);
+        }
       }
     }
 
@@ -279,11 +331,65 @@
     state.samples = [];
     state.tasks = [];
     state.compare = [];
+    state.sampleGroups = [];
     await window.StorageLayer.SampleStore.clearAll(projectId);
     await window.StorageLayer.TaskStore.clearAll(projectId);
     await window.StorageLayer.AnswerStore.clearAll(projectId);
     await window.StorageLayer.RecycleStore.clearAll(projectId);
     await window.StorageLayer.AppStateStore.setCompareList([], projectId);
+    await window.StorageLayer.AppStateStore.setSampleGroups([], projectId);
+  }
+
+  async function addSampleGroup(group) {
+    const projectId = getCurrentProjectId();
+    const newGroup = await window.StorageLayer.AppStateStore.addSampleGroup(group, projectId);
+    state.sampleGroups.push(newGroup);
+    return newGroup;
+  }
+
+  async function updateSampleGroup(groupId, updates) {
+    const projectId = getCurrentProjectId();
+    const updated = await window.StorageLayer.AppStateStore.updateSampleGroup(groupId, updates, projectId);
+    if (updated) {
+      const idx = state.sampleGroups.findIndex(g => g.id === groupId);
+      if (idx !== -1) state.sampleGroups[idx] = updated;
+    }
+    return updated;
+  }
+
+  async function deleteSampleGroup(groupId) {
+    const projectId = getCurrentProjectId();
+    await window.StorageLayer.AppStateStore.deleteSampleGroup(groupId, projectId);
+    state.sampleGroups = state.sampleGroups.filter(g => g.id !== groupId);
+  }
+
+  function getSamplesByGroup(groupId) {
+    return state.samples.filter(s => s.groupId === groupId);
+  }
+
+  function getGroupForSample(sampleId) {
+    const sample = state.samples.find(s => s.id === sampleId);
+    if (!sample || !sample.groupId) return null;
+    return state.sampleGroups.find(g => g.id === sample.groupId) || null;
+  }
+
+  function getUngroupedSamples() {
+    return state.samples.filter(s => !s.groupId);
+  }
+
+  function getGroupsAsSampleArrays() {
+    const groups = [];
+    const groupedIds = new Set();
+    state.sampleGroups.forEach(g => {
+      const samples = g.sampleIds
+        .map(sid => state.samples.find(s => s.id === sid))
+        .filter(Boolean);
+      if (samples.length > 0) {
+        groups.push({ group: g, samples });
+        samples.forEach(s => groupedIds.add(s.id));
+      }
+    });
+    return { groups, groupedIds };
   }
 
   async function ensureHistoryForExistingSamples() {
@@ -318,6 +424,13 @@
     toggleCompare,
     addFilterView,
     deleteFilterView,
+    addSampleGroup,
+    updateSampleGroup,
+    deleteSampleGroup,
+    getSamplesByGroup,
+    getGroupForSample,
+    getUngroupedSamples,
+    getGroupsAsSampleArrays,
     clearAll,
     ensureHistoryForExistingSamples,
     getCurrentProjectId

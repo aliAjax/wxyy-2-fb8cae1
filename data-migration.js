@@ -2,7 +2,7 @@
   "use strict";
 
   const LEGACY_STORAGE_KEY = "wxyy-2-thin-section-index";
-  const MIGRATION_VERSION = 5;
+  const MIGRATION_VERSION = 6;
 
   function hasLegacyData() {
     try {
@@ -135,6 +135,33 @@
     let submissionCount = 0;
 
     if (samples.length > 0) {
+      const codeGroups = new Map();
+      samples.forEach(s => {
+        if (!s.code) return;
+        if (!codeGroups.has(s.code)) codeGroups.set(s.code, []);
+        codeGroups.get(s.code).push(s.id || crypto.randomUUID());
+      });
+
+      const sampleGroupMetas = [];
+      const groupIdMap = {};
+
+      for (const [code, ids] of codeGroups) {
+        if (ids.length < 2) continue;
+        const polars = new Set();
+        const relatedSamples = samples.filter(s => s.code === code);
+        relatedSamples.forEach(s => polars.add(s.polarization));
+        if (polars.size < 2) continue;
+
+        const groupId = crypto.randomUUID();
+        groupIdMap[code] = groupId;
+        sampleGroupMetas.push({
+          id: groupId,
+          name: code,
+          sampleIds: ids,
+          createdAt: new Date().toISOString()
+        });
+      }
+
       const samplesWithDefaults = samples.map(s => ({
         id: s.id || crypto.randomUUID(),
         code: s.code || "",
@@ -150,12 +177,18 @@
         reviewComment: s.reviewComment || "",
         reviewedAt: s.reviewedAt || null,
         lessonPackageId: s.lessonPackageId || "",
+        groupId: (s.code && groupIdMap[s.code]) ? groupIdMap[s.code] : (s.groupId || ""),
         projectId: DEFAULT_PROJECT_ID,
         createdAt: s.createdAt || new Date().toISOString()
       }));
 
       await window.StorageLayer.SampleStore.bulkAdd(samplesWithDefaults);
       sampleCount = samplesWithDefaults.length;
+
+      if (sampleGroupMetas.length > 0) {
+        const existingGroups = await window.StorageLayer.AppStateStore.getSampleGroups(DEFAULT_PROJECT_ID);
+        await window.StorageLayer.AppStateStore.setSampleGroups([...existingGroups, ...sampleGroupMetas], DEFAULT_PROJECT_ID);
+      }
     }
 
     if (tasks.length > 0) {
@@ -315,7 +348,53 @@
       await migrateExistingDataToProjects();
     }
 
+    if (schemaVersion < 6) {
+      await autoGroupSamplesByCode();
+    }
+
     await window.StorageLayer.AppStateStore.setSchemaVersion(MIGRATION_VERSION);
+  }
+
+  async function autoGroupSamplesByCode() {
+    if (!window.StorageLayer) return;
+
+    const allSamples = await window.StorageLayer.SampleStore.getAll();
+    const codeGroups = new Map();
+
+    allSamples.forEach(s => {
+      if (s.groupId) return;
+      if (!s.code) return;
+      if (!codeGroups.has(s.code)) codeGroups.set(s.code, []);
+      codeGroups.get(s.code).push(s);
+    });
+
+    const groupsToCreate = [];
+    for (const [code, samples] of codeGroups) {
+      if (samples.length < 2) continue;
+
+      const polars = new Set(samples.map(s => s.polarization));
+      if (polars.size < 2) continue;
+
+      const groupId = crypto.randomUUID();
+      const sampleIds = samples.map(s => s.id);
+
+      groupsToCreate.push({
+        id: groupId,
+        name: code,
+        sampleIds,
+        createdAt: new Date().toISOString()
+      });
+
+      for (const sample of samples) {
+        await window.StorageLayer.SampleStore.update(sample.id, { groupId });
+      }
+    }
+
+    if (groupsToCreate.length > 0) {
+      const existingGroups = await window.StorageLayer.AppStateStore.getSampleGroups();
+      const allGroups = [...existingGroups, ...groupsToCreate];
+      await window.StorageLayer.AppStateStore.setSampleGroups(allGroups);
+    }
   }
 
   function clearLegacyData() {
@@ -337,6 +416,7 @@
     checkAndMigrate,
     migrateAppStateSchema,
     migrateExistingDataToProjects,
+    autoGroupSamplesByCode,
     clearLegacyData,
     ensureDefaultProject
   };

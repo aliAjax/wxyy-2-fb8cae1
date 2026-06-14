@@ -517,3 +517,80 @@
     gap: 4px;
   }
 }
+
+.iv-group-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 4px;
+  width: 100%;
+  height: 100%;
+  padding: 0;
+  background: #000;
+}
+
+.iv-group-pane {
+  position: relative;
+  overflow: hidden;
+  background: #111;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 4px;
+  min-height: 200px;
+}
+
+.iv-group-pane .iv-viewer {
+  width: 100%;
+  height: 100%;
+}
+
+.iv-group-pane-label {
+  position: absolute;
+  top: 8px;
+  left: 8px;
+  z-index: 10;
+  background: rgba(0, 0, 0, 0.7);
+  color: #fff;
+  font-size: 12px;
+  padding: 3px 10px;
+  border-radius: 12px;
+  font-weight: 600;
+  pointer-events: none;
+}
+
+.iv-group-sync-toggle {
+  position: absolute;
+  bottom: 8px;
+  right: 8px;
+  z-index: 10;
+  background: rgba(0, 0, 0, 0.7);
+  color: #fff;
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  border-radius: 4px;
+  padding: 4px 10px;
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.iv-group-sync-toggle.active {
+  background: rgba(26, 115, 232, 0.8);
+  border-color: rgba(26, 115, 232, 1);
+}
+
+.iv-group-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 16px;
+  background: #1a1a2e;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.iv-group-toolbar-title {
+  font-weight: 600;
+  color: #fff;
+  font-size: 14px;
+}
+
+.iv-group-toolbar-count {
+  color: rgba(255, 255, 255, 0.6);
+  font-size: 12px;
+}

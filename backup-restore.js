@@ -260,6 +260,30 @@
       }
     }
 
+    if (data.sampleGroups && Array.isArray(data.sampleGroups)) {
+      const groupIdMapping = {};
+      const mappedGroups = data.sampleGroups.map(g => {
+        const newGroupId = g.id || crypto.randomUUID();
+        groupIdMapping[g.id] = newGroupId;
+        return {
+          ...g,
+          id: newGroupId,
+          sampleIds: (g.sampleIds || []).map(sid => idMapping[sid] || sid)
+        };
+      });
+
+      for (const s of (data.samples || [])) {
+        if (s.groupId && groupIdMapping[s.groupId]) {
+          const newSampleId = idMapping[s.id];
+          if (newSampleId) {
+            await window.StorageLayer.SampleStore.update(newSampleId, { groupId: groupIdMapping[s.groupId] });
+          }
+        }
+      }
+
+      await window.StorageLayer.AppStateStore.setSampleGroups(mappedGroups, newProjectId);
+    }
+
     if (data.appState && data.appState.compareList) {
       const mappedCompare = data.appState.compareList.map(id => idMapping[id]).filter(Boolean);
       await window.StorageLayer.AppStateStore.setCompareList(mappedCompare, newProjectId);
@@ -294,6 +318,7 @@
     let samples = [];
     let tasks = [];
     let compareList = [];
+    let sampleGroups = [];
 
     if (Array.isArray(data)) {
       samples = data.map((s, i) => ({
@@ -310,21 +335,47 @@
         reviewStatus: s.reviewStatus || null,
         reviewComment: s.reviewComment || s["复核意见"] || "",
         reviewedAt: s.reviewedAt || null,
+        groupId: s.groupId || "",
         createdAt: s.createdAt || new Date().toISOString()
       }));
     } else {
       samples = (data.samples || []).map((s, i) => ({
         id: s.id || `legacy-${i}-${Date.now()}`,
         ...s,
+        groupId: s.groupId || "",
         annotations: s.annotations || []
       }));
       tasks = data.tasks || [];
       compareList = data.compare || [];
+      sampleGroups = data.sampleGroups || [];
+    }
+
+    const codeGroups = new Map();
+    samples.forEach(s => {
+      if (!s.code || s.groupId) return;
+      if (!codeGroups.has(s.code)) codeGroups.set(s.code, []);
+      codeGroups.get(s.code).push(s.id);
+    });
+
+    for (const [code, ids] of codeGroups) {
+      if (ids.length < 2) continue;
+      const related = samples.filter(s => ids.includes(s.id));
+      const polars = new Set(related.map(s => s.polarization));
+      if (polars.size < 2) continue;
+      const groupId = crypto.randomUUID();
+      related.forEach(s => { s.groupId = groupId; });
+      sampleGroups.push({
+        id: groupId,
+        name: code,
+        sampleIds: ids,
+        createdAt: new Date().toISOString()
+      });
     }
 
     return {
       samples,
       tasks,
+      sampleGroups,
       appState: {
         compareList
       }

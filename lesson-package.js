@@ -239,6 +239,12 @@
       throw new Error("选中的任务没有关联任何样本");
     }
 
+    const involvedGroupIds = new Set();
+    selectedSamples.forEach(s => {
+      if (s.groupId) involvedGroupIds.add(s.groupId);
+    });
+    const sampleGroups = (allState.sampleGroups || []).filter(g => involvedGroupIds.has(g.id));
+
     const referenceAnswers = {};
     selectedSamples.forEach(s => {
       referenceAnswers[s.id] = {
@@ -287,7 +293,8 @@
         return sampleCopy;
       }),
       referenceAnswers,
-      rubrics: finalRubrics
+      rubrics: finalRubrics,
+      sampleGroups
     };
 
     lessonPackage.contentHash = computeContentHash(lessonPackage);
@@ -447,6 +454,31 @@
             s.texture = "";
             s.comment = "";
           });
+
+          if (data.sampleGroups && Array.isArray(data.sampleGroups)) {
+            const groupIdMapping = {};
+            const mappedSampleGroups = data.sampleGroups.map(g => {
+              const newGroupId = generateId();
+              groupIdMapping[g.id] = newGroupId;
+              return {
+                ...g,
+                id: newGroupId,
+                sampleIds: (g.sampleIds || []).map(sid => sampleIdMapping[sid] || sid)
+              };
+            });
+
+            mappedSamples.forEach(s => {
+              if (s.groupId && groupIdMapping[s.groupId]) {
+                s.groupId = groupIdMapping[s.groupId];
+              }
+            });
+
+            if (window.DataManager) {
+              for (const group of mappedSampleGroups) {
+                await window.DataManager.addSampleGroup(group);
+              }
+            }
+          }
 
           const migratedReferenceAnswers = {};
           Object.entries(data.referenceAnswers || {}).forEach(([oldId, ref]) => {
