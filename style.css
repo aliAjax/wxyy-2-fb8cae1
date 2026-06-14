@@ -4643,3 +4643,564 @@ textarea {
   background: var(--accent);
   color: #fff;
 }
+
+/* ============================================================
+   项目选择界面
+   ============================================================ */
+
+#projectSelector {
+  width: min(1200px, calc(100vw - 48px));
+  margin: 0 auto;
+  padding: 48px 0 64px;
+}
+
+.project-selector-header {
+  text-align: center;
+  margin-bottom: 36px;
+}
+
+.project-selector-header h1 {
+  font-size: clamp(32px, 5vw, 48px);
+  margin-bottom: 10px;
+}
+
+.project-selector-header p {
+  color: var(--muted);
+  font-size: 15px;
+  margin: 0;
+}
+
+.project-selector-actions {
+  display: flex;
+  gap: 12px;
+  justify-content: center;
+  margin-bottom: 28px;
+  flex-wrap: wrap;
+}
+
+.project-selector-actions button {
+  min-height: 44px;
+  padding: 0 20px;
+  font-size: 14px;
+}
+
+.project-list-section {
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  box-shadow: 0 14px 42px rgb(28 58 47 / 10%);
+  overflow: hidden;
+}
+
+.project-list-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 18px 22px;
+  border-bottom: 1px solid var(--line);
+  background: white;
+}
+
+.project-list-header h2 {
+  font-size: 18px;
+}
+
+.project-list-toggle {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  color: var(--muted);
+  cursor: pointer;
+  user-select: none;
+}
+
+.project-list-toggle input {
+  width: auto;
+}
+
+.project-list-body {
+  padding: 20px;
+}
+
+.projects-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 14px;
+}
+
+.project-card {
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: white;
+  padding: 18px;
+  cursor: pointer;
+  transition: all 0.18s ease;
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.project-card:hover {
+  border-color: var(--accent);
+  transform: translateY(-2px);
+  box-shadow: 0 8px 24px rgb(28 58 47 / 12%);
+}
+
+.project-card.archived {
+  opacity: 0.65;
+  background: #f7f9f8;
+}
+
+.project-card-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.project-card-title {
+  font-size: 17px;
+  font-weight: 700;
+  color: var(--ink);
+  margin: 0;
+  line-height: 1.3;
+}
+
+.project-card.default-project .project-card-title::after {
+  content: "默认";
+  display: inline-block;
+  margin-left: 8px;
+  padding: 1px 8px;
+  background: var(--accent);
+  color: white;
+  font-size: 11px;
+  font-weight: 600;
+  border-radius: 999px;
+  vertical-align: middle;
+}
+
+.project-card.archived .project-card-title::after {
+  content: "已归档";
+  display: inline-block;
+  margin-left: 8px;
+  padding: 1px 8px;
+  font-size: 11px;
+  font-weight: 600;
+  border-radius: 999px;
+  vertical-align: middle;
+  background: var(--muted);
+  color: white;
+}
+
+.project-card-menu-btn {
+  min-height: 30px;
+  min-width: 30px;
+  width: 30px;
+  padding: 0;
+  background: transparent;
+  color: var(--muted);
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  font-size: 16px;
+  line-height: 1;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.project-card-menu-btn:hover {
+  background: var(--accent-soft);
+  color: var(--accent);
+  transform: none;
+}
+
+.project-card-desc {
+  font-size: 13px;
+  color: var(--muted);
+  line-height: 1.5;
+  margin: 0;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  min-height: 39px;
+}
+
+.project-card-stats {
+  display: flex;
+  gap: 12px;
+  font-size: 12px;
+  color: var(--muted);
+  margin-top: auto;
+  padding-top: 10px;
+  border-top: 1px dashed var(--line);
+}
+
+.project-card-stat {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.project-card-meta {
+  font-size: 11.5px;
+  color: var(--muted);
+}
+
+.project-empty {
+  text-align: center;
+  padding: 60px 24px;
+  color: var(--muted);
+}
+
+.project-empty p {
+  margin: 0 0 16px;
+  font-size: 14px;
+}
+
+.project-empty-icon {
+  font-size: 48px;
+  margin-bottom: 10px;
+  opacity: 0.5;
+}
+
+/* ============================================================
+   头部项目切换器
+   ============================================================
+   ============================================================ */
+
+.mast-project-switcher {
+  position: relative;
+}
+
+#currentProjectBtn {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 40px;
+  padding: 0 14px;
+  background: var(--accent-soft);
+  color: var(--ink);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+#currentProjectBtn:hover {
+  background: var(--accent);
+  color: white;
+  border-color: var(--accent);
+  transform: none;
+}
+
+#currentProjectBtn .project-name {
+  max-width: 180px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+#currentProjectBtn .caret {
+  font-size: 10px;
+  opacity: 0.8;
+}
+
+#projectDropdown {
+  position: absolute;
+  top: calc(100% + 6px);
+  right: 0;
+  min-width: 260px;
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  box-shadow: 0 12px 32px rgb(28 58 47 / 18%);
+  z-index: 500;
+  overflow: hidden;
+  animation: dropdownIn 0.15s ease;
+}
+
+#projectDropdown.hidden {
+  display: none;
+}
+
+@keyframes dropdownIn {
+  from { opacity: 0; transform: translateY(-4px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.dropdown-header {
+  padding: 12px 14px 8px;
+  border-bottom: 1px solid var(--line);
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--muted);
+  letter-spacing: 0.3px;
+  text-transform: uppercase;
+}
+
+.dropdown-list {
+  max-height: 300px;
+  overflow-y: auto;
+}
+
+.dropdown-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 10px 14px;
+  cursor: pointer;
+  font-size: 13.5px;
+  color: var(--ink);
+  transition: background 0.12s ease;
+}
+
+.dropdown-item:hover {
+  background: var(--accent-soft);
+}
+
+.dropdown-item.active {
+  background: var(--accent-soft);
+  color: var(--accent);
+  font-weight: 600;
+}
+
+.dropdown-item.active::after {
+  content: "✓";
+  color: var(--accent);
+  font-weight: 700;
+}
+
+.dropdown-item.archived {
+  opacity: 0.6;
+}
+
+.dropdown-footer {
+  border-top: 1px solid var(--line);
+  padding: 8px;
+}
+
+.dropdown-footer button {
+  width: 100%;
+  min-height: 36px;
+  background: transparent;
+  color: var(--ink);
+  font-size: 13px;
+  border-radius: 6px;
+  padding: 0 10px;
+  text-align: left;
+}
+
+.dropdown-footer button:hover {
+  background: var(--accent-soft);
+  color: var(--accent);
+  transform: none;
+}
+
+/* ============================================================
+   项目管理弹窗
+   ============================================================ */
+
+#projectManagerModal .modal-content {
+  max-width: 900px;
+}
+
+.manager-tabs {
+  display: flex;
+  margin: 0;
+}
+
+.manager-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 16px;
+  flex-wrap: wrap;
+}
+
+.manager-toolbar-left {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.manager-search {
+  min-width: 220px;
+}
+
+.manager-list {
+  display: grid;
+  gap: 10px;
+  max-height: 500px;
+  overflow-y: auto;
+}
+
+.manager-row {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 12px;
+  align-items: center;
+  padding: 14px 16px;
+  background: white;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  transition: all 0.15s ease;
+}
+
+.manager-row:hover {
+  border-color: var(--accent);
+}
+
+.manager-row.archived {
+  opacity: 0.6;
+  background: #f7f9f8;
+}
+
+.manager-row-info {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.manager-row-name {
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--ink);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.manager-row-badge {
+  font-size: 11px;
+  font-weight: 600;
+  padding: 2px 8px;
+  border-radius: 999px;
+}
+
+.manager-row-badge.default-badge {
+  background: var(--accent);
+  color: white;
+}
+
+.manager-row-badge.archived-badge {
+  background: var(--muted);
+  color: white;
+}
+
+.manager-row-desc {
+  font-size: 12.5px;
+  color: var(--muted);
+}
+
+.manager-row-meta {
+  font-size: 11.5px;
+  color: var(--muted);
+  display: flex;
+  gap: 14px;
+  margin-top: 4px;
+}
+
+.manager-row-actions {
+  display: flex;
+  gap: 6px;
+}
+
+.manager-row-actions button {
+  min-height: 32px;
+  padding: 0 10px;
+  font-size: 12px;
+  background: var(--accent-soft);
+  color: var(--ink);
+  border-radius: 6px;
+}
+
+.manager-row-actions button:hover {
+  background: var(--accent);
+  color: white;
+  transform: none;
+}
+
+.manager-row-actions button.danger-btn {
+  background: var(--danger-soft);
+  color: var(--danger);
+}
+
+.manager-row-actions button.danger-btn:hover {
+  background: var(--danger);
+  color: white;
+}
+
+/* ============================================================
+   项目表单弹窗
+   ============================================================ */
+
+#projectFormModal .modal-content {
+  max-width: 520px;
+}
+
+.project-form-stats {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 10px;
+  margin-top: 8px 0 16px;
+}
+
+.project-form-stat {
+  background: var(--accent-soft);
+  border-radius: 8px;
+  padding: 10px 12px;
+  text-align: center;
+}
+
+.project-form-stat-label {
+  font-size: 11px;
+  color: var(--muted);
+  font-weight: 500;
+}
+
+.project-form-stat-value {
+  font-size: 20px;
+  font-weight: 700;
+  color: var(--ink);
+}
+
+/* ============================================================
+   响应式 - 项目界面响应式
+   ============================================================ */
+
+@media (max-width: 780px) {
+  #projectSelector {
+    padding: 32px 0 48px;
+  }
+
+  .projects-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .project-selector-actions {
+    flex-direction: column;
+  }
+
+  .project-selector-actions button {
+    width: 100%;
+  }
+
+  .manager-toolbar {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .manager-row {
+    grid-template-columns: 1fr;
+  }
+
+  .manager-row-actions {
+    justify-content: flex-end;
+  }
+}

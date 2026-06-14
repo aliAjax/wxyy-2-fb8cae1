@@ -2,7 +2,7 @@
   "use strict";
 
   const LEGACY_STORAGE_KEY = "wxyy-2-thin-section-index";
-  const MIGRATION_VERSION = 4;
+  const MIGRATION_VERSION = 5;
 
   function hasLegacyData() {
     try {
@@ -25,23 +25,103 @@
     }
   }
 
+  async function ensureDefaultProject() {
+    if (!window.StorageLayer) {
+      throw new Error("StorageLayer 未加载");
+    }
+    const DEFAULT_PROJECT_ID = window.StorageLayer.DEFAULT_PROJECT_ID;
+    const existing = await window.StorageLayer.ProjectStore.getById(DEFAULT_PROJECT_ID);
+    if (!existing) {
+      await window.StorageLayer.ProjectStore.add({
+        id: DEFAULT_PROJECT_ID,
+        name: "默认项目",
+        description: "系统自动创建的默认项目",
+        createdAt: new Date().toISOString()
+      });
+    }
+    return DEFAULT_PROJECT_ID;
+  }
+
+  async function migrateExistingDataToProjects() {
+    if (!window.StorageLayer) {
+      throw new Error("StorageLayer 未加载");
+    }
+
+    const projectMigrationDone = await window.StorageLayer.AppStateStore.getProjectMigrationStatus();
+    if (projectMigrationDone) {
+      return { migrated: false, reason: "project_migration_already_done" };
+    }
+
+    const DEFAULT_PROJECT_ID = await ensureDefaultProject();
+
+    const allSamples = await window.StorageLayer.SampleStore.getAll();
+    const samplesWithoutProject = allSamples.filter(s => !s.projectId);
+    for (const sample of samplesWithoutProject) {
+      await window.StorageLayer.SampleStore.update(sample.id, { projectId: DEFAULT_PROJECT_ID });
+    }
+
+    const allTasks = await window.StorageLayer.TaskStore.getAll();
+    const tasksWithoutProject = allTasks.filter(t => !t.projectId);
+    for (const task of tasksWithoutProject) {
+      await window.StorageLayer.TaskStore.update(task.id, { projectId: DEFAULT_PROJECT_ID });
+    }
+
+    const allAnswers = await window.StorageLayer.AnswerStore.getAll();
+    const answersWithoutProject = allAnswers.filter(a => !a.projectId);
+    for (const ans of answersWithoutProject) {
+      await window.StorageLayer.AnswerStore.save({ ...ans, projectId: DEFAULT_PROJECT_ID });
+    }
+
+    const allRecycleItems = await window.StorageLayer.RecycleStore.getAll();
+    const recycleWithoutProject = allRecycleItems.filter(r => !r.projectId);
+    for (const item of recycleWithoutProject) {
+      await window.StorageLayer.RecycleStore.add({ ...item, projectId: DEFAULT_PROJECT_ID });
+    }
+
+    const oldCompareList = await window.StorageLayer.getAppState("compareList", null);
+    if (oldCompareList !== null) {
+      await window.StorageLayer.AppStateStore.setCompareList(oldCompareList, DEFAULT_PROJECT_ID);
+    }
+
+    await window.StorageLayer.AppStateStore.setProjectMigrationStatus(true);
+
+    return {
+      migrated: true,
+      sampleCount: samplesWithoutProject.length,
+      taskCount: tasksWithoutProject.length,
+      answerCount: answersWithoutProject.length,
+      recycleCount: recycleWithoutProject.length
+    };
+  }
+
   async function runMigration() {
     if (!window.StorageLayer) {
       throw new Error("StorageLayer 未加载");
     }
 
+    await window.StorageLayer.initDB();
+    await ensureDefaultProject();
+
     const migrationDone = await window.StorageLayer.AppStateStore.getMigrationStatus();
-    if (migrationDone) {
-      await migrateAppStateSchema();
-      return { migrated: false, reason: "already_migrated" };
+    let migrationResult = { migrated: false };
+
+    if (!migrationDone) {
+      const legacyData = readLegacyData();
+      if (legacyData) {
+        migrationResult = await migrateFromLegacy(legacyData);
+      } else {
+        await window.StorageLayer.AppStateStore.setMigrationStatus(true);
+      }
     }
 
-    const legacyData = readLegacyData();
-    if (!legacyData) {
-      await window.StorageLayer.AppStateStore.setMigrationStatus(true);
-      await migrateAppStateSchema();
-      return { migrated: false, reason: "no_legacy_data" };
-    }
+    await migrateExistingDataToProjects();
+    await migrateAppStateSchema();
+
+    return migrationResult;
+  }
+
+  async function migrateFromLegacy(legacyData) {
+    const DEFAULT_PROJECT_ID = window.StorageLayer.DEFAULT_PROJECT_ID;
 
     const samples = legacyData.samples || [];
     const tasks = legacyData.tasks || [];
@@ -70,6 +150,7 @@
         reviewComment: s.reviewComment || "",
         reviewedAt: s.reviewedAt || null,
         lessonPackageId: s.lessonPackageId || "",
+        projectId: DEFAULT_PROJECT_ID,
         createdAt: s.createdAt || new Date().toISOString()
       }));
 
@@ -87,6 +168,7 @@
         completedSamples: t.completedSamples || [],
         comments: t.comments || [],
         lessonPackageId: t.lessonPackageId || "",
+        projectId: DEFAULT_PROJECT_ID,
         createdAt: t.createdAt || new Date().toISOString()
       }));
 
@@ -97,7 +179,7 @@
     }
 
     if (compareList.length > 0) {
-      await window.StorageLayer.AppStateStore.setCompareList(compareList);
+      await window.StorageLayer.AppStateStore.setCompareList(compareList, DEFAULT_PROJECT_ID);
     }
 
     if (submissions.length > 0 || rubrics.length > 0 || Object.keys(lessonMetas).length > 0) {
@@ -130,11 +212,14 @@
 
     const localAnswers = legacyData.localAnswers || [];
     if (localAnswers.length > 0 && window.StorageLayer.AnswerStore) {
-      await window.StorageLayer.AnswerStore.bulkSave(localAnswers);
+      const answersWithProject = localAnswers.map(a => ({
+        ...a,
+        projectId: DEFAULT_PROJECT_ID
+      }));
+      await window.StorageLayer.AnswerStore.bulkSave(answersWithProject);
     }
 
     await window.StorageLayer.AppStateStore.setMigrationStatus(true);
-    await migrateAppStateSchema();
 
     return {
       migrated: true,
@@ -148,8 +233,13 @@
   async function checkAndMigrate() {
     const hasLegacy = hasLegacyData();
     const migrationDone = await window.StorageLayer.AppStateStore.getMigrationStatus();
+    const projectMigrationDone = await window.StorageLayer.AppStateStore.getProjectMigrationStatus();
 
     if (!migrationDone && hasLegacy) {
+      return true;
+    }
+
+    if (!projectMigrationDone) {
       return true;
     }
 
@@ -220,6 +310,11 @@
       await window.StorageLayer.initDB();
     }
 
+    if (schemaVersion < 5) {
+      await ensureDefaultProject();
+      await migrateExistingDataToProjects();
+    }
+
     await window.StorageLayer.AppStateStore.setSchemaVersion(MIGRATION_VERSION);
   }
 
@@ -241,7 +336,9 @@
     runMigration,
     checkAndMigrate,
     migrateAppStateSchema,
-    clearLegacyData
+    migrateExistingDataToProjects,
+    clearLegacyData,
+    ensureDefaultProject
   };
 
 })(window);

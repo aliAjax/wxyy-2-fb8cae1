@@ -2,6 +2,7 @@
   "use strict";
 
   const state = {
+    projectId: null,
     samples: [],
     compare: [],
     tasks: []
@@ -11,6 +12,17 @@
   let isDirty = false;
   let initPromise = null;
 
+  function getCurrentProjectId() {
+    if (window.ProjectManager) {
+      const pid = window.ProjectManager.getCurrentProjectId();
+      if (pid) return pid;
+    }
+    if (window.StorageLayer) {
+      return window.StorageLayer.DEFAULT_PROJECT_ID;
+    }
+    return state.projectId || "default-project";
+  }
+
   async function loadAllData() {
     if (!window.StorageLayer) {
       throw new Error("StorageLayer 未加载");
@@ -18,15 +30,23 @@
 
     await window.StorageLayer.initDB();
 
-    const samples = await window.StorageLayer.SampleStore.getAllWithPhotos();
-    const tasks = await window.StorageLayer.TaskStore.getAll();
-    const compare = await window.StorageLayer.AppStateStore.getCompareList();
+    const projectId = getCurrentProjectId();
+    state.projectId = projectId;
+
+    const samples = await window.StorageLayer.SampleStore.getAllWithPhotos(projectId);
+    const tasks = await window.StorageLayer.TaskStore.getAll(projectId);
+    const compare = await window.StorageLayer.AppStateStore.getCompareList(projectId);
 
     state.samples = samples;
     state.tasks = tasks;
     state.compare = compare;
 
     return state;
+  }
+
+  async function reloadForProject() {
+    initPromise = null;
+    return loadAllData();
   }
 
   function init() {
@@ -60,13 +80,17 @@
     if (!isDirty) return;
     isDirty = false;
 
+    const projectId = getCurrentProjectId();
+
     try {
-      await window.StorageLayer.SampleStore.bulkAdd(state.samples);
-      await window.StorageLayer.TaskStore.clearAll();
+      const samplesWithProject = state.samples.map(s => ({ ...s, projectId }));
+      await window.StorageLayer.SampleStore.bulkAdd(samplesWithProject);
+
+      await window.StorageLayer.TaskStore.clearAll(projectId);
       for (const task of state.tasks) {
-        await window.StorageLayer.TaskStore.add(task);
+        await window.StorageLayer.TaskStore.add({ ...task, projectId });
       }
-      await window.StorageLayer.AppStateStore.setCompareList(state.compare);
+      await window.StorageLayer.AppStateStore.setCompareList(state.compare, projectId);
     } catch (e) {
       console.error("持久化状态失败:", e);
       isDirty = true;
@@ -82,12 +106,14 @@
   }
 
   async function addSample(sample) {
-    state.samples.unshift(sample);
+    const projectId = getCurrentProjectId();
+    const sampleWithProject = { ...sample, projectId };
+    state.samples.unshift(sampleWithProject);
     save();
 
     if (window.VersionHistory) {
       try {
-        await window.VersionHistory.recordVersion(sample.id, sample, "create", null);
+        await window.VersionHistory.recordVersion(sample.id, sampleWithProject, "create", null);
       } catch (e) {
         console.warn("记录版本历史失败:", e);
       }
@@ -126,7 +152,7 @@
 
     if (sample && window.VersionHistory) {
       try {
-        await window.VersionHistory.moveToRecycleBin(sample);
+        await window.VersionHistory.moveToRecycleBin({ ...sample, projectId: getCurrentProjectId() });
       } catch (e) {
         console.warn("移入回收站失败:", e);
       }
@@ -147,7 +173,7 @@
 
     try {
       await window.StorageLayer.SampleStore.remove(id);
-      await window.StorageLayer.AppStateStore.setCompareList(state.compare);
+      await window.StorageLayer.AppStateStore.setCompareList(state.compare, getCurrentProjectId());
       for (const task of affectedTasks) {
         await window.StorageLayer.TaskStore.update(task.id, {
           sampleIds: task.sampleIds,
@@ -163,13 +189,16 @@
   async function restoreSample(sample) {
     if (!sample || !sample.id) return;
 
-    state.samples.unshift(sample);
+    const projectId = getCurrentProjectId();
+    const sampleWithProject = { ...sample, projectId };
+
+    state.samples.unshift(sampleWithProject);
     save();
 
     try {
-      await window.StorageLayer.SampleStore.add(sample);
+      await window.StorageLayer.SampleStore.add(sampleWithProject);
       if (window.VersionHistory) {
-        await window.VersionHistory.recordVersion(sample.id, sample, "restore", null);
+        await window.VersionHistory.recordVersion(sample.id, sampleWithProject, "restore", null);
       }
     } catch (e) {
       console.error("恢复样本失败:", e);
@@ -182,7 +211,8 @@
   }
 
   function addTask(task) {
-    state.tasks.unshift(task);
+    const projectId = getCurrentProjectId();
+    state.tasks.unshift({ ...task, projectId });
     save();
   }
 
@@ -228,10 +258,15 @@
   }
 
   async function clearAll() {
+    const projectId = getCurrentProjectId();
     state.samples = [];
     state.tasks = [];
     state.compare = [];
-    await window.StorageLayer.clearAllData();
+    await window.StorageLayer.SampleStore.clearAll(projectId);
+    await window.StorageLayer.TaskStore.clearAll(projectId);
+    await window.StorageLayer.AnswerStore.clearAll(projectId);
+    await window.StorageLayer.RecycleStore.clearAll(projectId);
+    await window.StorageLayer.AppStateStore.setCompareList([], projectId);
   }
 
   async function ensureHistoryForExistingSamples() {
@@ -249,6 +284,7 @@
   global.DataManager = {
     init,
     reload,
+    reloadForProject,
     getState,
     save,
     forceSave,
@@ -264,7 +300,8 @@
     setCompareList,
     toggleCompare,
     clearAll,
-    ensureHistoryForExistingSamples
+    ensureHistoryForExistingSamples,
+    getCurrentProjectId
   };
 
 })(window);

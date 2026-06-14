@@ -1,7 +1,7 @@
 (function (global) {
   "use strict";
 
-  const BACKUP_FORMAT_VERSION = 2;
+  const BACKUP_FORMAT_VERSION = 3;
 
   async function exportBackup(options = {}) {
     const { includePhotos = true, includeHistory = true } = options;
@@ -10,24 +10,43 @@
       throw new Error("StorageLayer 未加载");
     }
 
+    const projectId = window.ProjectManager
+      ? window.ProjectManager.getCurrentProjectId()
+      : window.StorageLayer.DEFAULT_PROJECT_ID;
+
+    if (projectId && window.ProjectManager) {
+      const data = await window.ProjectManager.exportProjectBackup(projectId);
+      if (!includePhotos) {
+        data.samples = (data.samples || []).map(s => ({ ...s, photo: "" }));
+      }
+      return {
+        ...data,
+        format: "wxyy-thin-section-backup",
+        version: BACKUP_FORMAT_VERSION,
+        createdAt: new Date().toISOString(),
+        includeHistory
+      };
+    }
+
     const allData = await window.StorageLayer.exportAllData({
       includeHistory,
       includeRecycleBin: includeHistory
     });
 
-    if (!includePhotos) {
-      allData.samples = allData.samples.map(s => ({ ...s, photo: "" }));
+    if (!includePhotos && allData.projects) {
+      allData.projects = allData.projects.map(p => ({
+        ...p,
+        samples: (p.samples || []).map(s => ({ ...s, photo: "" }))
+      }));
     }
 
-    const backup = {
+    return {
       format: "wxyy-thin-section-backup",
       version: BACKUP_FORMAT_VERSION,
       createdAt: new Date().toISOString(),
       includeHistory,
       ...allData
     };
-
-    return backup;
   }
 
   async function downloadBackup(filename = null) {
@@ -36,7 +55,19 @@
     const blob = new Blob([jsonStr], { type: "application/json" });
 
     const dateStr = new Date().toISOString().slice(0, 10);
-    const actualFilename = filename || `thin-section-backup-${dateStr}.json`;
+    let actualFilename = filename;
+
+    if (!actualFilename && window.ProjectManager) {
+      const project = await window.ProjectManager.getCurrentProject();
+      if (project) {
+        const safeName = (project.name || "project").replace(/[^\w\u4e00-\u9fa5-]/g, "_");
+        actualFilename = `project-${safeName}-${dateStr}.json`;
+      }
+    }
+
+    if (!actualFilename) {
+      actualFilename = `thin-section-backup-${dateStr}.json`;
+    }
 
     const link = document.createElement("a");
     link.href = URL.createObjectURL(blob);
@@ -48,7 +79,7 @@
   }
 
   async function importBackupFile(file, options = {}) {
-    const { merge = false, onProgress = null } = options;
+    const { merge = false, onProgress = null, renameProject = null } = options;
 
     return new Promise((resolve, reject) => {
       const reader = new FileReader();
@@ -56,7 +87,7 @@
       reader.onload = async (e) => {
         try {
           const data = JSON.parse(e.target.result);
-          const result = await validateAndImport(data, { merge, onProgress });
+          const result = await validateAndImport(data, { merge, onProgress, renameProject });
           resolve(result);
         } catch (err) {
           reject(err);
@@ -69,19 +100,51 @@
   }
 
   async function validateAndImport(data, options = {}) {
-    const { merge = false, onProgress = null } = options;
+    const { merge = false, onProgress = null, renameProject = null } = options;
 
     if (!data) {
       throw new Error("备份数据为空");
     }
 
+    const isProjectBackup = data.format === "wxyy-thin-section-project-backup" && data.project;
+    const isFullBackup = data.format === "wxyy-thin-section-full-backup" && data.projects;
     const isLegacyFormat = Array.isArray(data) || (data.samples && !data.format);
-    let normalizedData = data;
 
+    if (onProgress) onProgress(0.1, "验证数据格式");
+
+    if (isProjectBackup) {
+      if (window.ProjectManager && window.StorageLayer) {
+        const result = await window.StorageLayer.importProjectData(data, { renameProject });
+        if (onProgress) onProgress(1.0, "导入完成");
+        return {
+          success: true,
+          sampleCount: result.sampleCount,
+          taskCount: result.taskCount,
+          project: result.project,
+          merged: merge
+        };
+      }
+    }
+
+    if (isFullBackup && data.projects) {
+      const totalProjects = data.projects.length;
+      for (let i = 0; i < totalProjects; i++) {
+        if (onProgress) onProgress(0.2 + (i / totalProjects) * 0.7, `导入项目 ${i + 1}/${totalProjects}`);
+        await window.StorageLayer.importProjectData(data.projects[i], {});
+      }
+      if (onProgress) onProgress(1.0, "导入完成");
+      return {
+        success: true,
+        projectCount: totalProjects,
+        merged: merge
+      };
+    }
+
+    let normalizedData = data;
     if (isLegacyFormat) {
       normalizedData = normalizeLegacyFormat(data);
     } else {
-      if (data.format !== "wxyy-thin-section-backup") {
+      if (data.format && data.format !== "wxyy-thin-section-backup" && data.format !== "wxyy-thin-section-project-backup") {
         throw new Error("无效的备份文件格式");
       }
       if (data.version > BACKUP_FORMAT_VERSION) {
@@ -89,11 +152,17 @@
       }
     }
 
-    if (!normalizedData.samples || !Array.isArray(normalizedData.samples)) {
+    if (!normalizedData.samples && !normalizedData.projects) {
       throw new Error("备份文件缺少样本数据");
     }
 
     if (onProgress) onProgress(0.2, "验证数据格式");
+
+    if (window.ProjectManager) {
+      const result = await importAsNewProject(normalizedData, renameProject);
+      if (onProgress) onProgress(1.0, "导入完成");
+      return result;
+    }
 
     const sampleCount = normalizedData.samples?.length || 0;
     const taskCount = normalizedData.tasks?.length || 0;
@@ -109,6 +178,105 @@
       sampleCount,
       taskCount,
       merged: merge
+    };
+  }
+
+  async function importAsNewProject(data, customName) {
+    const DEFAULT_PROJECT_ID = window.StorageLayer.DEFAULT_PROJECT_ID;
+    const newProjectId = crypto.randomUUID();
+    const idMapping = {};
+
+    const projectName = customName || `导入项目-${new Date().toLocaleDateString()}`;
+
+    const projectRecord = await window.StorageLayer.ProjectStore.add({
+      id: newProjectId,
+      name: projectName,
+      description: "从备份文件导入",
+      createdAt: new Date().toISOString(),
+      meta: { importedFromBackup: true, importedAt: new Date().toISOString() }
+    });
+
+    if (data.samples && Array.isArray(data.samples)) {
+      const samplesWithNewIds = data.samples.map(s => {
+        const oldId = s.id;
+        const newId = crypto.randomUUID();
+        idMapping[oldId] = newId;
+        return {
+          ...s,
+          id: newId,
+          projectId: newProjectId,
+          annotations: (s.annotations || []).map(a => ({
+            ...a,
+            id: crypto.randomUUID(),
+            sampleId: newId
+          }))
+        };
+      });
+      await window.StorageLayer.SampleStore.bulkAdd(samplesWithNewIds);
+
+      if (data.versionHistory && Array.isArray(data.versionHistory)) {
+        const historyWithNewIds = data.versionHistory
+          .filter(v => idMapping[v.sampleId])
+          .map(v => ({
+            ...v,
+            id: crypto.randomUUID(),
+            sampleId: idMapping[v.sampleId]
+          }));
+        if (historyWithNewIds.length > 0) {
+          await window.StorageLayer.VersionStore.bulkAdd(historyWithNewIds);
+        }
+      }
+
+      if (data.recycleBin && Array.isArray(data.recycleBin)) {
+        const recycleWithNewIds = data.recycleBin.map(r => ({
+          ...r,
+          id: crypto.randomUUID(),
+          projectId: newProjectId,
+          sampleId: idMapping[r.sampleId] || crypto.randomUUID()
+        }));
+        if (recycleWithNewIds.length > 0) {
+          await window.StorageLayer.RecycleStore.bulkAdd(recycleWithNewIds);
+        }
+      }
+    }
+
+    if (data.tasks && Array.isArray(data.tasks)) {
+      for (const task of data.tasks) {
+        const newTaskId = crypto.randomUUID();
+        idMapping[task.id] = newTaskId;
+        await window.StorageLayer.TaskStore.add({
+          ...task,
+          id: newTaskId,
+          projectId: newProjectId,
+          sampleIds: (task.sampleIds || []).map(id => idMapping[id] || id),
+          completedSamples: (task.completedSamples || []).map(id => idMapping[id] || id)
+        });
+      }
+    }
+
+    if (data.appState && data.appState.compareList) {
+      const mappedCompare = data.appState.compareList.map(id => idMapping[id]).filter(Boolean);
+      await window.StorageLayer.AppStateStore.setCompareList(mappedCompare, newProjectId);
+    }
+
+    if (data.studentAnswers && Array.isArray(data.studentAnswers)) {
+      for (const ans of data.studentAnswers) {
+        await window.StorageLayer.AnswerStore.save({
+          ...ans,
+          id: crypto.randomUUID(),
+          projectId: newProjectId,
+          taskId: idMapping[ans.taskId] || ans.taskId,
+          sampleId: idMapping[ans.sampleId] || ans.sampleId
+        });
+      }
+    }
+
+    return {
+      success: true,
+      project: projectRecord,
+      sampleCount: (data.samples || []).length,
+      taskCount: (data.tasks || []).length,
+      merged: false
     };
   }
 
@@ -154,6 +322,48 @@
   }
 
   function getBackupSummary(data) {
+    if (data.project && data.format === "wxyy-thin-section-project-backup") {
+      const samples = data.samples || [];
+      const tasks = data.tasks || [];
+      let photosCount = 0;
+      let annotationsCount = 0;
+      samples.forEach(s => {
+        if (s.photo) photosCount++;
+        if (s.annotations) annotationsCount += s.annotations.length;
+      });
+      return {
+        isProjectBackup: true,
+        projectName: data.project.name,
+        projectDescription: data.project.description,
+        sampleCount: samples.length,
+        taskCount: tasks.length,
+        photosCount,
+        annotationsCount,
+        versionHistoryCount: (data.versionHistory || []).length,
+        recycleBinCount: (data.recycleBin || []).length,
+        createdAt: data.createdAt || data.exportDate || null,
+        version: data.version || null,
+        includeHistory: data.includeHistory !== false
+      };
+    }
+
+    if (data.projects && data.format === "wxyy-thin-section-full-backup") {
+      let totalSamples = 0;
+      let totalTasks = 0;
+      data.projects.forEach(p => {
+        totalSamples += (p.samples || []).length;
+        totalTasks += (p.tasks || []).length;
+      });
+      return {
+        isFullBackup: true,
+        projectCount: data.projects.length,
+        sampleCount: totalSamples,
+        taskCount: totalTasks,
+        createdAt: data.createdAt || data.exportDate || null,
+        version: data.version || null
+      };
+    }
+
     const samples = data.samples || [];
     const tasks = data.tasks || [];
     const versionHistory = data.versionHistory || [];
@@ -185,9 +395,13 @@
       throw new Error("StorageLayer 未加载");
     }
 
-    const samples = await window.StorageLayer.SampleStore.getAll();
-    const tasks = await window.StorageLayer.TaskStore.getAll();
-    const compareList = await window.StorageLayer.AppStateStore.getCompareList();
+    const projectId = window.ProjectManager
+      ? window.ProjectManager.getCurrentProjectId()
+      : window.StorageLayer.DEFAULT_PROJECT_ID;
+
+    const samples = await window.StorageLayer.SampleStore.getAll(projectId);
+    const tasks = await window.StorageLayer.TaskStore.getAll(projectId);
+    const compareList = await window.StorageLayer.AppStateStore.getCompareList(projectId);
 
     const approxSize = estimateSize(samples);
 

@@ -1,7 +1,43 @@
 let state = null;
+let showArchivedProjects = false;
+let currentProjectFormMode = "create";
+let currentEditingProjectId = null;
 
 const $ = (sel, scope = document) => scope.querySelector(sel);
 const $$ = (sel, scope = document) => Array.from(scope.querySelectorAll(sel));
+
+const projectSelector = $("#projectSelector");
+const appShell = $("#appShell");
+const projectGrid = $("#projectGrid");
+const projectEmpty = $("#projectEmpty");
+const showArchivedToggle = $("#showArchivedToggle");
+const createProjectBtn = $("#createProjectBtn");
+const importProjectBtn = $("#importProjectBtn");
+const importProjectBackupBtn = $("#importProjectBackupBtn");
+const importProjectBackupInput = $("#importProjectBackupInput");
+const currentProjectBtn = $("#currentProjectBtn");
+const currentProjectName = $("#currentProjectName");
+const projectDropdown = $("#projectDropdown");
+const projectDropdownList = $("#projectDropdownList");
+const dropdownCreateBtn = $("#dropdownCreateBtn");
+const dropdownImportBtn = $("#dropdownImportBtn");
+const manageProjectsBtn = $("#manageProjectsBtn");
+const openProjectManagerBtn = $("#openProjectManagerBtn");
+const projectManagerModal = $("#projectManagerModal");
+const projectManagerClose = $("#projectManagerClose");
+const projectManagerList = $("#projectManagerList");
+const projectManagerNewBtn = $("#projectManagerNewBtn");
+const projectManagerImportBtn = $("#projectManagerImportBtn");
+const projectManagerImportInput = $("#projectManagerImportInput");
+const projectFormModal = $("#projectFormModal");
+const projectForm = $("#projectForm");
+const projectFormClose = $("#projectFormClose");
+const projectFormCancel = $("#projectFormCancel");
+const projectFormSubmit = $("#projectFormSubmit");
+const projectFormTitle = $("#projectFormTitle");
+const projectFormName = $("#projectFormName");
+const projectFormDesc = $("#projectFormDescription");
+const projectFormStats = $("#projectFormStats");
 
 const form = $("#sampleForm");
 const photoInput = $("#photoInput");
@@ -2902,6 +2938,28 @@ async function initApp() {
       await showMigrationDialog();
     }
 
+    await window.ProjectManager.init();
+    initProjectUI();
+
+    window.ProjectManager.onProjectChange(async () => {
+      await reloadDataForProject();
+    });
+
+    const hasCurrentProject = !!window.ProjectManager.getCurrentProjectId();
+    if (!hasCurrentProject) {
+      showProjectSelector();
+      return;
+    }
+
+    await loadProjectDataAndUI();
+  } catch (err) {
+    console.error("初始化失败:", err);
+    alert("应用初始化失败：" + err.message);
+  }
+}
+
+async function loadProjectDataAndUI() {
+  try {
     await window.DataManager.init();
 
     if (window.LessonPackage) {
@@ -2955,11 +3013,531 @@ async function initApp() {
 
     await window.DataManager.ensureHistoryForExistingSamples();
 
+    updateHeaderProjectName();
     renderAll();
+    showAppShell();
   } catch (err) {
-    console.error("初始化失败:", err);
-    alert("应用初始化失败：" + err.message);
+    console.error("加载项目数据失败:", err);
+    alert("加载项目数据失败：" + err.message);
   }
+}
+
+async function reloadDataForProject() {
+  try {
+    if (window.DataManager) {
+      await window.DataManager.reloadForProject();
+    }
+    state = window.DataManager?.getState?.() || null;
+    updateHeaderProjectName();
+    if (state) {
+      renderAll();
+      if ($("#tab-tasks").classList.contains("active")) renderTasks();
+      if ($("#tab-review").classList.contains("active") && window.ReviewModule) {
+        window.ReviewModule.renderReviewBoard();
+        updateReviewStats();
+      }
+      if ($("#tab-lesson").classList.contains("active")) renderLessonPage();
+      if ($("#tab-grading").classList.contains("active")) renderGradingPage();
+      if ($("#tab-recycle").classList.contains("active")) renderRecycleBin();
+    }
+  } catch (e) {
+    console.error("切换项目失败:", e);
+    alert("切换项目失败：" + e.message);
+  }
+}
+
+function showProjectSelector() {
+  if (projectSelector) projectSelector.classList.remove("hidden");
+  if (appShell) appShell.classList.add("hidden");
+  renderProjectList();
+}
+
+function showAppShell() {
+  if (projectSelector) projectSelector.classList.add("hidden");
+  if (appShell) appShell.classList.remove("hidden");
+  document.body.style.overflow = "";
+}
+
+function initProjectUI() {
+  createProjectBtn?.addEventListener("click", () => openProjectForm("create"));
+  importProjectBtn?.addEventListener("click", () => importProjectBackupInput?.click());
+  importProjectBackupBtn?.addEventListener("click", () => importProjectBackupInput?.click());
+  importProjectBackupInput?.addEventListener("change", async (e) => {
+    await handleImportProjectBackup(e.target.files[0]);
+    importProjectBackupInput.value = "";
+  });
+  showArchivedToggle?.addEventListener("change", (e) => {
+    showArchivedProjects = e.target.checked;
+    renderProjectList();
+  });
+
+  currentProjectBtn?.addEventListener("click", (e) => {
+    e.stopPropagation();
+    toggleProjectDropdown();
+  });
+
+  dropdownCreateBtn?.addEventListener("click", () => {
+    if (projectDropdown) projectDropdown.classList.add("hidden");
+    openProjectForm("create");
+  });
+  dropdownImportBtn?.addEventListener("click", () => {
+    if (projectDropdown) projectDropdown.classList.add("hidden");
+    importProjectBackupInput?.click();
+  });
+  manageProjectsBtn?.addEventListener("click", () => {
+    if (projectDropdown) projectDropdown.classList.add("hidden");
+    openProjectManager();
+  });
+
+  document.addEventListener("click", (e) => {
+    if (projectDropdown && !projectDropdown.classList.contains("hidden") && !projectDropdown.contains(e.target) && e.target !== currentProjectBtn) {
+      projectDropdown.classList.add("hidden");
+    }
+  });
+
+  openProjectManagerBtn?.addEventListener("click", () => openProjectManager());
+
+  projectManagerClose?.addEventListener("click", () => closeProjectManager());
+  projectManagerModal?.addEventListener("click", (e) => {
+    if (e.target === projectManagerModal) closeProjectManager();
+  });
+  projectManagerNewBtn?.addEventListener("click", () => openProjectForm("create"));
+  projectManagerImportBtn?.addEventListener("click", () => projectManagerImportInput?.click());
+  projectManagerImportInput?.addEventListener("change", async (e) => {
+    await handleImportProjectBackup(e.target.files[0]);
+    projectManagerImportInput.value = "";
+    renderManagerList();
+  });
+
+  projectFormClose?.addEventListener("click", () => closeProjectForm());
+  projectFormCancel?.addEventListener("click", () => closeProjectForm());
+  projectFormModal?.addEventListener("click", (e) => {
+    if (e.target === projectFormModal) closeProjectForm();
+  });
+  projectForm?.addEventListener("submit", (e) => {
+    e.preventDefault();
+    handleProjectFormSubmit();
+  });
+}
+
+function updateHeaderProjectName() {
+  const project = window.ProjectManager?.getCurrentProjectSync?.();
+  if (currentProjectName && project) {
+    currentProjectName.textContent = project.name;
+  }
+}
+
+function toggleProjectDropdown() {
+  if (!projectDropdown) return;
+  const isHidden = projectDropdown.classList.contains("hidden");
+  if (isHidden) {
+    renderProjectDropdown();
+    projectDropdown.classList.remove("hidden");
+  } else {
+    projectDropdown.classList.add("hidden");
+  }
+}
+
+function renderProjectDropdown() {
+  if (!projectDropdownList) return;
+  const allProjects = window.ProjectManager?.getProjects?.() || [];
+  const activeProjects = allProjects.filter(p => !p.isArchived);
+  const currentId = window.ProjectManager?.getCurrentProjectId();
+
+  let html = "";
+  if (activeProjects.length === 0) {
+    html = '<div style="padding: 14px; text-align: center; color: var(--muted); font-size: 13px;">暂无项目</div>';
+  } else {
+    html = activeProjects.map(p => `
+      <div class="dropdown-item ${p.id === currentId ? "active" : ""}" data-project-id="${p.id}">
+        <span>${p.name}</span>
+      </div>
+    `).join("");
+  }
+  projectDropdownList.innerHTML = html;
+
+  projectDropdownList.querySelectorAll(".dropdown-item").forEach(item => {
+    item.addEventListener("click", async () => {
+      const pid = item.dataset.projectId;
+      projectDropdown.classList.add("hidden");
+      try {
+        await window.ProjectManager.setCurrentProject(pid);
+      } catch (e) {
+        alert("切换项目失败：" + e.message);
+      }
+    });
+  });
+}
+
+function renderProjectList() {
+  if (!projectGrid) return;
+  const allProjects = window.ProjectManager?.getProjects?.() || [];
+  const projects = allProjects.filter(p => showArchivedProjects ? true : !p.isArchived);
+
+  if (projects.length === 0) {
+    projectGrid.classList.add("hidden");
+    projectEmpty?.classList.remove("hidden");
+    return;
+  }
+  projectGrid.classList.remove("hidden");
+  projectEmpty?.classList.add("hidden");
+
+  projectGrid.innerHTML = projects.map(p => {
+    const stats = window.ProjectManager?.getProjectStats?.(p.id) || { sampleCount: 0, taskCount: 0 };
+    const createdStr = p.createdAt ? formatDateTime(p.createdAt).split(" ")[0] : "";
+    const classes = ["project-card"];
+    if (p.id === "default-project") classes.push("default-project");
+    if (p.isArchived) classes.push("archived");
+    return `
+      <div class="${classes.join(" ")}" data-project-id="${p.id}">
+        <div class="project-card-head">
+          <h3 class="project-card-title">${escapeHtml(p.name)}</h3>
+          <button type="button" class="project-card-menu-btn" data-project-menu="${p.id}" title="更多操作">⋯</button>
+        </div>
+        <p class="project-card-desc">${escapeHtml(p.description || "暂无描述")}</p>
+        <div class="project-card-stats">
+          <span class="project-card-stat">📋 ${stats.sampleCount} 样本</span>
+          <span class="project-card-stat">📝 ${stats.taskCount} 任务</span>
+        </div>
+        <div class="project-card-meta">创建于 ${createdStr}</div>
+      </div>
+    `;
+  }).join("");
+
+  projectGrid.querySelectorAll(".project-card").forEach(card => {
+    card.addEventListener("click", async (e) => {
+      if (e.target.closest("[data-project-menu]")) return;
+      const pid = card.dataset.projectId;
+      try {
+        await window.ProjectManager.setCurrentProject(pid);
+        await loadProjectDataAndUI();
+      } catch (err) {
+        alert("打开项目失败：" + err.message);
+      }
+    });
+  });
+
+  projectGrid.querySelectorAll("[data-project-menu]").forEach(btn => {
+    btn.addEventListener("click", async (e) => {
+      e.stopPropagation();
+      const pid = btn.dataset.projectMenu;
+      showProjectQuickMenu(pid, btn);
+    });
+  });
+}
+
+function showProjectQuickMenu(projectId, anchorEl) {
+  const project = window.ProjectManager?.getProjectById?.(projectId);
+  if (!project) return;
+
+  const isDefault = projectId === "default-project";
+  const items = [];
+  items.push({ label: "重命名", action: "rename", disabled: false });
+  if (project.isArchived) {
+    items.push({ label: "取消归档", action: "unarchive", disabled: false });
+  } else {
+    items.push({ label: "归档", action: "archive", disabled: isDefault });
+  }
+  items.push({ label: "复制", action: "duplicate", disabled: false });
+  items.push({ label: "导出备份", action: "export", disabled: false });
+  items.push({ label: "删除", action: "delete", disabled: isDefault });
+
+  const menu = document.createElement("div");
+  menu.style.cssText = `
+    position: fixed; z-index: 2000; background: var(--panel); border: 1px solid var(--line);
+    border-radius: 8px; box-shadow: 0 12px 32px rgba(23,32,29,0.18); padding: 4px; min-width: 140px;
+  `;
+  menu.innerHTML = items.map(it => `
+    <button type="button" data-action="${it.action}" ${it.disabled ? "disabled" : ""}
+      style="display:block;width:100%;text-align:left;padding:8px 12px;border:0;background:transparent;
+      border-radius:6px;font-size:13px;cursor:pointer;${it.disabled ? 'color:var(--muted);cursor:not-allowed;' : 'color:var(--ink);'}
+      ${it.action === 'delete' ? 'color:var(--danger);' : ''}">${it.label}</button>
+  `).join("");
+
+  document.body.appendChild(menu);
+  const rect = anchorEl.getBoundingClientRect();
+  menu.style.top = `${rect.bottom + 4}px`;
+  menu.style.left = `${Math.min(rect.left, window.innerWidth - 160)}px`;
+
+  const closeMenu = () => {
+    menu.remove();
+    document.removeEventListener("click", onDocClick);
+  };
+  const onDocClick = (e) => {
+    if (!menu.contains(e.target)) closeMenu();
+  };
+  setTimeout(() => document.addEventListener("click", onDocClick), 0);
+
+  menu.querySelectorAll("button[data-action]").forEach(b => {
+    b.addEventListener("click", async () => {
+      const action = b.dataset.action;
+      closeMenu();
+      try {
+        await handleProjectAction(projectId, action);
+      } catch (e) {
+        alert("操作失败：" + e.message);
+      }
+    });
+  });
+}
+
+async function handleProjectAction(projectId, action) {
+  const project = window.ProjectManager?.getProjectById?.(projectId);
+  if (!project) return;
+
+  switch (action) {
+    case "rename":
+      openProjectForm("rename", projectId);
+      break;
+    case "archive":
+      if (confirm(`确定要归档项目「${project.name}」吗？归档后项目将从主列表中隐藏。`)) {
+        await window.ProjectManager.archiveProject(projectId);
+        if (window.ProjectManager.getCurrentProjectId() === projectId) {
+          showProjectSelector();
+        } else {
+          renderProjectList();
+          updateHeaderProjectName();
+        }
+      }
+      break;
+    case "unarchive":
+      await window.ProjectManager.unarchiveProject(projectId);
+      renderProjectList();
+      break;
+    case "duplicate":
+      const newName = prompt(`输入新项目名称：`, `${project.name} (副本)`);
+      if (newName?.trim()) {
+        await window.ProjectManager.duplicateProject(projectId, newName.trim());
+        renderProjectList();
+      }
+      break;
+    case "export":
+      await window.ProjectManager.downloadProjectBackup(projectId);
+      break;
+    case "delete":
+      if (confirm(`确定要删除项目「${project.name}」吗？所有数据将被永久删除，此操作不可撤销！`)) {
+        await window.ProjectManager.deleteProject(projectId);
+        if (window.ProjectManager.getCurrentProjectId() === projectId) {
+          showProjectSelector();
+        } else {
+          renderProjectList();
+        }
+      }
+      break;
+  }
+}
+
+async function handleImportProjectBackup(file) {
+  if (!file) return;
+  try {
+    const result = await window.ProjectManager.importProjectBackup(file);
+    alert(`项目「${result.project.name}」导入成功！包含 ${result.sampleCount || result.stats?.sampleCount || 0} 个样本、${result.taskCount || result.stats?.taskCount || 0} 个任务。`);
+    renderProjectList();
+  } catch (e) {
+    alert("导入失败：" + e.message);
+  }
+}
+
+function openProjectManager() {
+  projectManagerModal?.classList.remove("hidden");
+  document.body.style.overflow = "hidden";
+  renderManagerList();
+}
+
+function closeProjectManager() {
+  projectManagerModal?.classList.add("hidden");
+  document.body.style.overflow = "";
+}
+
+function renderManagerList() {
+  if (!projectManagerList) return;
+  const projects = window.ProjectManager?.getProjects?.() || [];
+
+  if (projects.length === 0) {
+    projectManagerList.innerHTML = '<p class="vh-empty">还没有项目，点击右上角创建。</p>';
+    return;
+  }
+
+  projectManagerList.innerHTML = projects.map(p => {
+    const stats = window.ProjectManager?.getProjectStats?.(p.id) || { sampleCount: 0, taskCount: 0 };
+    const isDefault = p.id === "default-project";
+    const badges = [];
+    if (isDefault) badges.push('<span class="manager-row-badge default-badge">默认</span>');
+    if (p.isArchived) badges.push('<span class="manager-row-badge archived-badge">已归档</span>');
+    const updatedStr = p.updatedAt ? formatDateTime(p.updatedAt) : "-";
+    return `
+      <div class="manager-row ${p.isArchived ? "archived" : ""}">
+        <div class="manager-row-info">
+          <div class="manager-row-name">
+            <span>${escapeHtml(p.name)}</span>
+            ${badges.join(" ")}
+          </div>
+          <div class="manager-row-desc">${escapeHtml(p.description || "暂无描述")}</div>
+          <div class="manager-row-meta">
+            <span>${stats.sampleCount} 样本</span>
+            <span>${stats.taskCount} 任务</span>
+            <span>更新于 ${updatedStr}</span>
+          </div>
+        </div>
+        <div class="manager-row-actions">
+          <button type="button" data-mgr-open="${p.id}">打开</button>
+          <button type="button" data-mgr-rename="${p.id}">重命名</button>
+          ${p.isArchived
+            ? `<button type="button" data-mgr-unarchive="${p.id}">取消归档</button>`
+            : `<button type="button" data-mgr-archive="${p.id}" ${isDefault ? "disabled" : ""}>归档</button>`}
+          <button type="button" data-mgr-duplicate="${p.id}">复制</button>
+          <button type="button" data-mgr-export="${p.id}">导出</button>
+          <button type="button" class="danger-btn" data-mgr-delete="${p.id}" ${isDefault ? "disabled" : ""}>删除</button>
+        </div>
+      </div>
+    `;
+  }).join("");
+
+  projectManagerList.querySelectorAll("[data-mgr-open]").forEach(b => {
+    b.addEventListener("click", async () => {
+      const pid = b.dataset.mgrOpen;
+      try {
+        await window.ProjectManager.setCurrentProject(pid);
+        closeProjectManager();
+        await loadProjectDataAndUI();
+      } catch (e) {
+        alert("打开项目失败：" + e.message);
+      }
+    });
+  });
+  projectManagerList.querySelectorAll("[data-mgr-rename]").forEach(b => {
+    b.addEventListener("click", () => {
+      openProjectForm("rename", b.dataset.mgrRename);
+    });
+  });
+  projectManagerList.querySelectorAll("[data-mgr-archive]").forEach(b => {
+    b.addEventListener("click", async () => {
+      const pid = b.dataset.mgrArchive;
+      const p = window.ProjectManager.getProjectById(pid);
+      if (confirm(`归档「${p?.name}」？`)) {
+        await window.ProjectManager.archiveProject(pid);
+        renderManagerList();
+      }
+    });
+  });
+  projectManagerList.querySelectorAll("[data-mgr-unarchive]").forEach(b => {
+    b.addEventListener("click", async () => {
+      await window.ProjectManager.unarchiveProject(b.dataset.mgrUnarchive);
+      renderManagerList();
+    });
+  });
+  projectManagerList.querySelectorAll("[data-mgr-duplicate]").forEach(b => {
+    b.addEventListener("click", async () => {
+      const pid = b.dataset.mgrDuplicate;
+      const p = window.ProjectManager.getProjectById(pid);
+      const name = prompt("新项目名称：", `${p?.name || "项目"} (副本)`);
+      if (name?.trim()) {
+        await window.ProjectManager.duplicateProject(pid, name.trim());
+        renderManagerList();
+      }
+    });
+  });
+  projectManagerList.querySelectorAll("[data-mgr-export]").forEach(b => {
+    b.addEventListener("click", async () => {
+      await window.ProjectManager.downloadProjectBackup(b.dataset.mgrExport);
+    });
+  });
+  projectManagerList.querySelectorAll("[data-mgr-delete]").forEach(b => {
+    b.addEventListener("click", async () => {
+      const pid = b.dataset.mgrDelete;
+      const p = window.ProjectManager.getProjectById(pid);
+      if (confirm(`彻底删除「${p?.name}」？此操作不可撤销！`)) {
+        await window.ProjectManager.deleteProject(pid);
+        renderManagerList();
+        if (window.ProjectManager.getCurrentProjectId() === pid) {
+          closeProjectManager();
+          showProjectSelector();
+        }
+      }
+    });
+  });
+}
+
+function openProjectForm(mode, projectId = null) {
+  currentProjectFormMode = mode;
+  currentEditingProjectId = projectId;
+
+  if (projectFormTitle) {
+    projectFormTitle.textContent = mode === "create" ? "新建项目" : "重命名项目";
+  }
+  if (projectFormStats) projectFormStats.classList.add("hidden");
+  if (projectFormName) projectFormName.value = "";
+  if (projectFormDesc) projectFormDesc.value = "";
+
+  if (mode === "rename" && projectId) {
+    const p = window.ProjectManager?.getProjectById?.(projectId);
+    if (p) {
+      projectFormName.value = p.name;
+      projectFormDesc.value = p.description || "";
+      const stats = window.ProjectManager?.getProjectStats?.(projectId);
+      if (stats && projectFormStats) {
+        projectFormStats.classList.remove("hidden");
+        projectFormStats.innerHTML = `
+          <div class="project-form-stat">
+            <div class="project-form-stat-label">样本</div>
+            <div class="project-form-stat-value">${stats.sampleCount}</div>
+          </div>
+          <div class="project-form-stat">
+            <div class="project-form-stat-label">任务</div>
+            <div class="project-form-stat-value">${stats.taskCount}</div>
+          </div>
+          <div class="project-form-stat">
+            <div class="project-form-stat-label">答案</div>
+            <div class="project-form-stat-value">${stats.answerCount || 0}</div>
+          </div>
+        `;
+      }
+    }
+  }
+
+  projectFormModal?.classList.remove("hidden");
+  document.body.style.overflow = "hidden";
+  setTimeout(() => projectFormName?.focus(), 50);
+}
+
+function closeProjectForm() {
+  projectFormModal?.classList.add("hidden");
+  document.body.style.overflow = "";
+  currentEditingProjectId = null;
+}
+
+async function handleProjectFormSubmit() {
+  const name = projectFormName?.value?.trim();
+  const description = projectFormDesc?.value?.trim() || "";
+
+  if (!name) {
+    alert("请输入项目名称");
+    projectFormName?.focus();
+    return;
+  }
+
+  try {
+    if (currentProjectFormMode === "create") {
+      const project = await window.ProjectManager.createProject(name, description);
+      closeProjectForm();
+      await window.ProjectManager.setCurrentProject(project.id);
+      await loadProjectDataAndUI();
+    } else if (currentProjectFormMode === "rename" && currentEditingProjectId) {
+      await window.ProjectManager.renameProject(currentEditingProjectId, name);
+      await window.ProjectManager.updateProjectDescription(currentEditingProjectId, description);
+      closeProjectForm();
+      updateHeaderProjectName();
+      renderProjectList();
+      renderManagerList();
+    }
+  } catch (e) {
+    alert("保存失败：" + e.message);
+  }
+}
+
+function escapeHtml(s) {
+  if (s == null) return "";
+  return String(s).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
 }
 
 function openVersionHistoryModal(sampleId) {

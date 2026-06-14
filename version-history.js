@@ -1,6 +1,12 @@
 (function (global) {
   "use strict";
 
+  function getCurrentProjectId() {
+    return window.ProjectManager?.getCurrentProjectId?.()
+      || window.StorageLayer?.DEFAULT_PROJECT_ID
+      || "default-project";
+  }
+
   const TRACKED_FIELDS = [
     { key: "code", label: "样本编号" },
     { key: "location", label: "采样地点" },
@@ -244,7 +250,8 @@
       sampleId: sample.id,
       sampleSnapshot: { ...sample },
       code: sample.code || "",
-      deletedAt: new Date().toISOString()
+      deletedAt: new Date().toISOString(),
+      projectId: getCurrentProjectId()
     };
 
     await window.StorageLayer.RecycleStore.add(record);
@@ -253,7 +260,7 @@
 
   async function getRecycleBin() {
     if (!window.StorageLayer || !window.StorageLayer.RecycleStore) return [];
-    return window.StorageLayer.RecycleStore.getAll();
+    return window.StorageLayer.RecycleStore.getAll(getCurrentProjectId());
   }
 
   async function restoreFromRecycleBin(recycleId) {
@@ -280,11 +287,12 @@
   async function emptyRecycleBin() {
     if (!window.StorageLayer) return;
 
-    const items = await window.StorageLayer.RecycleStore.getAll();
+    const pid = getCurrentProjectId();
+    const items = await window.StorageLayer.RecycleStore.getAll(pid);
     for (const item of items) {
       await window.StorageLayer.VersionStore.removeBySampleId(item.sampleId);
     }
-    await window.StorageLayer.RecycleStore.clearAll();
+    await window.StorageLayer.RecycleStore.clearAll(pid);
   }
 
   async function ensureInitialVersion(sampleId, sample) {

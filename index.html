@@ -9,11 +9,53 @@
   <link rel="stylesheet" href="./image-viewer.css" />
 </head>
 <body>
-  <main class="shell">
+  <div id="projectSelector" class="project-selector hidden">
+    <div class="project-selector-inner">
+      <header class="project-selector-header">
+        <div>
+          <p>Petrographic Slide Index</p>
+          <h1>岩芯薄片显微照片索引台</h1>
+          <p class="project-selector-subtitle">请选择或创建一个项目开始工作</p>
+        </div>
+      </header>
+
+      <div class="project-selector-actions">
+        <button id="createProjectBtn" type="button" class="primary">+ 新建项目</button>
+        <button id="importProjectBtn" type="button" class="ghost">📥 导入项目备份</button>
+        <label class="toggle-archived">
+          <input type="checkbox" id="showArchivedProjects">
+          显示已归档项目
+        </label>
+      </div>
+
+      <div id="projectList" class="project-list"></div>
+    </div>
+    <input type="file" id="importProjectFileInput" accept=".json,application/json" hidden>
+  </div>
+
+  <main id="appShell" class="shell hidden">
     <header class="mast">
-      <div>
+      <div class="mast-title">
         <p>Petrographic Slide Index</p>
         <h1>岩芯薄片显微照片索引台</h1>
+      </div>
+      <div class="project-bar">
+        <button id="currentProjectBtn" type="button" class="project-switcher">
+          <span class="project-icon">📁</span>
+          <span id="currentProjectName">默认项目</span>
+          <span class="project-caret">▾</span>
+        </button>
+        <div id="projectDropdown" class="project-dropdown hidden">
+          <div class="project-dropdown-header">
+            <strong>项目管理</strong>
+            <button type="button" id="manageProjectsBtn" class="ghost small">管理全部</button>
+          </div>
+          <div id="projectDropdownList" class="project-dropdown-list"></div>
+          <div class="project-dropdown-footer">
+            <button type="button" id="dropdownCreateBtn" class="ghost small">+ 新建项目</button>
+            <button type="button" id="dropdownImportBtn" class="ghost small">📥 导入备份</button>
+          </div>
+        </div>
       </div>
       <div class="mast-actions">
         <button id="backupBtn" type="button" class="ghost">数据备份</button>
@@ -425,6 +467,47 @@
       </div>
     </div>
 
+    <div id="projectManagerModal" class="modal-overlay hidden">
+      <div class="modal-content project-manager-modal">
+        <header class="modal-header">
+          <h2>项目管理</h2>
+          <button type="button" class="modal-close" id="projectManagerClose">×</button>
+        </header>
+        <div class="modal-body">
+          <div class="pm-actions">
+            <button type="button" id="pmCreateBtn" class="primary">+ 新建项目</button>
+            <button type="button" id="pmImportBtn" class="ghost">📥 导入项目备份</button>
+            <label class="pm-toggle">
+              <input type="checkbox" id="pmShowArchived">
+              显示已归档
+            </label>
+          </div>
+          <div id="pmProjectList" class="pm-project-list"></div>
+        </div>
+      </div>
+    </div>
+
+    <div id="projectFormModal" class="modal-overlay hidden">
+      <div class="modal-content project-form-modal">
+        <header class="modal-header">
+          <h2 id="projectFormTitle">新建项目</h2>
+          <button type="button" class="modal-close" id="projectFormClose">×</button>
+        </header>
+        <form id="projectForm" class="modal-body">
+          <label>项目名称
+            <input id="projectFormName" type="text" required placeholder="例如：2024春季沉积岩实习">
+          </label>
+          <label>项目描述（可选）
+            <textarea id="projectFormDescription" rows="3" placeholder="简要描述项目用途、数据集等"></textarea>
+          </label>
+          <footer class="modal-footer">
+            <button type="button" class="ghost" id="projectFormCancel">取消</button>
+            <button type="submit" class="primary">保存</button>
+          </footer>
+        </form>
+      </div>
+    </div>
+
     <input type="file" id="lessonFileInput" accept=".json,application/json" hidden>
     <input type="file" id="answerFileInput" accept=".json,application/json" hidden>
     <input type="file" id="batchAnswerFileInput" accept=".json,application/json" multiple hidden>
@@ -524,6 +607,7 @@
   </div>
 
   <script src="./storage-layer.js"></script>
+  <script src="./project-manager.js"></script>
   <script src="./data-manager.js"></script>
   <script src="./data-migration.js"></script>
   <script src="./version-history.js"></script>

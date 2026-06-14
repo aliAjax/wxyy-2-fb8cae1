@@ -126,15 +126,23 @@
     return currentHash === data.contentHash;
   }
 
+  function getCurrentProjectId() {
+    return window.ProjectManager?.getCurrentProjectId?.()
+      || window.StorageLayer?.DEFAULT_PROJECT_ID
+      || "default-project";
+  }
+
   async function loadState() {
     if (!window.StorageLayer) {
       throw new Error("StorageLayer 未加载");
     }
     await window.StorageLayer.initDB();
 
-    const submissions = await window.StorageLayer.getAppState("submissions", []);
-    const rubrics = await window.StorageLayer.getAppState("rubrics", []);
-    const lessonMetas = await window.StorageLayer.getAppState("lessonMetas", {});
+    const pid = getCurrentProjectId();
+
+    const submissions = await window.StorageLayer.getAppState(`submissions_${pid}`, []);
+    const rubrics = await window.StorageLayer.getAppState(`rubrics_${pid}`, []);
+    const lessonMetas = await window.StorageLayer.getAppState(`lessonMetas_${pid}`, {});
 
     state.submissions = Array.isArray(submissions) ? submissions : [];
     state.rubrics = Array.isArray(rubrics) ? rubrics : [];
@@ -190,7 +198,6 @@
   }
 
   function init() {
-    if (initPromise) return initPromise;
     initPromise = loadState();
     return initPromise;
   }
@@ -200,9 +207,10 @@
   }
 
   async function saveState() {
-    await window.StorageLayer.setAppState("submissions", state.submissions);
-    await window.StorageLayer.setAppState("rubrics", state.rubrics);
-    await window.StorageLayer.setAppState("lessonMetas", state.lessonMetas);
+    const pid = getCurrentProjectId();
+    await window.StorageLayer.setAppState(`submissions_${pid}`, state.submissions);
+    await window.StorageLayer.setAppState(`rubrics_${pid}`, state.rubrics);
+    await window.StorageLayer.setAppState(`lessonMetas_${pid}`, state.lessonMetas);
   }
 
   async function createLessonPackage(options) {
@@ -937,7 +945,9 @@
 
   async function saveLocalAnswer(answerData) {
     if (!window.StorageLayer || !window.StorageLayer.AnswerStore) return;
-    await window.StorageLayer.AnswerStore.save(answerData);
+    const pid = getCurrentProjectId();
+    const dataWithProject = { ...answerData, projectId: answerData.projectId || pid };
+    await window.StorageLayer.AnswerStore.save(dataWithProject);
   }
 
   async function getLocalAnswersByTask(taskId) {
