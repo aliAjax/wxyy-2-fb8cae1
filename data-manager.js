@@ -343,7 +343,12 @@
   async function addSampleGroup(group) {
     const projectId = getCurrentProjectId();
     const newGroup = await window.StorageLayer.AppStateStore.addSampleGroup(group, projectId);
-    state.sampleGroups.push(newGroup);
+    const idx = state.sampleGroups.findIndex(g => g.id === newGroup.id);
+    if (idx !== -1) {
+      state.sampleGroups[idx] = newGroup;
+    } else {
+      state.sampleGroups.push(newGroup);
+    }
     return newGroup;
   }
 

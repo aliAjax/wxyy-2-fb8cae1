@@ -457,19 +457,27 @@
 
           if (data.sampleGroups && Array.isArray(data.sampleGroups)) {
             const groupIdMapping = {};
-            const mappedSampleGroups = data.sampleGroups.map(g => {
-              const newGroupId = generateId();
-              groupIdMapping[g.id] = newGroupId;
-              return {
-                ...g,
-                id: newGroupId,
-                sampleIds: (g.sampleIds || []).map(sid => sampleIdMapping[sid] || sid)
-              };
-            });
+            const importedSampleNewIds = new Set(mappedSamples.map(s => s.id));
+            const mappedSampleGroups = data.sampleGroups
+              .map(g => {
+                const newGroupId = generateId();
+                groupIdMapping[g.id] = newGroupId;
+                const mappedSampleIds = (g.sampleIds || [])
+                  .map(sid => sampleIdMapping[sid])
+                  .filter(sid => sid && importedSampleNewIds.has(sid));
+                return {
+                  ...g,
+                  id: newGroupId,
+                  sampleIds: mappedSampleIds
+                };
+              })
+              .filter(g => g.sampleIds.length > 0);
 
             mappedSamples.forEach(s => {
               if (s.groupId && groupIdMapping[s.groupId]) {
                 s.groupId = groupIdMapping[s.groupId];
+              } else {
+                s.groupId = "";
               }
             });
 

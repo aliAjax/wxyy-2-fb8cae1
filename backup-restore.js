@@ -262,26 +262,43 @@
 
     if (data.sampleGroups && Array.isArray(data.sampleGroups)) {
       const groupIdMapping = {};
-      const mappedGroups = data.sampleGroups.map(g => {
-        const newGroupId = g.id || crypto.randomUUID();
-        groupIdMapping[g.id] = newGroupId;
-        return {
-          ...g,
-          id: newGroupId,
-          sampleIds: (g.sampleIds || []).map(sid => idMapping[sid] || sid)
-        };
+      const importedSampleNewIds = new Set(samplesWithNewIds.map(s => s.id));
+      const mappedGroups = data.sampleGroups
+        .map(g => {
+          const newGroupId = g.id || crypto.randomUUID();
+          groupIdMapping[g.id] = newGroupId;
+          const mappedSampleIds = (g.sampleIds || [])
+            .map(sid => idMapping[sid])
+            .filter(sid => sid && importedSampleNewIds.has(sid));
+          return {
+            ...g,
+            id: newGroupId,
+            sampleIds: mappedSampleIds
+          };
+        })
+        .filter(g => g.sampleIds.length > 0);
+
+      const newIdToOldGroupId = {};
+      (data.samples || []).forEach(ds => {
+        if (ds.groupId && idMapping[ds.id]) {
+          newIdToOldGroupId[idMapping[ds.id]] = ds.groupId;
+        }
       });
 
-      for (const s of (data.samples || [])) {
-        if (s.groupId && groupIdMapping[s.groupId]) {
-          const newSampleId = idMapping[s.id];
-          if (newSampleId) {
-            await window.StorageLayer.SampleStore.update(newSampleId, { groupId: groupIdMapping[s.groupId] });
-          }
+      for (const s of samplesWithNewIds) {
+        const oldGroupId = newIdToOldGroupId[s.id];
+        if (oldGroupId && groupIdMapping[oldGroupId]) {
+          s.groupId = groupIdMapping[oldGroupId];
+          await window.StorageLayer.SampleStore.update(s.id, { groupId: groupIdMapping[oldGroupId] });
+        } else if (s.groupId && !groupIdMapping[s.groupId]) {
+          s.groupId = "";
+          await window.StorageLayer.SampleStore.update(s.id, { groupId: "" });
         }
       }
 
-      await window.StorageLayer.AppStateStore.setSampleGroups(mappedGroups, newProjectId);
+      if (mappedGroups.length > 0) {
+        await window.StorageLayer.AppStateStore.setSampleGroups(mappedGroups, newProjectId);
+      }
     }
 
     if (data.appState && data.appState.compareList) {

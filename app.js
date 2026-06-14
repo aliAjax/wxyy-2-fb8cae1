@@ -792,14 +792,6 @@ form?.addEventListener("submit", async (event) => {
   };
   await window.DataManager.addSample(newSample);
 
-  if (groupId && !selectedGroupId) {
-    await window.DataManager.addSampleGroup({
-      id: groupId,
-      name: data.get("code").trim(),
-      sampleIds: [newSample.id]
-    });
-  }
-
   clearEntryAutoFillState();
 
   pendingPhoto = "";

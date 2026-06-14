@@ -822,12 +822,20 @@
 
     async addSampleGroup(group, projectId = DEFAULT_PROJECT_ID) {
       const groups = await this.getSampleGroups(projectId);
+      const groupId = group.id || crypto.randomUUID();
+      const existingIdx = groups.findIndex(g => g.id === groupId);
       const newGroup = {
-        id: group.id || crypto.randomUUID(),
+        id: groupId,
         name: group.name || "",
         sampleIds: group.sampleIds || [],
         createdAt: group.createdAt || new Date().toISOString()
       };
+      if (existingIdx !== -1) {
+        const mergedSampleIds = [...new Set([...(groups[existingIdx].sampleIds || []), ...(newGroup.sampleIds || [])])];
+        groups[existingIdx] = { ...groups[existingIdx], ...newGroup, sampleIds: mergedSampleIds };
+        await this.setSampleGroups(groups, projectId);
+        return groups[existingIdx];
+      }
       groups.push(newGroup);
       await this.setSampleGroups(groups, projectId);
       return newGroup;
@@ -1023,21 +1031,40 @@
 
     if (data.sampleGroups && Array.isArray(data.sampleGroups)) {
       const groupIdMapping = {};
-      const mappedGroups = data.sampleGroups.map(g => {
-        const newGroupId = g.id || crypto.randomUUID();
-        groupIdMapping[g.id] = newGroupId;
-        return {
-          ...g,
-          id: newGroupId,
-          sampleIds: (g.sampleIds || []).map(sid => idMapping[sid] || sid)
-        };
+      const importedSampleNewIds = new Set(samplesWithNewIds.map(s => s.id));
+      const mappedGroups = data.sampleGroups
+        .map(g => {
+          const newGroupId = g.id || crypto.randomUUID();
+          groupIdMapping[g.id] = newGroupId;
+          const mappedSampleIds = (g.sampleIds || [])
+            .map(sid => idMapping[sid])
+            .filter(sid => sid && importedSampleNewIds.has(sid));
+          return {
+            ...g,
+            id: newGroupId,
+            sampleIds: mappedSampleIds
+          };
+        })
+        .filter(g => g.sampleIds.length > 0);
+
+      const newIdToOldGroupId = {};
+      (data.samples || []).forEach(ds => {
+        if (ds.groupId && idMapping[ds.id]) {
+          newIdToOldGroupId[idMapping[ds.id]] = ds.groupId;
+        }
       });
-      await AppStateStore.setSampleGroups(mappedGroups, newProjectId);
 
       for (const s of samplesWithNewIds) {
-        if (s.groupId && groupIdMapping[s.groupId]) {
-          await SampleStore.update(s.id, { groupId: groupIdMapping[s.groupId] });
+        const oldGroupId = newIdToOldGroupId[s.id];
+        if (oldGroupId && groupIdMapping[oldGroupId]) {
+          await SampleStore.update(s.id, { groupId: groupIdMapping[oldGroupId] });
+        } else if (s.groupId && !groupIdMapping[s.groupId]) {
+          await SampleStore.update(s.id, { groupId: "" });
         }
+      }
+
+      if (mappedGroups.length > 0) {
+        await AppStateStore.setSampleGroups(mappedGroups, newProjectId);
       }
     }
 
