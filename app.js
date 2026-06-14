@@ -1913,6 +1913,12 @@ function recalculateIssueSummary() {
   importAnalysis.polarErrors = polarErrors;
 }
 
+function recheckAllImportRowsIssues() {
+  if (!importAnalysis) return;
+  importAnalysis.rows.forEach((row) => recheckRowIssues(row));
+  recalculateIssueSummary();
+}
+
 function escapeHtml(s) {
   return String(s || "").replace(/[&<>"']/g, (c) => ({
     "&": "&amp;",
@@ -2076,8 +2082,7 @@ function saveRowEdit() {
     photo: newPhoto
   };
 
-  recheckRowIssues(row);
-  recalculateIssueSummary();
+  recheckAllImportRowsIssues();
 
   closeRowEditor();
   renderIssueCards();
