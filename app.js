@@ -298,6 +298,7 @@ let entryFilledMinerals = new Set();
 let entryFilledWithDescription = new Set();
 let autoFilledFields = new Map();
 let manuallyEditedFields = new Set();
+let isAutoFillingNow = false;
 
 function updateEntryAssistant() {
   const resultsEl = document.getElementById("entryAssistantResults");
@@ -427,8 +428,10 @@ function unfillMineral(mineralId) {
   const textureEl = document.getElementById("entryTexture");
   const commentEl = document.getElementById("entryComment");
 
+  isAutoFillingNow = true;
   removeMineralFromField(mineral.name, mineralsEl);
   removeMineralFromField(mineral.name, commentEl, "鉴定提示");
+  isAutoFillingNow = false;
 
   entryFilledMinerals.delete(mineralId);
   entryFilledWithDescription.delete(mineralId);
@@ -505,6 +508,7 @@ function fillFormWithMineral(mineralId, includeDescription = true) {
     }
   }
 
+  isAutoFillingNow = true;
   mineralsEl.dispatchEvent(new Event("input", { bubbles: true }));
   mineralsEl.dispatchEvent(new Event("change", { bubbles: true }));
   if (textureEl) {
@@ -515,6 +519,7 @@ function fillFormWithMineral(mineralId, includeDescription = true) {
     commentEl.dispatchEvent(new Event("input", { bubbles: true }));
     commentEl.dispatchEvent(new Event("change", { bubbles: true }));
   }
+  isAutoFillingNow = false;
 
   showFillFeedback(fillData.mineralName, includeDescription);
   updateEntryAssistant();
@@ -567,6 +572,21 @@ function showFillFeedback(mineralName, fullFill) {
 function bindEntryAssistantFillButtons() {
   const resultsEl = document.getElementById("entryAssistantResults");
   if (!resultsEl) return;
+
+  const maEntryBtn = document.getElementById("maEntryToggleFeatures");
+  if (maEntryBtn && !maEntryBtn.dataset.bound) {
+    maEntryBtn.dataset.bound = "true";
+    maEntryBtn.addEventListener("click", () => {
+      const featuresPanel = document.getElementById("entryFeaturesPanel");
+      if (featuresPanel) {
+        featuresPanel.classList.toggle("hidden");
+        if (!featuresPanel.classList.contains("hidden")) {
+          refreshEntryFeaturesList();
+          featuresPanel.scrollIntoView({ behavior: "smooth", block: "nearest" });
+        }
+      }
+    });
+  }
 
   resultsEl.querySelectorAll('[data-action="fill-mineral"]').forEach((btn) => {
     if (btn.dataset.bound) return;
@@ -621,6 +641,7 @@ function bindEntryAssistantFillButtons() {
           const textureEl = document.getElementById("entryTexture");
           const fillData = window.MineralAssistant.buildMineralFormFillData(mineralId);
           if (fillData) {
+            isAutoFillingNow = true;
             if (textureEl && fillData.texture) {
               const currentTexture = textureEl.value.trim();
               if (!currentTexture) {
@@ -641,6 +662,7 @@ function bindEntryAssistantFillButtons() {
               commentEl.dispatchEvent(new Event("input", { bubbles: true }));
               commentEl.dispatchEvent(new Event("change", { bubbles: true }));
             }
+            isAutoFillingNow = false;
           }
           showFillFeedback(mineral.name, true);
           updateEntryAssistant();
@@ -664,7 +686,7 @@ function initEntryAssistant() {
     const el = document.getElementById(id);
     if (!el) return;
     el.addEventListener("input", (e) => {
-      if (id !== "entryPolarization" && autoFilledFields.has(id)) {
+      if (!isAutoFillingNow && id !== "entryPolarization" && autoFilledFields.has(id)) {
         manuallyEditedFields.add(id);
       }
       updateEntryAssistant();

@@ -905,7 +905,8 @@
       inferredMinerals,
       rockAssociations,
       suggestions,
-      confidenceLevel: inferredMinerals.length > 0 ? inferredMinerals[0].confidence : 0
+      confidenceLevel: inferredMinerals.length > 0 ? inferredMinerals[0].confidence : 0,
+      featuresCount: (sample.observationFeatures || []).length
     };
   }
 
@@ -919,7 +920,7 @@
       const f = getFeatureById(fid);
       if (f) {
         featureLabels.push(f.label);
-        if (f.category === "结构特征") {
+        if (f.category === "结构特征" || fid.startsWith("crystal_form_") || fid.startsWith("texture_")) {
           textureKeywords.push(f.label);
         }
       }
@@ -928,6 +929,14 @@
       const f = getFeatureById(fid);
       if (f && !featureLabels.includes(f.label)) {
         featureLabels.push(f.label);
+        if (f.category === "结构特征" || fid.startsWith("crystal_form_") || fid.startsWith("texture_")) {
+          textureKeywords.push(f.label);
+        }
+      }
+    });
+    (rule.conditions.keywords || []).forEach((kw) => {
+      if (["粒状", "它形", "半自形", "自形", "片状", "纤维状", "斑状", "碎裂"].includes(kw) && !textureKeywords.includes(kw)) {
+        textureKeywords.push(kw);
       }
     });
 
@@ -961,6 +970,20 @@
       .split(/[、,，\s]+/)
       .filter(Boolean)
       .map((n) => n.trim());
+
+    const featuresCount = (analysis && analysis.featuresCount) || 0;
+    let entryPointHTML = `
+      <div class="ma-entry-point">
+        <button type="button" class="ma-entry-btn" id="maEntryToggleFeatures">
+          <span class="ma-entry-icon">📋</span>
+          <span class="ma-entry-text">
+            ${featuresCount > 0 ? `已勾选 <strong>${featuresCount}</strong> 项观察特征` : "开始鉴定：勾选观察特征"}
+          </span>
+          <span class="ma-entry-caret">${featuresCount > 0 ? "修改 ▾" : "展开 ▾"}</span>
+        </button>
+        ${featuresCount === 0 ? `<p class="ma-entry-hint">勾选薄片中观察到的光学特征，系统将自动推断候选矿物并支持一键填入表单</p>` : ""}
+      </div>
+    `;
 
     let mineralsHTML = "";
     if (topMinerals.length > 0) {
@@ -1083,7 +1106,7 @@
       </div>
     `;
 
-    return mineralsHTML + rocksHTML + suggestionsHTML + disclaimer;
+    return entryPointHTML + mineralsHTML + rocksHTML + suggestionsHTML + disclaimer;
   }
 
   function getObservationFeaturesHTML(selectedIds = [], polarization = "") {
