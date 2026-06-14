@@ -772,6 +772,33 @@
 
     async setCurrentProjectId(projectId) {
       return setAppState("currentProjectId", projectId);
+    },
+
+    async getFilterViews(projectId = DEFAULT_PROJECT_ID) {
+      return getAppState(`filterViews_${projectId}`, []);
+    },
+
+    async setFilterViews(views, projectId = DEFAULT_PROJECT_ID) {
+      return setAppState(`filterViews_${projectId}`, views);
+    },
+
+    async addFilterView(view, projectId = DEFAULT_PROJECT_ID) {
+      const views = await this.getFilterViews(projectId);
+      views.push({
+        id: view.id || crypto.randomUUID(),
+        name: view.name,
+        mineral: view.mineral || "",
+        polarization: view.polarization || "",
+        reviewStatus: view.reviewStatus || "",
+        createdAt: new Date().toISOString()
+      });
+      return this.setFilterViews(views, projectId);
+    },
+
+    async deleteFilterView(viewId, projectId = DEFAULT_PROJECT_ID) {
+      const views = await this.getFilterViews(projectId);
+      const filtered = views.filter(v => v.id !== viewId);
+      return this.setFilterViews(filtered, projectId);
     }
   };
 
@@ -802,6 +829,7 @@
 
     const compareList = await AppStateStore.getCompareList(projectId);
     const filteredCompare = compareList.filter(id => sampleIds.has(id));
+    const filterViews = await AppStateStore.getFilterViews(projectId);
 
     const result = {
       format: "wxyy-thin-section-project-backup",
@@ -817,7 +845,8 @@
       samples: samplesWithPhotos,
       tasks: tasks,
       appState: {
-        compareList: filteredCompare
+        compareList: filteredCompare,
+        filterViews: filterViews
       }
     };
 
@@ -935,6 +964,14 @@
       await AppStateStore.setCompareList(mappedCompare, newProjectId);
     }
 
+    if (data.appState && data.appState.filterViews) {
+      const viewsWithNewIds = data.appState.filterViews.map(v => ({
+        ...v,
+        id: crypto.randomUUID()
+      }));
+      await AppStateStore.setFilterViews(viewsWithNewIds, newProjectId);
+    }
+
     return {
       project: projectRecord,
       sampleCount: (data.samples || []).length,
@@ -1022,6 +1059,9 @@
     if (data.appState) {
       if (data.appState.compareList) {
         await AppStateStore.setCompareList(data.appState.compareList, DEFAULT_PROJECT_ID);
+      }
+      if (data.appState.filterViews) {
+        await AppStateStore.setFilterViews(data.appState.filterViews, DEFAULT_PROJECT_ID);
       }
     }
 

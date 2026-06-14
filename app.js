@@ -49,6 +49,9 @@ const comparePane = $("#comparePane");
 const mineralFilter = $("#mineralFilter");
 const polarFilter = $("#polarFilter");
 const reviewFilter = $("#reviewFilter");
+const filterViewSelect = $("#filterViewSelect");
+const saveFilterViewBtn = $("#saveFilterViewBtn");
+const deleteFilterViewBtn = $("#deleteFilterViewBtn");
 
 const tabBtns = $$(".tab-btn");
 const tabPanels = $$(".tab-panel");
@@ -411,8 +414,165 @@ function handleSampleGridChange(gridEl, event) {
 sampleGrid?.addEventListener("change", (e) => handleSampleGridChange(sampleGrid, e));
 sampleGridFull?.addEventListener("change", (e) => handleSampleGridChange(sampleGridFull, e));
 
-[mineralFilter, polarFilter, reviewFilter].forEach((field) => field?.addEventListener("input", renderSamples));
-[reviewFilter].forEach((field) => field?.addEventListener("change", renderSamples));
+[mineralFilter, polarFilter, reviewFilter].forEach((field) => field?.addEventListener("input", () => {
+  renderSamples();
+  updateFilterViewSelection();
+}));
+[reviewFilter].forEach((field) => field?.addEventListener("change", () => {
+  renderSamples();
+  updateFilterViewSelection();
+}));
+
+let currentFilterViewId = null;
+
+function renderFilterViews() {
+  if (!filterViewSelect) return;
+  const views = state?.filterViews || [];
+  const currentMineral = mineralFilter?.value?.trim() || "";
+  const currentPolar = polarFilter?.value || "";
+  const currentReview = reviewFilter?.value || "";
+
+  let optionsHTML = '<option value="">常用筛选视图</option>';
+  let matchedViewId = null;
+
+  views.forEach((view) => {
+    const vMineral = view.mineral || "";
+    const vPolar = view.polarization || "";
+    const vReview = view.reviewStatus || "";
+    const isMatch =
+      vMineral === currentMineral &&
+      vPolar === currentPolar &&
+      vReview === currentReview;
+    if (isMatch && matchedViewId === null) matchedViewId = view.id;
+    optionsHTML += `<option value="${view.id}" ${isMatch ? "selected" : ""}>${escapeHtml(view.name)}</option>`;
+  });
+
+  filterViewSelect.innerHTML = optionsHTML;
+  currentFilterViewId = matchedViewId;
+
+  if (deleteFilterViewBtn) {
+    deleteFilterViewBtn.disabled = matchedViewId === null;
+  }
+}
+
+function updateFilterViewSelection() {
+  if (!filterViewSelect || !state) return;
+  const views = state.filterViews || [];
+  const currentMineral = mineralFilter?.value?.trim() || "";
+  const currentPolar = polarFilter?.value || "";
+  const currentReview = reviewFilter?.value || "";
+
+  let matchedViewId = null;
+  views.forEach((view) => {
+    const vMineral = view.mineral || "";
+    const vPolar = view.polarization || "";
+    const vReview = view.reviewStatus || "";
+    if (
+      vMineral === currentMineral &&
+      vPolar === currentPolar &&
+      vReview === currentReview &&
+      matchedViewId === null
+    ) {
+      matchedViewId = view.id;
+    }
+  });
+
+  if (matchedViewId) {
+    filterViewSelect.value = matchedViewId;
+    currentFilterViewId = matchedViewId;
+  } else {
+    filterViewSelect.value = "";
+    currentFilterViewId = null;
+  }
+
+  if (deleteFilterViewBtn) {
+    deleteFilterViewBtn.disabled = matchedViewId === null;
+  }
+}
+
+function applyFilterView(viewId) {
+  if (!state || !viewId) return;
+  const view = state.filterViews?.find((v) => v.id === viewId);
+  if (!view) return;
+
+  if (mineralFilter) mineralFilter.value = view.mineral || "";
+  if (polarFilter) polarFilter.value = view.polarization || "";
+  if (reviewFilter) reviewFilter.value = view.reviewStatus || "";
+
+  currentFilterViewId = viewId;
+  if (deleteFilterViewBtn) deleteFilterViewBtn.disabled = false;
+
+  renderSamples();
+}
+
+filterViewSelect?.addEventListener("change", (e) => {
+  const viewId = e.target.value;
+  if (viewId) {
+    applyFilterView(viewId);
+  }
+});
+
+saveFilterViewBtn?.addEventListener("click", async () => {
+  const mineral = mineralFilter?.value?.trim() || "";
+  const polarization = polarFilter?.value || "";
+  const reviewStatus = reviewFilter?.value || "";
+
+  if (!mineral && !polarization && !reviewStatus) {
+    alert("当前没有设置任何筛选条件，无需保存视图。");
+    return;
+  }
+
+  let name = prompt("请输入筛选视图名称：", "");
+  if (name === null) return;
+  name = name.trim();
+  if (!name) {
+    alert("视图名称不能为空。");
+    return;
+  }
+
+  const existing = state?.filterViews?.find((v) => v.name === name);
+  if (existing) {
+    if (!confirm(`已存在名为「${name}」的视图，是否覆盖？`)) return;
+    try {
+      await window.DataManager.deleteFilterView(existing.id);
+    } catch (e) {
+      console.error(e);
+    }
+  }
+
+  try {
+    await window.DataManager.addFilterView({
+      name,
+      mineral,
+      polarization,
+      reviewStatus
+    });
+    state = window.DataManager.getState();
+    renderFilterViews();
+    alert(`视图「${name}」保存成功！`);
+  } catch (e) {
+    console.error("保存筛选视图失败:", e);
+    alert("保存失败：" + (e.message || "未知错误"));
+  }
+});
+
+deleteFilterViewBtn?.addEventListener("click", async () => {
+  if (!currentFilterViewId) return;
+  const view = state?.filterViews?.find((v) => v.id === currentFilterViewId);
+  if (!view) return;
+
+  if (!confirm(`确定删除筛选视图「${view.name}」？`)) return;
+
+  try {
+    await window.DataManager.deleteFilterView(currentFilterViewId);
+    state = window.DataManager.getState();
+    currentFilterViewId = null;
+    renderFilterViews();
+  } catch (e) {
+    console.error("删除筛选视图失败:", e);
+    alert("删除失败：" + (e.message || "未知错误"));
+  }
+});
 
 $("#exportBtn")?.addEventListener("click", () => {
   const checklist = state.samples.map((sample) => {
@@ -766,11 +926,15 @@ taskForm?.addEventListener("submit", (e) => {
 function renderAll() {
   renderSamples();
   renderCompare();
+  renderFilterViews();
   if ($("#tab-tasks").classList.contains("active")) renderTasks();
   if ($("#tab-review").classList.contains("active") && window.ReviewModule) {
     window.ReviewModule.renderReviewBoard();
     updateReviewStats();
   }
+  if ($("#tab-lesson").classList.contains("active")) renderLessonPage();
+  if ($("#tab-grading").classList.contains("active")) renderGradingPage();
+  if ($("#tab-recycle").classList.contains("active")) renderRecycleBin();
 }
 
 const FIELD_ALIASES = {

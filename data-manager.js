@@ -5,7 +5,8 @@
     projectId: null,
     samples: [],
     compare: [],
-    tasks: []
+    tasks: [],
+    filterViews: []
   };
 
   let saveTimeout = null;
@@ -36,10 +37,12 @@
     const samples = await window.StorageLayer.SampleStore.getAllWithPhotos(projectId);
     const tasks = await window.StorageLayer.TaskStore.getAll(projectId);
     const compare = await window.StorageLayer.AppStateStore.getCompareList(projectId);
+    const filterViews = await window.StorageLayer.AppStateStore.getFilterViews(projectId);
 
     state.samples = samples;
     state.tasks = tasks;
     state.compare = compare;
+    state.filterViews = filterViews;
 
     return state;
   }
@@ -257,6 +260,20 @@
     return state.compare;
   }
 
+  async function addFilterView(view) {
+    const projectId = getCurrentProjectId();
+    await window.StorageLayer.AppStateStore.addFilterView(view, projectId);
+    state.filterViews = await window.StorageLayer.AppStateStore.getFilterViews(projectId);
+    return state.filterViews;
+  }
+
+  async function deleteFilterView(viewId) {
+    const projectId = getCurrentProjectId();
+    await window.StorageLayer.AppStateStore.deleteFilterView(viewId, projectId);
+    state.filterViews = await window.StorageLayer.AppStateStore.getFilterViews(projectId);
+    return state.filterViews;
+  }
+
   async function clearAll() {
     const projectId = getCurrentProjectId();
     state.samples = [];
@@ -299,6 +316,8 @@
     getTaskById,
     setCompareList,
     toggleCompare,
+    addFilterView,
+    deleteFilterView,
     clearAll,
     ensureHistoryForExistingSamples,
     getCurrentProjectId

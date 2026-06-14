@@ -131,6 +131,13 @@
     <section id="tab-samples" class="tab-panel">
       <section class="layout layout-single">
         <section class="board full">
+          <div class="filter-views-bar">
+            <select id="filterViewSelect">
+              <option value="">常用筛选视图</option>
+            </select>
+            <button type="button" id="saveFilterViewBtn" class="ghost">保存为视图</button>
+            <button type="button" id="deleteFilterViewBtn" class="ghost" disabled>删除视图</button>
+          </div>
           <div class="filters">
             <input id="mineralFilter" placeholder="按矿物筛选">
             <select id="polarFilter">
