@@ -509,6 +509,9 @@ filterViewSelect?.addEventListener("change", (e) => {
   const viewId = e.target.value;
   if (viewId) {
     applyFilterView(viewId);
+  } else {
+    currentFilterViewId = null;
+    if (deleteFilterViewBtn) deleteFilterViewBtn.disabled = true;
   }
 });
 
