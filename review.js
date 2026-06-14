@@ -181,6 +181,14 @@
               <label>基本信息</label>
               <div class="review-info-list" id="reviewInfoList"></div>
             </div>
+            <div class="review-field-group" id="reviewObservationFeaturesGroup" style="display:none;">
+              <label>观察特征（特征反填辅助）</label>
+              <div id="reviewObservationFeatures" class="review-observation-features"></div>
+            </div>
+            <div class="review-field-group" id="reviewMineralAssistGroup" style="display:none;">
+              <label>矿物辅助分析结果</label>
+              <div id="reviewMineralAnalysis" class="review-mineral-analysis"></div>
+            </div>
             <div class="review-field-group">
               <label>原批注</label>
               <p id="reviewOriginalComment" class="review-original-comment"></p>
@@ -264,6 +272,47 @@
       <div class="review-info-item"><span class="info-label">主要矿物</span><span class="info-value">${sample.minerals || "-"}</span></div>
       <div class="review-info-item"><span class="info-label">颗粒结构</span><span class="info-value">${sample.texture || "-"}</span></div>
     `;
+
+    const featuresGroup = document.getElementById("reviewObservationFeaturesGroup");
+    const featuresEl = document.getElementById("reviewObservationFeatures");
+    if (sample.observationFeatures && sample.observationFeatures.length > 0 && window.MineralAssistant) {
+      featuresGroup.style.display = "";
+      const featureLabels = sample.observationFeatures
+        .map((fid) => window.MineralAssistant.getFeatureById(fid))
+        .filter(Boolean)
+        .map((f) => `<span class="review-feature-tag" title="${f.description || ""}">${f.label}</span>`)
+        .join("");
+      featuresEl.innerHTML = featureLabels;
+    } else {
+      featuresGroup.style.display = "none";
+    }
+
+    const mineralGroup = document.getElementById("reviewMineralAssistGroup");
+    const mineralEl = document.getElementById("reviewMineralAnalysis");
+    if (window.MineralAssistant && (sample.observationFeatures?.length > 0 || sample.minerals)) {
+      const analysis = window.MineralAssistant.analyzeSample(sample);
+      if (analysis.inferredMinerals && analysis.inferredMinerals.length > 0) {
+        mineralGroup.style.display = "";
+        const topMinerals = analysis.inferredMinerals.slice(0, 3);
+        const barColorFor = (c) => c >= 70 ? "var(--success)" : c >= 40 ? "var(--warning)" : "var(--muted)";
+        mineralEl.innerHTML = topMinerals.map((m) => `
+          <div class="review-mineral-item">
+            <div class="review-mineral-head">
+              <span class="review-mineral-name">${m.name}</span>
+              <span class="review-mineral-conf" style="color:${barColorFor(m.confidence)}">${m.confidence}%</span>
+            </div>
+            <div class="review-mineral-bar">
+              <div class="review-mineral-bar-fill" style="width:${m.confidence}%;background:${barColorFor(m.confidence)}"></div>
+            </div>
+            ${m.matches.length > 0 ? `<div class="review-mineral-matches">匹配：${m.matches.slice(0, 2).join("、")}</div>` : ""}
+          </div>
+        `).join("");
+      } else {
+        mineralGroup.style.display = "none";
+      }
+    } else {
+      mineralGroup.style.display = "none";
+    }
 
     document.getElementById("reviewOriginalComment").textContent = sample.comment || "（无原批注）";
     document.getElementById("reviewCommentInput").value = sample.reviewComment || "";

@@ -294,6 +294,11 @@ function refreshEntryFeaturesList() {
   updateEntryAssistant();
 }
 
+let entryFilledMinerals = new Set();
+let entryFilledWithDescription = new Set();
+let autoFilledFields = new Map();
+let manuallyEditedFields = new Set();
+
 function updateEntryAssistant() {
   const resultsEl = document.getElementById("entryAssistantResults");
   if (!resultsEl || !window.MineralAssistant) return;
@@ -313,7 +318,336 @@ function updateEntryAssistant() {
   };
 
   const analysis = window.MineralAssistant.analyzeSample(tempSample);
-  resultsEl.innerHTML = window.MineralAssistant.getMineralSuggestionHTML(analysis);
+  const options = {
+    filledMinerals: Array.from(entryFilledMinerals),
+    filledWithDescription: Array.from(entryFilledWithDescription),
+    formMinerals: minerals,
+    formTexture: texture,
+    formComment: comment
+  };
+  resultsEl.innerHTML = window.MineralAssistant.getMineralSuggestionHTML(analysis, options);
+  bindEntryAssistantFillButtons();
+  updateFormFieldIndicators();
+}
+
+function markFieldAutoFilled(fieldId, mineralId) {
+  if (!autoFilledFields.has(fieldId)) {
+    autoFilledFields.set(fieldId, new Set());
+  }
+  autoFilledFields.get(fieldId).add(mineralId);
+  manuallyEditedFields.delete(fieldId);
+  updateFormFieldIndicators();
+}
+
+function unmarkFieldAutoFilled(fieldId, mineralId) {
+  if (autoFilledFields.has(fieldId)) {
+    autoFilledFields.get(fieldId).delete(mineralId);
+    if (autoFilledFields.get(fieldId).size === 0) {
+      autoFilledFields.delete(fieldId);
+      manuallyEditedFields.delete(fieldId);
+    }
+  }
+  updateFormFieldIndicators();
+}
+
+function updateFormFieldIndicators() {
+  const fields = ["entryMinerals", "entryTexture", "entryComment"];
+  fields.forEach((fieldId) => {
+    const el = document.getElementById(fieldId);
+    if (!el) return;
+    const wrapper = el.closest("label");
+    if (!wrapper) return;
+
+    let indicator = wrapper.querySelector(".ma-field-indicator");
+    const hasAutoFill = autoFilledFields.has(fieldId);
+    const isManuallyEdited = manuallyEditedFields.has(fieldId);
+
+    if (hasAutoFill) {
+      const mineralIds = Array.from(autoFilledFields.get(fieldId));
+      const mineralNames = mineralIds
+        .map((id) => window.MineralAssistant?.getMineralById(id)?.name || id)
+        .join("、");
+      if (!indicator) {
+        indicator = document.createElement("span");
+        indicator.className = "ma-field-indicator";
+        wrapper.insertBefore(indicator, el.nextSibling);
+      }
+      if (isManuallyEdited) {
+        indicator.innerHTML = `✨ 原由「${mineralNames}」特征反填，<strong style="color:var(--accent)">已手动调整</strong>`;
+        indicator.title = `此字段初始由矿物鉴定辅助自动填入，您已手动修改内容`;
+      } else {
+        indicator.innerHTML = `✨ 由「${mineralNames}」特征反填，可手动编辑`;
+        indicator.title = `此字段内容由矿物鉴定辅助自动填入，您可以自由修改`;
+      }
+      wrapper.classList.add("ma-field-autofilled");
+    } else {
+      if (indicator) {
+        indicator.remove();
+      }
+      wrapper.classList.remove("ma-field-autofilled");
+    }
+  });
+}
+
+function removeMineralFromField(mineralName, fieldEl, tagPrefix = "") {
+  if (!fieldEl || !mineralName) return;
+
+  const currentValue = fieldEl.value;
+  if (!currentValue.includes(mineralName)) return;
+
+  if (tagPrefix) {
+    const tagPattern = new RegExp(`\\n?\\n?【${mineralName}${tagPrefix}】[^\\n]*`, "g");
+    fieldEl.value = currentValue.replace(tagPattern, "").trim();
+  } else {
+    const separators = ["、", ",", "，", " "];
+    let newValue = currentValue;
+    separators.forEach((sep) => {
+      const pattern1 = new RegExp(`^${mineralName}\\${sep}\\s*`);
+      const pattern2 = new RegExp(`\\${sep}\\s*${mineralName}\\${sep}`, "g");
+      const pattern3 = new RegExp(`\\${sep}\\s*${mineralName}$`);
+      newValue = newValue.replace(pattern1, "").replace(pattern2, sep).replace(pattern3, "");
+    });
+    if (newValue.trim() === mineralName) {
+      newValue = "";
+    }
+    fieldEl.value = newValue.trim();
+  }
+
+  fieldEl.dispatchEvent(new Event("input", { bubbles: true }));
+  fieldEl.dispatchEvent(new Event("change", { bubbles: true }));
+}
+
+function unfillMineral(mineralId) {
+  if (!window.MineralAssistant) return;
+
+  const mineral = window.MineralAssistant.getMineralById(mineralId);
+  if (!mineral) return;
+
+  const mineralsEl = document.getElementById("entryMinerals");
+  const textureEl = document.getElementById("entryTexture");
+  const commentEl = document.getElementById("entryComment");
+
+  removeMineralFromField(mineral.name, mineralsEl);
+  removeMineralFromField(mineral.name, commentEl, "鉴定提示");
+
+  entryFilledMinerals.delete(mineralId);
+  entryFilledWithDescription.delete(mineralId);
+  unmarkFieldAutoFilled("entryMinerals", mineralId);
+  unmarkFieldAutoFilled("entryTexture", mineralId);
+  unmarkFieldAutoFilled("entryComment", mineralId);
+
+  showUnfillFeedback(mineral.name);
+  updateEntryAssistant();
+}
+
+function fillFormWithMineral(mineralId, includeDescription = true) {
+  if (!window.MineralAssistant) return;
+
+  const fillData = window.MineralAssistant.buildMineralFormFillData(mineralId);
+  if (!fillData) return;
+
+  const mineralsEl = document.getElementById("entryMinerals");
+  const textureEl = document.getElementById("entryTexture");
+  const commentEl = document.getElementById("entryComment");
+  if (!mineralsEl) return;
+
+  const currentMinerals = mineralsEl.value.trim();
+  const mineralAlreadyExists = currentMinerals
+    .split(/[、,，\s]+/)
+    .filter(Boolean)
+    .some((m) => m === fillData.mineralName);
+
+  const mineralsChanged = !mineralAlreadyExists;
+
+  if (!mineralAlreadyExists) {
+    mineralsEl.value = currentMinerals
+      ? currentMinerals + "、" + fillData.mineralName
+      : fillData.mineralName;
+  }
+
+  let descriptionChanged = false;
+  if (includeDescription) {
+    if (textureEl && fillData.texture) {
+      const currentTexture = textureEl.value.trim();
+      if (!currentTexture) {
+        textureEl.value = fillData.texture;
+        descriptionChanged = true;
+      } else if (!currentTexture.includes(fillData.texture)) {
+        textureEl.value = currentTexture + "；" + fillData.texture;
+        descriptionChanged = true;
+      }
+    }
+
+    if (commentEl && fillData.comment) {
+      const currentComment = commentEl.value.trim();
+      const autoFillTag = `【${fillData.mineralName}鉴定提示】`;
+      const autoFillContent = autoFillTag + fillData.comment;
+      if (!currentComment) {
+        commentEl.value = autoFillContent;
+        descriptionChanged = true;
+      } else if (!currentComment.includes(autoFillTag)) {
+        commentEl.value = currentComment + "\n\n" + autoFillContent;
+        descriptionChanged = true;
+      }
+    }
+  }
+
+  entryFilledMinerals.add(mineralId);
+  markFieldAutoFilled("entryMinerals", mineralId);
+
+  if (includeDescription) {
+    entryFilledWithDescription.add(mineralId);
+    if (textureEl && fillData.texture) {
+      markFieldAutoFilled("entryTexture", mineralId);
+    }
+    if (commentEl && fillData.comment) {
+      markFieldAutoFilled("entryComment", mineralId);
+    }
+  }
+
+  mineralsEl.dispatchEvent(new Event("input", { bubbles: true }));
+  mineralsEl.dispatchEvent(new Event("change", { bubbles: true }));
+  if (textureEl) {
+    textureEl.dispatchEvent(new Event("input", { bubbles: true }));
+    textureEl.dispatchEvent(new Event("change", { bubbles: true }));
+  }
+  if (commentEl) {
+    commentEl.dispatchEvent(new Event("input", { bubbles: true }));
+    commentEl.dispatchEvent(new Event("change", { bubbles: true }));
+  }
+
+  showFillFeedback(fillData.mineralName, includeDescription);
+  updateEntryAssistant();
+}
+
+function showUnfillFeedback(mineralName) {
+  const resultsEl = document.getElementById("entryAssistantResults");
+  if (!resultsEl) return;
+
+  const feedback = document.createElement("div");
+  feedback.className = "ma-fill-feedback ma-fill-feedback-show ma-unfill-feedback";
+  feedback.innerHTML = `
+    <span class="ma-fill-feedback-icon">↩️</span>
+    <span class="ma-fill-feedback-text">
+      已撤销「<strong>${mineralName}</strong>」的填入
+    </span>
+    <span class="ma-fill-feedback-hint">（字段已更新）</span>
+  `;
+  resultsEl.insertBefore(feedback, resultsEl.firstChild);
+
+  setTimeout(() => {
+    feedback.classList.remove("ma-fill-feedback-show");
+    feedback.classList.add("ma-fill-feedback-hide");
+    setTimeout(() => feedback.remove(), 500);
+  }, 2500);
+}
+
+function showFillFeedback(mineralName, fullFill) {
+  const resultsEl = document.getElementById("entryAssistantResults");
+  if (!resultsEl) return;
+
+  const feedback = document.createElement("div");
+  feedback.className = "ma-fill-feedback ma-fill-feedback-show";
+  feedback.innerHTML = `
+    <span class="ma-fill-feedback-icon">✅</span>
+    <span class="ma-fill-feedback-text">
+      已将「<strong>${mineralName}</strong>」${fullFill ? "及结构描述" : ""}填入表单
+    </span>
+    <span class="ma-fill-feedback-hint">（可继续手动编辑）</span>
+  `;
+  resultsEl.insertBefore(feedback, resultsEl.firstChild);
+
+  setTimeout(() => {
+    feedback.classList.remove("ma-fill-feedback-show");
+    feedback.classList.add("ma-fill-feedback-hide");
+    setTimeout(() => feedback.remove(), 500);
+  }, 2500);
+}
+
+function bindEntryAssistantFillButtons() {
+  const resultsEl = document.getElementById("entryAssistantResults");
+  if (!resultsEl) return;
+
+  resultsEl.querySelectorAll('[data-action="fill-mineral"]').forEach((btn) => {
+    if (btn.dataset.bound) return;
+    btn.dataset.bound = "true";
+    btn.addEventListener("click", (e) => {
+      e.stopPropagation();
+      const mineralId = btn.dataset.mineralId;
+      if (mineralId) fillFormWithMineral(mineralId, false);
+    });
+  });
+
+  resultsEl.querySelectorAll('[data-action="fill-mineral-and-structure"]').forEach((btn) => {
+    if (btn.dataset.bound) return;
+    btn.dataset.bound = "true";
+    btn.addEventListener("click", (e) => {
+      e.stopPropagation();
+      const mineralId = btn.dataset.mineralId;
+      if (mineralId) fillFormWithMineral(mineralId, true);
+    });
+  });
+
+  resultsEl.querySelectorAll('[data-action="unfill-mineral"]').forEach((btn) => {
+    if (btn.dataset.bound) return;
+    btn.dataset.bound = "true";
+    btn.addEventListener("click", (e) => {
+      e.stopPropagation();
+      const mineralId = btn.dataset.mineralId;
+      if (mineralId) unfillMineral(mineralId);
+    });
+  });
+
+  resultsEl.querySelectorAll('[data-action="fill-description-only"]').forEach((btn) => {
+    if (btn.dataset.bound) return;
+    btn.dataset.bound = "true";
+    btn.addEventListener("click", (e) => {
+      e.stopPropagation();
+      const mineralId = btn.dataset.mineralId;
+      if (mineralId) fillFormWithMineral(mineralId, true);
+    });
+  });
+
+  resultsEl.querySelectorAll('[data-action="reapply-description"]').forEach((btn) => {
+    if (btn.dataset.bound) return;
+    btn.dataset.bound = "true";
+    btn.addEventListener("click", (e) => {
+      e.stopPropagation();
+      const mineralId = btn.dataset.mineralId;
+      if (mineralId) {
+        const mineral = window.MineralAssistant?.getMineralById(mineralId);
+        if (mineral) {
+          const commentEl = document.getElementById("entryComment");
+          const textureEl = document.getElementById("entryTexture");
+          const fillData = window.MineralAssistant.buildMineralFormFillData(mineralId);
+          if (fillData) {
+            if (textureEl && fillData.texture) {
+              const currentTexture = textureEl.value.trim();
+              if (!currentTexture) {
+                textureEl.value = fillData.texture;
+              } else if (!currentTexture.includes(fillData.texture)) {
+                textureEl.value = currentTexture + "；" + fillData.texture;
+              }
+              textureEl.dispatchEvent(new Event("input", { bubbles: true }));
+              textureEl.dispatchEvent(new Event("change", { bubbles: true }));
+            }
+            if (commentEl && fillData.comment) {
+              const currentComment = commentEl.value.trim();
+              const autoFillTag = `【${fillData.mineralName}鉴定提示】`;
+              const tagPattern = new RegExp(`\\n?\\n?【${fillData.mineralName}鉴定提示】[^\\n]*`, "g");
+              const cleanedComment = currentComment.replace(tagPattern, "").trim();
+              const autoFillContent = autoFillTag + fillData.comment;
+              commentEl.value = cleanedComment ? cleanedComment + "\n\n" + autoFillContent : autoFillContent;
+              commentEl.dispatchEvent(new Event("input", { bubbles: true }));
+              commentEl.dispatchEvent(new Event("change", { bubbles: true }));
+            }
+          }
+          showFillFeedback(mineral.name, true);
+          updateEntryAssistant();
+        }
+      }
+    });
+  });
 }
 
 function initEntryAssistant() {
@@ -329,7 +663,12 @@ function initEntryAssistant() {
   ["entryPolarization", "entryMinerals", "entryTexture", "entryComment"].forEach((id) => {
     const el = document.getElementById(id);
     if (!el) return;
-    el.addEventListener("input", updateEntryAssistant);
+    el.addEventListener("input", (e) => {
+      if (id !== "entryPolarization" && autoFilledFields.has(id)) {
+        manuallyEditedFields.add(id);
+      }
+      updateEntryAssistant();
+    });
     el.addEventListener("change", () => {
       if (id === "entryPolarization") refreshEntryFeaturesList();
       updateEntryAssistant();
@@ -361,6 +700,9 @@ form?.addEventListener("submit", async (event) => {
     createdAt: new Date().toISOString()
   };
   await window.DataManager.addSample(newSample);
+
+  clearEntryAutoFillState();
+
   pendingPhoto = "";
   photoInput.value = "";
   form.reset();
@@ -371,6 +713,24 @@ form?.addEventListener("submit", async (event) => {
   renderAll();
   updateEntryAssistant();
 });
+
+function clearEntryAutoFillState() {
+  entryFilledMinerals.clear();
+  entryFilledWithDescription.clear();
+  autoFilledFields.clear();
+  manuallyEditedFields.clear();
+
+  const fields = ["entryMinerals", "entryTexture", "entryComment"];
+  fields.forEach((fieldId) => {
+    const el = document.getElementById(fieldId);
+    if (!el) return;
+    const wrapper = el.closest("label");
+    if (!wrapper) return;
+    wrapper.classList.remove("ma-field-autofilled");
+    const indicator = wrapper.querySelector(".ma-field-indicator");
+    if (indicator) indicator.remove();
+  });
+}
 
 async function handleSampleGridClick(gridEl, event) {
   const deleteId = event.target.dataset.delete;

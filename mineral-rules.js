@@ -909,24 +909,84 @@
     };
   }
 
-  function getMineralSuggestionHTML(analysis) {
+  function buildMineralFormFillData(mineralId) {
+    const rule = getMineralById(mineralId);
+    if (!rule) return null;
+
+    const textureKeywords = [];
+    const featureLabels = [];
+    rule.conditions.features.forEach((fid) => {
+      const f = getFeatureById(fid);
+      if (f) {
+        featureLabels.push(f.label);
+        if (f.category === "结构特征") {
+          textureKeywords.push(f.label);
+        }
+      }
+    });
+    rule.conditions.mustHave?.forEach((fid) => {
+      const f = getFeatureById(fid);
+      if (f && !featureLabels.includes(f.label)) {
+        featureLabels.push(f.label);
+      }
+    });
+
+    return {
+      mineralName: rule.name,
+      mineralFormula: rule.formula,
+      minerals: rule.name,
+      texture: textureKeywords.length > 0 ? textureKeywords.join("、") : "",
+      comment: rule.description,
+      fullDescription: rule.description,
+      featureLabels: featureLabels,
+      confirmTests: rule.confirmTests || [],
+      commonAssociations: rule.commonAssociations || []
+    };
+  }
+
+  function getMineralSuggestionHTML(analysis, options = {}) {
     if (!analysis) return "";
 
     const { inferredMinerals, rockAssociations, suggestions } = analysis;
     const topMinerals = inferredMinerals.slice(0, 5);
+    const {
+      filledMinerals = [],
+      filledWithDescription = [],
+      formMinerals = "",
+      formTexture = "",
+      formComment = ""
+    } = options;
+
+    const currentMineralNames = formMinerals
+      .split(/[、,，\s]+/)
+      .filter(Boolean)
+      .map((n) => n.trim());
 
     let mineralsHTML = "";
     if (topMinerals.length > 0) {
+      const filledCount = filledMinerals.length;
+      const hintText = filledCount > 0
+        ? `<span class="ma-fill-count-badge">已填入 ${filledCount} 种</span>`
+        : `<span class="ma-section-hint">点击「填入」将矿物信息一键写入表单</span>`;
+
       mineralsHTML = `
         <div class="ma-section">
-          <h4 class="ma-section-title">🔍 可能的矿物（按匹配度）</h4>
+          <h4 class="ma-section-title">🔍 特征反填 · 候选矿物 ${hintText}</h4>
           <div class="ma-mineral-list">
-            ${topMinerals.map((m) => {
+            ${topMinerals.map((m, idx) => {
               const barColor = m.confidence >= 70 ? "var(--success)" : m.confidence >= 40 ? "var(--warning)" : "var(--muted)";
+              const isFilled = filledMinerals.includes(m.id);
+              const hasDescription = filledWithDescription.includes(m.id);
+              const isInForm = currentMineralNames.includes(m.name);
+              const cardClass = isFilled ? "ma-mineral-card ma-filled" : "ma-mineral-card";
+              const filledBadge = isFilled
+                ? `<span class="ma-filled-badge" title="已填入表单">${hasDescription ? "✓ 已填入+描述" : "✓ 已填入"}</span>`
+                : (isInForm ? `<span class="ma-in-form-badge" title="表单中已有此矿物">已在表单</span>` : "");
+
               return `
-                <div class="ma-mineral-card">
+                <div class="${cardClass}" data-mineral-id="${m.id}">
                   <div class="ma-mineral-head">
-                    <span class="ma-mineral-name">${m.name}</span>
+                    <span class="ma-mineral-name">${m.name} ${filledBadge}</span>
                     <span class="ma-mineral-formula">${m.formula}</span>
                     <span class="ma-mineral-confidence" style="color:${barColor}">${m.confidence}%</span>
                   </div>
@@ -934,8 +994,31 @@
                     <div class="ma-conf-fill" style="width:${m.confidence}%;background:${barColor}"></div>
                   </div>
                   <p class="ma-mineral-desc">${m.description}</p>
-                  ${m.matches.length > 0 ? `<div class="ma-match-list"><span class="ma-match-label">匹配：</span>${m.matches.slice(0, 3).map((mm) => `<span class="ma-match-tag">${mm}</span>`).join("")}</div>` : ""}
+                  ${m.matches.length > 0 ? `<div class="ma-match-list"><span class="ma-match-label">匹配特征：</span>${m.matches.slice(0, 3).map((mm) => `<span class="ma-match-tag">${mm}</span>`).join("")}</div>` : ""}
                   ${m.missing.length > 0 ? `<div class="ma-missing-list"><span class="ma-missing-label">待确认：</span>${m.missing.map((mm) => `<span class="ma-missing-tag">${mm}</span>`).join("")}</div>` : ""}
+                  <div class="ma-mineral-actions">
+                    ${isFilled ? `
+                      <button type="button" class="ma-fill-btn ma-fill-btn-filled" data-action="unfill-mineral" data-mineral-id="${m.id}" data-mineral-name="${m.name}">
+                        ↩️ 撤销填入
+                      </button>
+                      ${hasDescription ? `
+                        <button type="button" class="ma-fill-btn ma-fill-btn-secondary" data-action="reapply-description" data-mineral-id="${m.id}" data-mineral-name="${m.name}">
+                          📝 重新应用描述
+                        </button>
+                      ` : `
+                        <button type="button" class="ma-fill-btn ma-fill-btn-primary" data-action="fill-description-only" data-mineral-id="${m.id}" data-mineral-name="${m.name}">
+                          📝 补充描述
+                        </button>
+                      `}
+                    ` : `
+                      <button type="button" class="ma-fill-btn" data-action="fill-mineral" data-mineral-id="${m.id}" data-mineral-name="${m.name}">
+                        ✏️ 填入矿物名
+                      </button>
+                      ${(idx === 0 && m.confidence >= 50) || isInForm ? `<button type="button" class="ma-fill-btn ma-fill-btn-primary" data-action="fill-mineral-and-structure" data-mineral-id="${m.id}" data-mineral-name="${m.name}">
+                        ⚡ 一键反填（矿物+描述）
+                      </button>` : ""}
+                    `}
+                  </div>
                 </div>
               `;
             }).join("")}
@@ -1045,7 +1128,8 @@
     generateSuggestions,
     analyzeSample,
     getMineralSuggestionHTML,
-    getObservationFeaturesHTML
+    getObservationFeaturesHTML,
+    buildMineralFormFillData
   };
 
 })(window);

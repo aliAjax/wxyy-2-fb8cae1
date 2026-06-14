@@ -1955,6 +1955,87 @@ textarea {
   line-height: 1.6;
 }
 
+/* ---------- 审核：观察特征与矿物辅助 ---------- */
+.review-observation-features {
+  background: white;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: 10px 12px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.review-feature-tag {
+  display: inline-block;
+  padding: 3px 10px;
+  background: var(--accent-soft);
+  color: var(--accent);
+  border: 1px solid #b8e0d6;
+  border-radius: 999px;
+  font-size: 11.5px;
+  font-weight: 500;
+  line-height: 1.4;
+}
+
+.review-mineral-analysis {
+  background: white;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: 10px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.review-mineral-item {
+  padding-bottom: 8px;
+  border-bottom: 1px dashed var(--line);
+}
+
+.review-mineral-item:last-child {
+  padding-bottom: 0;
+  border-bottom: none;
+}
+
+.review-mineral-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 4px;
+}
+
+.review-mineral-name {
+  font-weight: 600;
+  font-size: 13px;
+  color: var(--ink);
+}
+
+.review-mineral-conf {
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.review-mineral-bar {
+  height: 4px;
+  background: var(--line);
+  border-radius: 999px;
+  overflow: hidden;
+  margin-bottom: 4px;
+}
+
+.review-mineral-bar-fill {
+  height: 100%;
+  border-radius: 999px;
+  transition: width 0.3s ease;
+}
+
+.review-mineral-matches {
+  font-size: 11px;
+  color: var(--muted);
+  line-height: 1.4;
+}
+
 .review-modal-footer {
   display: flex;
   justify-content: flex-end;
@@ -4284,6 +4365,293 @@ textarea {
   font-size: 12.5px;
   padding: 12px 4px;
   line-height: 1.6;
+}
+
+/* ---------- 特征反填：填入按钮 ---------- */
+.ma-section-title {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.ma-section-hint {
+  font-size: 11px;
+  font-weight: 400;
+  color: var(--muted);
+  background: var(--accent-soft);
+  padding: 2px 8px;
+  border-radius: 999px;
+}
+
+.ma-fill-count-badge {
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--success);
+  background: #e8f5ee;
+  border: 1px solid #b7e1cd;
+  padding: 2px 8px;
+  border-radius: 999px;
+  margin-left: auto;
+}
+
+.ma-mineral-formula {
+  font-size: 11.5px;
+  color: var(--muted);
+  font-family: Georgia, serif;
+  margin-left: 4px;
+  margin-right: auto;
+}
+
+.ma-mineral-desc {
+  font-size: 11.5px;
+  color: var(--muted);
+  line-height: 1.5;
+  margin: 6px 0;
+}
+
+.ma-conf-fill {
+  height: 100%;
+  border-radius: 999px;
+  transition: width 0.3s ease;
+}
+
+.ma-match-list,
+.ma-missing-list {
+  font-size: 11px;
+  line-height: 1.7;
+  margin-top: 4px;
+}
+
+.ma-match-label,
+.ma-missing-label {
+  color: var(--muted);
+  font-weight: 500;
+  margin-right: 2px;
+}
+
+.ma-filled-badge {
+  display: inline-block;
+  font-size: 10px;
+  font-weight: 600;
+  color: var(--success);
+  background: #e8f5ee;
+  border: 1px solid #b7e1cd;
+  padding: 1px 6px;
+  border-radius: 4px;
+  margin-left: 4px;
+  vertical-align: middle;
+}
+
+.ma-in-form-badge {
+  display: inline-block;
+  font-size: 10px;
+  font-weight: 500;
+  color: var(--accent);
+  background: var(--accent-soft);
+  border: 1px solid #b8e0d6;
+  padding: 1px 6px;
+  border-radius: 4px;
+  margin-left: 4px;
+  vertical-align: middle;
+}
+
+.ma-mineral-card.ma-filled {
+  border-color: var(--success);
+  background: #f5fbf8;
+  box-shadow: 0 0 0 1px rgba(40, 167, 69, 0.1);
+}
+
+.ma-mineral-card.ma-filled .ma-mineral-name {
+  color: var(--success);
+}
+
+.ma-mineral-actions {
+  display: flex;
+  gap: 6px;
+  margin-top: 10px;
+  padding-top: 10px;
+  border-top: 1px dashed var(--line);
+  flex-wrap: wrap;
+}
+
+.ma-fill-btn {
+  flex: 1;
+  padding: 6px 10px;
+  font-size: 12px;
+  border: 1px solid var(--line);
+  background: white;
+  color: var(--accent);
+  border-radius: 6px;
+  cursor: pointer;
+  font-weight: 500;
+  transition: all 0.15s ease;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+}
+
+.ma-fill-btn:hover {
+  background: var(--accent-soft);
+  border-color: var(--accent);
+  color: var(--accent);
+  transform: translateY(-1px);
+  box-shadow: 0 2px 4px rgba(43, 118, 102, 0.1);
+}
+
+.ma-fill-btn:active {
+  transform: translateY(0);
+}
+
+.ma-fill-btn-primary {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: white;
+}
+
+.ma-fill-btn-primary:hover {
+  background: #2a6d5d;
+  border-color: #2a6d5d;
+  color: white;
+}
+
+.ma-fill-btn-filled {
+  background: #fff4e5;
+  border-color: #f5d4a3;
+  color: var(--warning);
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.ma-fill-btn-filled:hover {
+  background: #ffe8cc;
+  border-color: #e6b870;
+  color: #b57a20;
+}
+
+.ma-fill-btn-secondary {
+  background: var(--panel);
+  border-color: var(--line);
+  color: var(--ink);
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.ma-fill-btn-secondary:hover {
+  background: var(--accent-soft);
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+/* ---------- 特征反填：填入反馈提示 ---------- */
+.ma-fill-feedback {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 12px;
+  background: #e8f5ee;
+  border: 1px solid #b4dcc4;
+  border-radius: 8px;
+  margin-bottom: 12px;
+  font-size: 12.5px;
+  line-height: 1.5;
+  opacity: 0;
+  transform: translateY(-8px);
+  transition: all 0.3s ease;
+}
+
+.ma-fill-feedback-show {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+.ma-fill-feedback-hide {
+  opacity: 0;
+  transform: translateY(-4px);
+}
+
+.ma-fill-feedback-icon {
+  font-size: 16px;
+  flex-shrink: 0;
+}
+
+.ma-fill-feedback-text {
+  color: var(--success);
+  font-weight: 500;
+}
+
+.ma-fill-feedback-text strong {
+  color: var(--success);
+  font-weight: 600;
+}
+
+.ma-fill-feedback-hint {
+  color: var(--muted);
+  font-size: 11.5px;
+  margin-left: auto;
+}
+
+.ma-unfill-feedback .ma-fill-feedback-text {
+  color: var(--warning);
+}
+
+.ma-unfill-feedback .ma-fill-feedback-text strong {
+  color: var(--warning);
+}
+
+.ma-unfill-feedback {
+  background: #fffbf5;
+  border-color: #f5d4a3;
+}
+
+/* ---------- 特征反填：表单字段指示器 ---------- */
+.ma-field-indicator {
+  display: block;
+  font-size: 11px;
+  color: var(--success);
+  margin-top: 4px;
+  font-weight: 500;
+  line-height: 1.4;
+  padding-left: 2px;
+}
+
+label.ma-field-autofilled input,
+label.ma-field-autofilled textarea,
+label.ma-field-autofilled select {
+  border-color: var(--success) !important;
+  background: #f5fbf8 !important;
+  box-shadow: inset 0 0 0 1px rgba(40, 167, 69, 0.05);
+}
+
+label.ma-field-autofilled input:focus,
+label.ma-field-autofilled textarea:focus,
+label.ma-field-autofilled select:focus {
+  border-color: var(--success) !important;
+  box-shadow: 0 0 0 2px rgba(40, 167, 69, 0.15) !important;
+}
+
+.ma-features-container {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.ma-feature-category {
+  background: white;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  padding: 8px 10px;
+}
+
+.ma-feature-cat-title {
+  font-weight: 600;
+  font-size: 12.5px;
+  color: var(--accent);
+  margin: 0 0 6px;
+  padding-bottom: 4px;
+  border-bottom: 1px dashed var(--line);
 }
 
 /* ============================================================
