@@ -4005,8 +4005,8 @@ textarea {
 }
 
 .ma-entry-point {
-  background: linear-gradient(135deg, var(--primary-soft) 0%, var(--panel) 100%);
-  border: 1.5px solid var(--primary);
+  background: linear-gradient(135deg, var(--accent-soft) 0%, var(--panel) 100%);
+  border: 1.5px solid var(--accent);
   border-radius: 10px;
   padding: 12px;
   margin-bottom: 14px;
@@ -4017,18 +4017,18 @@ textarea {
   align-items: center;
   gap: 10px;
   background: var(--panel);
-  border: 1px solid var(--primary);
+  border: 1px solid var(--accent);
   border-radius: 8px;
   padding: 10px 12px;
   cursor: pointer;
   font-size: 14px;
   font-weight: 600;
-  color: var(--primary);
+  color: var(--accent);
   transition: background 0.15s, box-shadow 0.15s;
 }
 .ma-entry-btn:hover {
-  background: var(--primary-soft);
-  box-shadow: 0 2px 8px rgba(67, 97, 238, 0.15);
+  background: var(--accent-soft);
+  box-shadow: 0 2px 8px rgba(43, 118, 102, 0.15);
 }
 .ma-entry-icon {
   font-size: 18px;
@@ -4040,7 +4040,7 @@ textarea {
   line-height: 1.4;
 }
 .ma-entry-text strong {
-  color: var(--primary-dark);
+  color: var(--accent);
   font-size: 15px;
 }
 .ma-entry-caret {

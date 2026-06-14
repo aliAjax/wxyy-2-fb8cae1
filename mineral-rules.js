@@ -1002,6 +1002,7 @@
               const hasDescription = filledWithDescription.includes(m.id);
               const isInForm = currentMineralNames.includes(m.name);
               const cardClass = isFilled ? "ma-mineral-card ma-filled" : "ma-mineral-card";
+              const canOneClickFill = featuresCount > 0 || isInForm || (idx === 0 && m.confidence >= 50);
               const filledBadge = isFilled
                 ? `<span class="ma-filled-badge" title="已填入表单">${hasDescription ? "✓ 已填入+描述" : "✓ 已填入"}</span>`
                 : (isInForm ? `<span class="ma-in-form-badge" title="表单中已有此矿物">已在表单</span>` : "");
@@ -1037,7 +1038,7 @@
                       <button type="button" class="ma-fill-btn" data-action="fill-mineral" data-mineral-id="${m.id}" data-mineral-name="${m.name}">
                         ✏️ 填入矿物名
                       </button>
-                      ${(idx === 0 && m.confidence >= 50) || isInForm ? `<button type="button" class="ma-fill-btn ma-fill-btn-primary" data-action="fill-mineral-and-structure" data-mineral-id="${m.id}" data-mineral-name="${m.name}">
+                      ${canOneClickFill ? `<button type="button" class="ma-fill-btn ma-fill-btn-primary" data-action="fill-mineral-and-structure" data-mineral-id="${m.id}" data-mineral-name="${m.name}">
                         ⚡ 一键反填（矿物+描述）
                       </button>` : ""}
                     `}
