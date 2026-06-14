@@ -1821,9 +1821,13 @@ function updateImportStats() {
   if (!importAnalysis) return;
 
   const total = importAnalysis.total;
-  const willImport = importAnalysis.rows.filter((r) => !r.skipped && !r.issueTypes.includes("missingRequired")).length;
+  const willImport = importAnalysis.rows.filter(
+    (r) => !r.skipped && !r.issueTypes.includes("missingRequired") && !r.issueTypes.includes("polarError")
+  ).length;
   const willSkip = importAnalysis.rows.filter((r) => r.skipped).length;
-  const needFix = importAnalysis.rows.filter((r) => r.issueTypes.includes("missingRequired") && !r.skipped).length;
+  const needFix = importAnalysis.rows.filter(
+    (r) => (r.issueTypes.includes("missingRequired") || r.issueTypes.includes("polarError")) && !r.skipped
+  ).length;
 
   importAnalysis.willImport = willImport;
   importAnalysis.willSkip = willSkip;
@@ -1851,9 +1855,62 @@ function updateImportSummary() {
 
   let text = `将导入 ${willImport} 条`;
   if (willSkip > 0) text += `，跳过 ${willSkip} 条`;
-  if (needFix > 0) text += `，${needFix} 条需修正编号`;
+  if (needFix > 0) text += `，${needFix} 条需修正（编号或偏光类型）`;
 
   if (importSummaryText) importSummaryText.textContent = text;
+}
+
+function recalculateIssueSummary() {
+  if (!importAnalysis) return;
+
+  const missingRequired = [];
+  const duplicates = [];
+  const missingPhotos = [];
+  const polarErrors = [];
+  const duplicateCodeSet = new Set();
+
+  importAnalysis.rows.forEach((row) => {
+    if (row.issueTypes.includes("missingRequired")) {
+      missingRequired.push({
+        rowNum: row.rowNum,
+        code: row.sample.code || "(空)",
+        message: "缺少必填的样本编号"
+      });
+    }
+    if (row.issueTypes.includes("missingPhoto")) {
+      missingPhotos.push({
+        rowNum: row.rowNum,
+        code: row.sample.code || "(空)",
+        message: "照片字段为空或无效"
+      });
+    }
+    if (row.issueTypes.includes("polarError")) {
+      const polarIssue = row.issues.find((i) => i.type === "polarError");
+      polarErrors.push({
+        rowNum: row.rowNum,
+        code: row.sample.code || "(空)",
+        message: polarIssue?.message || "偏光类型异常"
+      });
+    }
+    if (row.issueTypes.includes("duplicate") && row.sample.code) {
+      if (!duplicateCodeSet.has(row.sample.code)) {
+        duplicateCodeSet.add(row.sample.code);
+        const dupRows = importAnalysis.rows
+          .filter((r) => r.sample.code === row.sample.code)
+          .map((r) => r.rowNum);
+        duplicates.push({
+          code: row.sample.code,
+          type: row.duplicateType || "internal",
+          rows: dupRows
+        });
+      }
+    }
+  });
+
+  importAnalysis.missingRequired = missingRequired;
+  importAnalysis.duplicates = duplicates;
+  importAnalysis.missingPhotos = missingPhotos;
+  importAnalysis.polarErrors = polarErrors;
 }
 
 function escapeHtml(s) {
@@ -2020,8 +2077,10 @@ function saveRowEdit() {
   };
 
   recheckRowIssues(row);
+  recalculateIssueSummary();
 
   closeRowEditor();
+  renderIssueCards();
   renderPreviewDetail();
   updateImportStats();
   updateImportSummary();
@@ -2211,12 +2270,18 @@ async function confirmImport() {
   if (!importPreviewData || !importAnalysis) return;
 
   const rowsToImport = importAnalysis.rows.filter(
-    (row) => !row.skipped && !row.issueTypes.includes("missingRequired") && row.sample.code
+    (row) =>
+      !row.skipped &&
+      !row.issueTypes.includes("missingRequired") &&
+      !row.issueTypes.includes("polarError") &&
+      row.sample.code
   );
 
   const skippedCount = importAnalysis.rows.filter((row) => row.skipped).length;
   const errorCount = importAnalysis.rows.filter(
-    (row) => !row.skipped && row.issueTypes.includes("missingRequired")
+    (row) =>
+      !row.skipped &&
+      (row.issueTypes.includes("missingRequired") || row.issueTypes.includes("polarError"))
   ).length;
 
   if (rowsToImport.length === 0) {
@@ -2262,7 +2327,7 @@ async function confirmImport() {
   setTimeout(() => {
     let msg = `导入完成！\n成功导入 ${imported} 条记录`;
     if (skippedCount > 0) msg += `\n手动跳过 ${skippedCount} 条`;
-    if (errorCount > 0) msg += `\n因缺少编号未导入 ${errorCount} 条`;
+    if (errorCount > 0) msg += `\n因编号或偏光类型错误未导入 ${errorCount} 条`;
     if (duplicateSkipped.length > 0) {
       msg += `\n因编号重复跳过 ${duplicateSkipped.length} 条`;
     }
