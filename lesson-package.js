@@ -283,6 +283,7 @@
           location: s.location,
           magnification: s.magnification,
           polarization: s.polarization,
+          groupId: s.groupId || "",
           minerals: "",
           texture: "",
           comment: "",
