@@ -67,6 +67,7 @@ const selectedCountEl = $("#selectedCount");
 const taskDetail = $("#taskDetail");
 const editTaskBtn = $("#editTaskBtn");
 const deleteTaskBtn = $("#deleteTaskBtn");
+const duplicateTaskBtn = $("#duplicateTaskBtn");
 const detailTitle = $("#detailTitle");
 const detailDeadline = $("#detailDeadline");
 const detailStatus = $("#detailStatus");
@@ -810,6 +811,28 @@ deleteTaskBtn?.addEventListener("click", () => {
   if (!confirm("确定删除该观察任务？此操作不可撤销。")) return;
   window.DataManager.deleteTask(selectedTaskId);
   selectedTaskId = null;
+  renderTasks();
+});
+
+duplicateTaskBtn?.addEventListener("click", () => {
+  if (!selectedTaskId) return;
+  const originalTask = state.tasks.find((t) => t.id === selectedTaskId);
+  if (!originalTask) return;
+
+  const newTask = {
+    id: crypto.randomUUID(),
+    title: `${originalTask.title} 副本`,
+    objective: originalTask.objective || "",
+    deadline: "",
+    sampleIds: [...(originalTask.sampleIds || [])],
+    completedSamples: [],
+    comments: [],
+    createdAt: new Date().toISOString()
+  };
+
+  window.DataManager.addTask(newTask);
+  selectedTaskId = null;
+  editingTaskId = newTask.id;
   renderTasks();
 });
 
