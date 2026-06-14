@@ -1371,18 +1371,24 @@ const FIELD_LABELS = {
 
 let importPreviewData = null;
 let importAnalysis = null;
+let importRows = [];
+let importEditingRowId = null;
 
 const importOverlay = $("#importOverlay");
 const importBtn = $("#importBtn");
 const closeImportBtn = $("#closeImportBtn");
 const importCancelBtn = $("#importCancelBtn");
+const importBackBtn = $("#importBackBtn");
 const importSelectBtn = $("#importSelectBtn");
 const importFileInput = $("#importFileInput");
 const importDropZone = $("#importDropZone");
 const importStepUpload = $("#importStepUpload");
 const importStepPreview = $("#importStepPreview");
 const importConfirmBtn = $("#importConfirmBtn");
-const importSkipDup = $("#importSkipDup");
+const importSummaryText = $("#importSummaryText");
+const importSelectAllBtn = $("#importSelectAllBtn");
+const importSkipAllBtn = $("#importSkipAllBtn");
+const importSkipErrorsBtn = $("#importSkipErrorsBtn");
 
 function openImportModal() {
   importOverlay.classList.remove("hidden");
@@ -1399,8 +1405,11 @@ function closeImportModal() {
 function resetImportState() {
   importPreviewData = null;
   importAnalysis = null;
+  importRows = [];
+  importEditingRowId = null;
   importStepUpload.classList.remove("hidden");
   importStepPreview.classList.add("hidden");
+  importBackBtn?.classList.add("hidden");
   importConfirmBtn.disabled = true;
   if (importFileInput) importFileInput.value = "";
 }
@@ -1496,22 +1505,23 @@ function mapFields(headers) {
 }
 
 function analyzeImportData(rows, fieldMap) {
-  const validRows = [];
-  const warningRows = [];
-  const errorRows = [];
-  const warnings = [];
-  const errors = [];
-  const duplicateCodes = [];
-  const seenCodes = new Set();
+  const importRowList = [];
+  const missingRequiredList = [];
+  const duplicateList = [];
+  const missingPhotoList = [];
+  const polarErrorList = [];
   const codeCount = {};
+  const duplicateCodeSet = new Set();
 
   const existingCodes = new Set(state.samples.map((s) => s.code));
+
+  const VALID_POLAR = ["单偏光", "正交偏光", "反射光"];
 
   rows.forEach((row, rowIndex) => {
     const rowNum = rowIndex + 2;
     const sample = {};
-    const rowErrors = [];
-    const rowWarnings = [];
+    const issues = [];
+    const issueTypes = new Set();
 
     for (const [targetField, sourceField] of Object.entries(fieldMap)) {
       let value = row[sourceField];
@@ -1522,86 +1532,109 @@ function analyzeImportData(rows, fieldMap) {
     }
 
     if (!sample.code) {
-      rowErrors.push("缺少样本编号");
+      issues.push({ type: "missingRequired", message: "缺少样本编号（必填）", field: "code" });
+      issueTypes.add("missingRequired");
     } else {
       if (!codeCount[sample.code]) {
         codeCount[sample.code] = 0;
       }
       codeCount[sample.code]++;
-
-      if (existingCodes.has(sample.code)) {
-        if (!duplicateCodes.some((d) => d.code === sample.code)) {
-          duplicateCodes.push({ code: sample.code, rows: [] });
-        }
-        const dup = duplicateCodes.find((d) => d.code === sample.code);
-        if (dup && !dup.rows.includes(rowNum)) {
-          dup.rows.push(rowNum);
-        }
-        rowWarnings.push(`样本编号「${sample.code}」已存在于库中`);
-      }
-
-      if (codeCount[sample.code] > 1) {
-        if (!duplicateCodes.some((d) => d.code === sample.code)) {
-          duplicateCodes.push({ code: sample.code, rows: [] });
-        }
-        const dup = duplicateCodes.find((d) => d.code === sample.code);
-        if (dup && !dup.rows.includes(rowNum)) {
-          dup.rows.push(rowNum);
-        }
-        if (!rowWarnings.some((w) => w.includes("导入文件内重复"))) {
-          rowWarnings.push("导入文件内存在重复编号");
-        }
-      }
-
-      seenCodes.add(sample.code);
     }
 
-    if (sample.photo && !isValidPhotoUrl(sample.photo)) {
-      rowWarnings.push("照片字段仅支持URL或留空，当前值可能无效");
+    if (!sample.photo) {
+      issues.push({ type: "missingPhoto", message: "照片字段为空", field: "photo" });
+      issueTypes.add("missingPhoto");
+    } else if (!isValidPhotoUrl(sample.photo)) {
+      issues.push({ type: "photoInvalid", message: "照片URL格式可能无效", field: "photo" });
+      issueTypes.add("missingPhoto");
     }
 
-    if (sample.polarization) {
-      const validPolar = ["单偏光", "正交偏光", "反射光"];
-      if (!validPolar.includes(sample.polarization)) {
-        rowWarnings.push(`偏光类型「${sample.polarization}」不在标准选项中`);
-      }
+    if (sample.polarization && !VALID_POLAR.includes(sample.polarization)) {
+      issues.push({ type: "polarError", message: `偏光类型「${sample.polarization}」不在标准选项中`, field: "polarization" });
+      issueTypes.add("polarError");
     }
 
-    if (rowErrors.length > 0) {
-      errorRows.push({ rowNum, sample, errors: rowErrors });
-      errors.push({ rowNum, errors: rowErrors });
-    } else if (rowWarnings.length > 0) {
-      warningRows.push({ rowNum, sample, warnings: rowWarnings });
-      warnings.push({ rowNum, warnings: rowWarnings });
-      validRows.push({ rowNum, sample, warnings: rowWarnings });
-    } else {
-      validRows.push({ rowNum, sample, warnings: [] });
-    }
-  });
-
-  const internalDups = duplicateCodes.filter((d) => {
-    const codeRows = rows.filter((r, i) => {
-      const code = r[fieldMap.code]?.trim();
-      return code === d.code;
+    const rowId = `row-${rowIndex}`;
+    importRowList.push({
+      id: rowId,
+      rowNum,
+      sample: { ...sample },
+      originalSample: { ...sample },
+      issues,
+      issueTypes: Array.from(issueTypes),
+      skipped: false,
+      isDuplicate: false,
+      hasError: issueTypes.has("missingRequired") || issueTypes.has("polarError"),
+      hasWarning: issueTypes.has("missingPhoto") || issueTypes.has("duplicate")
     });
-    return codeRows.length > 1;
   });
 
-  const externalDups = duplicateCodes.filter((d) => existingCodes.has(d.code));
+  importRowList.forEach((row) => {
+    const code = row.sample.code;
+    if (!code) return;
+
+    if (existingCodes.has(code)) {
+      row.isDuplicate = true;
+      row.duplicateType = "external";
+      row.issueTypes.push("duplicate");
+      row.issues.push({ type: "duplicate", message: `样本编号「${code}」已存在于库中`, field: "code" });
+      row.hasWarning = true;
+      if (!duplicateCodeSet.has(code)) {
+        duplicateCodeSet.add(code);
+        duplicateList.push({ code, type: "external", rows: [row.rowNum] });
+      } else {
+        const dup = duplicateList.find((d) => d.code === code);
+        if (dup) dup.rows.push(row.rowNum);
+      }
+    }
+
+    if (codeCount[code] > 1) {
+      row.isDuplicate = true;
+      row.duplicateType = row.duplicateType ? "both" : "internal";
+      if (!row.issueTypes.includes("duplicate")) {
+        row.issueTypes.push("duplicate");
+        row.issues.push({ type: "duplicate", message: "导入文件内存在重复编号", field: "code" });
+        row.hasWarning = true;
+      }
+      if (!duplicateCodeSet.has(code)) {
+        duplicateCodeSet.add(code);
+        duplicateList.push({ code, type: "internal", rows: [row.rowNum] });
+      } else {
+        const dup = duplicateList.find((d) => d.code === code);
+        if (dup && !dup.rows.includes(row.rowNum)) {
+          dup.rows.push(row.rowNum);
+          if (dup.type === "external") dup.type = "both";
+        }
+      }
+    }
+  });
+
+  importRowList.forEach((row) => {
+    if (row.issueTypes.includes("missingRequired")) {
+      missingRequiredList.push({ rowNum: row.rowNum, code: row.sample.code || "(空)", message: "缺少必填的样本编号" });
+    }
+    if (row.issueTypes.includes("missingPhoto")) {
+      missingPhotoList.push({ rowNum: row.rowNum, code: row.sample.code || "(空)", message: "照片字段为空或无效" });
+    }
+    if (row.issueTypes.includes("polarError")) {
+      polarErrorList.push({ rowNum: row.rowNum, code: row.sample.code || "(空)", message: row.issues.find((i) => i.type === "polarError")?.message || "偏光类型异常" });
+    }
+  });
+
+  const willImport = importRowList.filter((r) => !r.skipped && !r.issueTypes.includes("missingRequired")).length;
+  const willSkip = importRowList.filter((r) => r.skipped).length;
+  const needFix = importRowList.filter((r) => r.issueTypes.includes("missingRequired") && !r.skipped).length;
 
   return {
     total: rows.length,
-    validCount: validRows.length,
-    warningCount: warningRows.length,
-    errorCount: errorRows.length,
-    validRows,
-    warningRows,
-    errorRows,
-    warnings,
-    errors,
-    duplicateCodes,
-    internalDuplicates: internalDups,
-    externalDuplicates: externalDups
+    willImport,
+    willSkip,
+    needFix,
+    rows: importRowList,
+    missingRequired: missingRequiredList,
+    duplicates: duplicateList,
+    missingPhotos: missingPhotoList,
+    polarErrors: polarErrorList
   };
 }
 
@@ -1633,7 +1666,7 @@ function renderFieldMap(fieldMap, missingFields) {
         <div class="field-map-item ${isMissing ? "missing" : ""}">
           <span class="field-icon">${icon}</span>
           <span class="field-name">${label}${isRequired ? " *" : ""}</span>
-          ${sourceField ? `<span style="color:var(--muted);font-size:12px;">← ${sourceField}</span>` : ""}
+          ${sourceField ? `<span class="field-source">← ${sourceField}</span>` : ""}
         </div>
       `;
     })
@@ -1642,116 +1675,185 @@ function renderFieldMap(fieldMap, missingFields) {
   container.innerHTML = html;
 }
 
-function renderWarnings(warnings) {
-  const section = $("#importWarningsSection");
-  const container = $("#importWarnings");
-  if (!section || !container) return;
+function renderIssueCards() {
+  renderIssueCard("missingRequired", importAnalysis.missingRequired, "没有编号的样本无法导入");
+  renderIssueCard("duplicate", importAnalysis.duplicates, "编号重复可能导致数据冲突");
+  renderIssueCard("missingPhoto", importAnalysis.missingPhotos, "没有照片的样本完整度较低");
+  renderIssueCard("polarError", importAnalysis.polarErrors, "偏光类型将使用默认值");
+}
 
-  if (warnings.length === 0) {
-    section.classList.add("hidden");
+function renderIssueCard(type, items, hint) {
+  const countEl = $(`#issueCount${type.charAt(0).toUpperCase() + type.slice(1)}`);
+  const listEl = $(`#issueList${type.charAt(0).toUpperCase() + type.slice(1)}`);
+  const cardEl = listEl?.closest(".issue-card");
+
+  if (!countEl || !listEl || !cardEl) return;
+
+  countEl.textContent = items.length;
+
+  if (items.length === 0) {
+    cardEl.classList.add("empty");
+    listEl.innerHTML = '<div class="issue-empty">✓ 没有发现问题</div>';
     return;
   }
 
-  section.classList.remove("hidden");
-  container.innerHTML = warnings
-    .slice(0, 20)
-    .map((w) => {
-      const msg = w.warnings.join("；");
-      return `<div class="warning-item"><span class="row-num">第${w.rowNum}行:</span>${msg}</div>`;
+  cardEl.classList.remove("empty");
+
+  const displayItems = items.slice(0, 5);
+  listEl.innerHTML = displayItems
+    .map((item) => {
+      const code = item.code || item.message;
+      const rowStr = item.rowNum ? `第${item.rowNum}行` : "";
+      return `
+        <div class="issue-item">
+          <span class="issue-code">${escapeHtml(code)}</span>
+          ${rowStr ? `<span class="issue-row">${rowStr}</span>` : ""}
+        </div>
+      `;
     })
     .join("");
 
-  if (warnings.length > 20) {
-    container.innerHTML += `<div class="warning-item" style="text-align:center;color:var(--muted);">... 还有 ${warnings.length - 20} 条警告</div>`;
+  if (items.length > 5) {
+    listEl.innerHTML += `<div class="issue-more">... 还有 ${items.length - 5} 条</div>`;
   }
 }
 
-function renderDuplicates(duplicates) {
-  const section = $("#importDuplicatesSection");
-  const container = $("#importDuplicates");
-  if (!section || !container) return;
+function renderPreviewDetail() {
+  const container = $("#importPreviewDetail");
+  if (!container || !importAnalysis) return;
 
-  if (duplicates.length === 0) {
-    section.classList.add("hidden");
+  const rows = importAnalysis.rows;
+
+  if (rows.length === 0) {
+    container.innerHTML = '<p style="padding:20px;text-align:center;color:var(--muted);">暂无数据</p>';
     return;
   }
 
-  section.classList.remove("hidden");
-  container.innerHTML = duplicates
-    .slice(0, 15)
-    .map((d) => {
-      const rowStr = d.rows.length > 0 ? `（第 ${d.rows.join("、")} 行）` : "";
-      return `<div class="duplicate-item"><span class="row-num">${d.code}</span>${rowStr}</div>`;
-    })
-    .join("");
-
-  if (duplicates.length > 15) {
-    container.innerHTML += `<div class="duplicate-item" style="text-align:center;color:var(--muted);">... 还有 ${duplicates.length - 15} 个重复编号</div>`;
-  }
-}
-
-function renderErrors(errors) {
-  const section = $("#importErrorsSection");
-  const container = $("#importErrors");
-  if (!section || !container) return;
-
-  if (errors.length === 0) {
-    section.classList.add("hidden");
-    return;
-  }
-
-  section.classList.remove("hidden");
-  container.innerHTML = errors
-    .slice(0, 15)
-    .map((e) => {
-      const msg = e.errors.join("；");
-      return `<div class="error-item"><span class="row-num">第${e.rowNum}行:</span>${msg}</div>`;
-    })
-    .join("");
-
-  if (errors.length > 15) {
-    container.innerHTML += `<div class="error-item" style="text-align:center;color:var(--muted);">... 还有 ${errors.length - 15} 条错误</div>`;
-  }
-}
-
-function renderPreviewTable(validRows, warningRows, errorRows) {
-  const container = $("#importPreviewTable");
-  if (!container) return;
-
-  const allRows = [
-    ...errorRows.map((r) => ({ ...r, status: "error" })),
-    ...warningRows.map((r) => ({ ...r, status: "warning" })),
-    ...validRows.filter((r) => r.warnings.length === 0).map((r) => ({ ...r, status: "ok" }))
-  ].slice(0, 10);
-
-  if (allRows.length === 0) {
-    container.innerHTML = "<p style='padding:20px;text-align:center;color:var(--muted);'>暂无数据</p>";
-    return;
-  }
-
-  const fields = Object.keys(FIELD_LABELS);
-
-  let html = "<table><thead><tr>";
-  html += "<th>行号</th>";
-  fields.forEach((f) => {
-    html += `<th>${FIELD_LABELS[f]}</th>`;
-  });
+  let html = '<div class="detail-table-wrap"><table class="detail-table"><thead><tr>';
+  html += '<th style="width:60px;">操作</th>';
+  html += '<th style="width:60px;">行号</th>';
+  html += '<th>样本编号</th>';
+  html += '<th>采样地点</th>';
+  html += '<th>放大倍数</th>';
+  html += '<th>偏光类型</th>';
+  html += '<th>主要矿物</th>';
+  html += '<th>颗粒结构</th>';
+  html += '<th>照片</th>';
+  html += '<th>问题</th>';
   html += "</tr></thead><tbody>";
 
-  allRows.forEach((row) => {
-    const rowClass = row.status === "error" ? "error-row" : row.status === "warning" ? "warning-row" : "";
-    html += `<tr class="${rowClass}">`;
-    html += `<td>${row.rowNum}</td>`;
-    fields.forEach((f) => {
-      const value = row.sample[f] || "";
-      const displayValue = value.length > 30 ? value.slice(0, 30) + "..." : value;
-      html += `<td title="${escapeHtml(value)}">${escapeHtml(displayValue) || "-"}</td>`;
-    });
+  rows.forEach((row) => {
+    const rowClass = row.skipped ? "row-skipped" : row.hasError ? "row-error" : row.hasWarning ? "row-warning" : "";
+    const s = row.sample;
+
+    html += `<tr class="detail-row ${rowClass}" data-row-id="${row.id}">`;
+
+    html += `<td class="row-actions">
+      <button type="button" class="row-toggle-btn ${row.skipped ? "skipped" : ""}" data-toggle-skip="${row.id}" title="${row.skipped ? '点击保留' : '点击跳过'}">
+        ${row.skipped ? "⏭️ 跳过" : "✓ 保留"}
+      </button>
+      <button type="button" class="row-edit-btn" data-edit-row="${row.id}" title="编辑修正">✏️</button>
+    </td>`;
+
+    html += `<td class="row-num">${row.rowNum}</td>`;
+    html += `<td class="cell-code ${!s.code ? 'cell-empty' : ''}">${escapeHtml(s.code) || "-"}</td>`;
+    html += `<td class="${!s.location ? 'cell-empty' : ''}">${escapeHtml(s.location) || "-"}</td>`;
+    html += `<td class="${!s.magnification ? 'cell-empty' : ''}">${escapeHtml(s.magnification) || "-"}</td>`;
+    html += `<td class="${!s.polarization ? 'cell-empty' : ''} ${row.issueTypes.includes('polarError') ? 'cell-error' : ''}">${escapeHtml(s.polarization) || "-"}</td>`;
+    html += `<td class="${!s.minerals ? 'cell-empty' : ''}">${escapeHtml(s.minerals) || "-"}</td>`;
+    html += `<td class="${!s.texture ? 'cell-empty' : ''}">${escapeHtml(s.texture) || "-"}</td>`;
+    html += `<td class="${row.issueTypes.includes('missingPhoto') ? 'cell-warning' : ''}">
+      ${s.photo ? (s.photo.length > 20 ? escapeHtml(s.photo.slice(0, 20)) + "..." : escapeHtml(s.photo)) : "无"}
+    </td>`;
+
+    html += `<td class="row-issues">`;
+    if (row.issues.length > 0) {
+      row.issues.slice(0, 2).forEach((issue) => {
+        html += `<span class="issue-tag issue-tag-${issue.type}">${issue.message}</span>`;
+      });
+      if (row.issues.length > 2) {
+        html += `<span class="issue-tag-more">+${row.issues.length - 2}</span>`;
+      }
+    } else {
+      html += '<span class="issue-tag issue-tag-ok">✓ 正常</span>';
+    }
+    html += "</td>";
+
     html += "</tr>";
   });
 
-  html += "</tbody></table>";
+  html += "</tbody></table></div>";
   container.innerHTML = html;
+
+  bindDetailTableEvents();
+}
+
+function bindDetailTableEvents() {
+  const container = $("#importPreviewDetail");
+  if (!container) return;
+
+  container.querySelectorAll('[data-toggle-skip]').forEach((btn) => {
+    btn.addEventListener("click", () => {
+      const rowId = btn.dataset.toggleSkip;
+      toggleRowSkip(rowId);
+    });
+  });
+
+  container.querySelectorAll('[data-edit-row]').forEach((btn) => {
+    btn.addEventListener("click", () => {
+      const rowId = btn.dataset.editRow;
+      openRowEditor(rowId);
+    });
+  });
+}
+
+function toggleRowSkip(rowId) {
+  const row = importAnalysis.rows.find((r) => r.id === rowId);
+  if (!row) return;
+
+  row.skipped = !row.skipped;
+  updateImportStats();
+  renderPreviewDetail();
+  updateImportSummary();
+}
+
+function updateImportStats() {
+  if (!importAnalysis) return;
+
+  const total = importAnalysis.total;
+  const willImport = importAnalysis.rows.filter((r) => !r.skipped && !r.issueTypes.includes("missingRequired")).length;
+  const willSkip = importAnalysis.rows.filter((r) => r.skipped).length;
+  const needFix = importAnalysis.rows.filter((r) => r.issueTypes.includes("missingRequired") && !r.skipped).length;
+
+  importAnalysis.willImport = willImport;
+  importAnalysis.willSkip = willSkip;
+  importAnalysis.needFix = needFix;
+
+  const totalEl = $("#importStatTotal");
+  const willImportEl = $("#importStatWillImport");
+  const willSkipEl = $("#importStatWillSkip");
+  const needFixEl = $("#importStatNeedFix");
+
+  if (totalEl) totalEl.textContent = total;
+  if (willImportEl) willImportEl.textContent = willImport;
+  if (willSkipEl) willSkipEl.textContent = willSkip;
+  if (needFixEl) needFixEl.textContent = needFix;
+
+  importConfirmBtn.disabled = willImport === 0;
+}
+
+function updateImportSummary() {
+  if (!importAnalysis) return;
+
+  const willImport = importAnalysis.willImport;
+  const willSkip = importAnalysis.willSkip;
+  const needFix = importAnalysis.needFix;
+
+  let text = `将导入 ${willImport} 条`;
+  if (willSkip > 0) text += `，跳过 ${willSkip} 条`;
+  if (needFix > 0) text += `，${needFix} 条需修正编号`;
+
+  if (importSummaryText) importSummaryText.textContent = text;
 }
 
 function escapeHtml(s) {
@@ -1764,16 +1866,249 @@ function escapeHtml(s) {
   }[c]));
 }
 
-function updateImportStats(analysis) {
-  const totalEl = $("#importStatTotal");
-  const validEl = $("#importStatValid");
-  const warningEl = $("#importStatWarning");
-  const errorEl = $("#importStatError");
+function openRowEditor(rowId) {
+  const row = importAnalysis.rows.find((r) => r.id === rowId);
+  if (!row) return;
 
-  if (totalEl) totalEl.textContent = analysis.total;
-  if (validEl) validEl.textContent = analysis.validCount;
-  if (warningEl) warningEl.textContent = analysis.warningCount;
-  if (errorEl) errorEl.textContent = analysis.errorCount;
+  importEditingRowId = rowId;
+
+  const s = row.sample;
+  const editModal = document.getElementById("rowEditModal");
+  if (!editModal) {
+    createRowEditModal();
+  }
+
+  const modal = document.getElementById("rowEditModal");
+  if (!modal) return;
+
+  $("#editRowNum").textContent = `第 ${row.rowNum} 行`;
+  $("#editCode").value = s.code || "";
+  $("#editLocation").value = s.location || "";
+  $("#editMagnification").value = s.magnification || "";
+  $("#editPolarization").value = s.polarization || "单偏光";
+  $("#editMinerals").value = s.minerals || "";
+  $("#editTexture").value = s.texture || "";
+  $("#editComment").value = s.comment || "";
+  $("#editPhoto").value = s.photo || "";
+
+  const issuesEl = $("#editRowIssues");
+  if (issuesEl) {
+    if (row.issues.length > 0) {
+      issuesEl.innerHTML = row.issues.map((i) => `<span class="issue-tag issue-tag-${i.type}">${i.message}</span>`).join("");
+    } else {
+      issuesEl.innerHTML = '<span class="issue-tag issue-tag-ok">✓ 无问题</span>';
+    }
+  }
+
+  modal.classList.remove("hidden");
+  document.body.style.overflow = "hidden";
+}
+
+function createRowEditModal() {
+  const modal = document.createElement("div");
+  modal.id = "rowEditModal";
+  modal.className = "row-edit-modal-overlay hidden";
+  modal.innerHTML = `
+    <div class="row-edit-modal">
+      <header class="row-edit-header">
+        <div>
+          <h2>编辑样本数据</h2>
+          <p class="row-edit-subtitle" id="editRowNum"></p>
+        </div>
+        <button type="button" class="row-edit-close" id="closeRowEditBtn">×</button>
+      </header>
+      <div class="row-edit-body">
+        <div class="row-edit-issues" id="editRowIssues"></div>
+        <div class="row-edit-form">
+          <label>样本编号 *
+            <input type="text" id="editCode" placeholder="样本编号">
+          </label>
+          <div class="pair">
+            <label>采样地点
+              <input type="text" id="editLocation" placeholder="采样位置">
+            </label>
+            <label>放大倍数
+              <input type="text" id="editMagnification" placeholder="如 40x">
+            </label>
+          </div>
+          <label>偏光类型
+            <select id="editPolarization">
+              <option>单偏光</option>
+              <option>正交偏光</option>
+              <option>反射光</option>
+            </select>
+          </label>
+          <label>主要矿物
+            <input type="text" id="editMinerals" placeholder="石英、斜长石">
+          </label>
+          <label>颗粒结构
+            <input type="text" id="editTexture" placeholder="半自形粒状结构">
+          </label>
+          <label>老师批注
+            <textarea id="editComment" rows="2" placeholder="备注信息"></textarea>
+          </label>
+          <label>照片URL
+            <input type="text" id="editPhoto" placeholder="图片URL或留空">
+          </label>
+        </div>
+      </div>
+      <footer class="row-edit-footer">
+        <button type="button" class="ghost" id="cancelRowEditBtn">取消</button>
+        <button type="button" class="primary" id="saveRowEditBtn">保存修改</button>
+      </footer>
+    </div>
+  `;
+  document.body.appendChild(modal);
+  bindRowEditEvents();
+}
+
+function bindRowEditEvents() {
+  const modal = document.getElementById("rowEditModal");
+  if (!modal) return;
+
+  $("#closeRowEditBtn")?.addEventListener("click", closeRowEditor);
+  $("#cancelRowEditBtn")?.addEventListener("click", closeRowEditor);
+  $("#saveRowEditBtn")?.addEventListener("click", saveRowEdit);
+
+  modal.addEventListener("click", (e) => {
+    if (e.target === modal) closeRowEditor();
+  });
+
+  document.addEventListener("keydown", (e) => {
+    if (e.key === "Escape" && !modal.classList.contains("hidden")) {
+      closeRowEditor();
+    }
+  });
+}
+
+function closeRowEditor() {
+  const modal = document.getElementById("rowEditModal");
+  if (modal) modal.classList.add("hidden");
+  document.body.style.overflow = "";
+  importEditingRowId = null;
+}
+
+function saveRowEdit() {
+  if (!importEditingRowId) return;
+
+  const row = importAnalysis.rows.find((r) => r.id === importEditingRowId);
+  if (!row) return;
+
+  const newCode = $("#editCode").value.trim();
+  const newLocation = $("#editLocation").value.trim();
+  const newMagnification = $("#editMagnification").value.trim();
+  const newPolarization = $("#editPolarization").value;
+  const newMinerals = $("#editMinerals").value.trim();
+  const newTexture = $("#editTexture").value.trim();
+  const newComment = $("#editComment").value.trim();
+  const newPhoto = $("#editPhoto").value.trim();
+
+  if (!newCode) {
+    alert("样本编号不能为空！");
+    return;
+  }
+
+  row.sample = {
+    code: newCode,
+    location: newLocation,
+    magnification: newMagnification,
+    polarization: newPolarization,
+    minerals: newMinerals,
+    texture: newTexture,
+    comment: newComment,
+    photo: newPhoto
+  };
+
+  recheckRowIssues(row);
+
+  closeRowEditor();
+  renderPreviewDetail();
+  updateImportStats();
+  updateImportSummary();
+}
+
+function recheckRowIssues(row) {
+  const issues = [];
+  const issueTypes = new Set();
+
+  const s = row.sample;
+  const VALID_POLAR = ["单偏光", "正交偏光", "反射光"];
+
+  if (!s.code) {
+    issues.push({ type: "missingRequired", message: "缺少样本编号（必填）", field: "code" });
+    issueTypes.add("missingRequired");
+  }
+
+  if (!s.photo) {
+    issues.push({ type: "missingPhoto", message: "照片字段为空", field: "photo" });
+    issueTypes.add("missingPhoto");
+  } else if (!isValidPhotoUrl(s.photo)) {
+    issues.push({ type: "photoInvalid", message: "照片URL格式可能无效", field: "photo" });
+    issueTypes.add("missingPhoto");
+  }
+
+  if (s.polarization && !VALID_POLAR.includes(s.polarization)) {
+    issues.push({ type: "polarError", message: `偏光类型「${s.polarization}」不在标准选项中`, field: "polarization" });
+    issueTypes.add("polarError");
+  }
+
+  const existingCodes = new Set(state.samples.map((s) => s.code));
+  const otherRows = importAnalysis.rows.filter((r) => r.id !== row.id && !r.skipped);
+  const otherCodes = otherRows.map((r) => r.sample.code).filter(Boolean);
+
+  if (s.code) {
+    if (existingCodes.has(s.code)) {
+      issues.push({ type: "duplicate", message: `样本编号「${s.code}」已存在于库中`, field: "code" });
+      issueTypes.add("duplicate");
+      row.isDuplicate = true;
+      row.duplicateType = existingCodes.has(s.code) ? "external" : "internal";
+    } else if (otherCodes.filter((c) => c === s.code).length > 0) {
+      issues.push({ type: "duplicate", message: "导入文件内存在重复编号", field: "code" });
+      issueTypes.add("duplicate");
+      row.isDuplicate = true;
+      row.duplicateType = "internal";
+    } else {
+      row.isDuplicate = false;
+      row.duplicateType = null;
+    }
+  }
+
+  row.issues = issues;
+  row.issueTypes = Array.from(issueTypes);
+  row.hasError = issueTypes.has("missingRequired") || issueTypes.has("polarError");
+  row.hasWarning = issueTypes.has("missingPhoto") || issueTypes.has("duplicate");
+}
+
+function selectAllRows() {
+  if (!importAnalysis) return;
+  importAnalysis.rows.forEach((row) => {
+    row.skipped = false;
+  });
+  renderPreviewDetail();
+  updateImportStats();
+  updateImportSummary();
+}
+
+function skipAllRows() {
+  if (!importAnalysis) return;
+  importAnalysis.rows.forEach((row) => {
+    row.skipped = true;
+  });
+  renderPreviewDetail();
+  updateImportStats();
+  updateImportSummary();
+}
+
+function skipErrorRows() {
+  if (!importAnalysis) return;
+  importAnalysis.rows.forEach((row) => {
+    if (row.hasError || row.issueTypes.includes("missingRequired")) {
+      row.skipped = true;
+    }
+  });
+  renderPreviewDetail();
+  updateImportStats();
+  updateImportSummary();
 }
 
 function handleFile(file) {
@@ -1813,6 +2148,7 @@ function handleFile(file) {
         format
       };
       importAnalysis = analysis;
+      importRows = analysis.rows;
 
       showImportPreview();
     } catch (err) {
@@ -1859,36 +2195,46 @@ function showImportPreview() {
   importStepUpload.classList.add("hidden");
   importStepPreview.classList.remove("hidden");
 
-  updateImportStats(importAnalysis);
-  renderFieldMap(importPreviewData.fieldMap, importPreviewData.missingFields);
-  renderWarnings(importAnalysis.warnings);
-  renderDuplicates(importAnalysis.duplicateCodes);
-  renderErrors(importAnalysis.errors);
-  renderPreviewTable(
-    importAnalysis.validRows.filter((r) => r.warnings.length === 0),
-    importAnalysis.warningRows,
-    importAnalysis.errorRows
-  );
+  const backBtn = $("#importBackBtn");
+  if (backBtn) backBtn.classList.remove("hidden");
 
-  importConfirmBtn.disabled = importAnalysis.validCount === 0;
+  updateImportStats();
+  renderFieldMap(importPreviewData.fieldMap, importPreviewData.missingFields);
+  renderIssueCards();
+  renderPreviewDetail();
+  updateImportSummary();
+
+  importConfirmBtn.disabled = importAnalysis.willImport === 0;
 }
 
 async function confirmImport() {
   if (!importPreviewData || !importAnalysis) return;
 
-  const skipDup = importSkipDup?.checked ?? true;
+  const rowsToImport = importAnalysis.rows.filter(
+    (row) => !row.skipped && !row.issueTypes.includes("missingRequired") && row.sample.code
+  );
+
+  const skippedCount = importAnalysis.rows.filter((row) => row.skipped).length;
+  const errorCount = importAnalysis.rows.filter(
+    (row) => !row.skipped && row.issueTypes.includes("missingRequired")
+  ).length;
+
+  if (rowsToImport.length === 0) {
+    alert("没有可导入的数据，请确认选择。");
+    return;
+  }
+
   let imported = 0;
-  let skipped = 0;
-
-  const existingCodes = new Set(state.samples.map((s) => s.code));
   const importedCodes = new Set();
+  const existingCodes = new Set(state.samples.map((s) => s.code));
+  const duplicateSkipped = [];
 
-  for (const { sample } of importAnalysis.validRows) {
-    if (skipDup) {
-      if (existingCodes.has(sample.code) || importedCodes.has(sample.code)) {
-        skipped++;
-        continue;
-      }
+  for (const row of rowsToImport) {
+    const sample = row.sample;
+
+    if (existingCodes.has(sample.code) || importedCodes.has(sample.code)) {
+      duplicateSkipped.push(sample.code);
+      continue;
     }
 
     const newSample = {
@@ -1911,12 +2257,28 @@ async function confirmImport() {
   }
 
   renderAll();
-
   closeImportModal();
 
   setTimeout(() => {
-    alert(`导入完成！\n成功导入 ${imported} 条记录${skipDup && skipped > 0 ? `\n跳过重复 ${skipped} 条` : ""}`);
+    let msg = `导入完成！\n成功导入 ${imported} 条记录`;
+    if (skippedCount > 0) msg += `\n手动跳过 ${skippedCount} 条`;
+    if (errorCount > 0) msg += `\n因缺少编号未导入 ${errorCount} 条`;
+    if (duplicateSkipped.length > 0) {
+      msg += `\n因编号重复跳过 ${duplicateSkipped.length} 条`;
+    }
+    alert(msg);
   }, 100);
+}
+
+function showImportStep(step) {
+  const backBtn = $("#importBackBtn");
+  if (step === "upload") {
+    importStepPreview.classList.add("hidden");
+    importStepUpload.classList.remove("hidden");
+    if (backBtn) backBtn.classList.add("hidden");
+  } else {
+    showImportPreview();
+  }
 }
 
 importBtn?.addEventListener("click", openImportModal);
@@ -1958,6 +2320,11 @@ importDropZone?.addEventListener("drop", (e) => {
 });
 
 importConfirmBtn?.addEventListener("click", confirmImport);
+
+$("#importSelectAllBtn")?.addEventListener("click", selectAllRows);
+$("#importSkipAllBtn")?.addEventListener("click", skipAllRows);
+$("#importSkipErrorsBtn")?.addEventListener("click", skipErrorRows);
+$("#importBackBtn")?.addEventListener("click", () => showImportStep("upload"));
 
 document.addEventListener("keydown", (e) => {
   if (e.key === "Escape" && !importOverlay?.classList.contains("hidden")) {

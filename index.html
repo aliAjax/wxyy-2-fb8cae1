@@ -566,53 +566,78 @@
               <span class="stat-value" id="importStatTotal">0</span>
             </div>
             <div class="stat-card">
-              <span class="stat-label">可导入</span>
-              <span class="stat-value success" id="importStatValid">0</span>
+              <span class="stat-label">将导入</span>
+              <span class="stat-value success" id="importStatWillImport">0</span>
             </div>
             <div class="stat-card">
-              <span class="stat-label">有警告</span>
-              <span class="stat-value warning" id="importStatWarning">0</span>
+              <span class="stat-label">将跳过</span>
+              <span class="stat-value warning" id="importStatWillSkip">0</span>
             </div>
             <div class="stat-card">
-              <span class="stat-label">错误行</span>
-              <span class="stat-value danger" id="importStatError">0</span>
+              <span class="stat-label">需修正</span>
+              <span class="stat-value danger" id="importStatNeedFix">0</span>
             </div>
           </div>
 
           <div class="import-field-map">
-            <h4>字段匹配</h4>
+            <h4>📋 字段识别</h4>
             <div id="importFieldMap" class="field-map-list"></div>
           </div>
 
-          <div class="import-warnings" id="importWarningsSection">
-            <h4>⚠️ 缺失字段警告</h4>
-            <div id="importWarnings" class="warnings-list"></div>
+          <div class="import-issue-summary">
+            <div class="issue-card missing-required">
+              <div class="issue-card-header">
+                <span class="issue-icon">❌</span>
+                <span class="issue-title">缺失必填项</span>
+                <span class="issue-count" id="issueCountMissingRequired">0</span>
+              </div>
+              <div class="issue-card-body" id="issueListMissingRequired"></div>
+            </div>
+            <div class="issue-card duplicate">
+              <div class="issue-card-header">
+                <span class="issue-icon">🔁</span>
+                <span class="issue-title">重复样本编号</span>
+                <span class="issue-count" id="issueCountDuplicate">0</span>
+              </div>
+              <div class="issue-card-body" id="issueListDuplicate"></div>
+            </div>
+            <div class="issue-card missing-photo">
+              <div class="issue-card-header">
+                <span class="issue-icon">🖼️</span>
+                <span class="issue-title">照片缺失</span>
+                <span class="issue-count" id="issueCountMissingPhoto">0</span>
+              </div>
+              <div class="issue-card-body" id="issueListMissingPhoto"></div>
+            </div>
+            <div class="issue-card polar-error">
+              <div class="issue-card-header">
+                <span class="issue-icon">🔬</span>
+                <span class="issue-title">偏光类型异常</span>
+                <span class="issue-count" id="issueCountPolarError">0</span>
+              </div>
+              <div class="issue-card-body" id="issueListPolarError"></div>
+            </div>
           </div>
 
-          <div class="import-duplicates" id="importDuplicatesSection">
-            <h4>🔁 重复样本编号</h4>
-            <div id="importDuplicates" class="duplicates-list"></div>
-          </div>
-
-          <div class="import-errors" id="importErrorsSection">
-            <h4>❌ 错误行摘要</h4>
-            <div id="importErrors" class="errors-list"></div>
-          </div>
-
-          <div class="import-preview-table-wrap">
-            <h4>数据预览（前 10 行）</h4>
-            <div class="import-preview-table" id="importPreviewTable"></div>
+          <div class="import-preview-detail-wrap">
+            <div class="import-detail-header">
+              <h4>📝 详细预览（可逐行跳过或修正）</h4>
+              <div class="import-detail-actions">
+                <button type="button" class="ghost small" id="importSelectAllBtn">全部保留</button>
+                <button type="button" class="ghost small" id="importSkipAllBtn">全部跳过</button>
+                <button type="button" class="ghost small" id="importSkipErrorsBtn">跳过有问题的</button>
+              </div>
+            </div>
+            <div class="import-preview-detail" id="importPreviewDetail"></div>
           </div>
         </div>
       </div>
 
       <footer class="import-footer">
+        <button type="button" id="importBackBtn" class="ghost hidden">← 返回重选</button>
         <button type="button" id="importCancelBtn" class="ghost">取消</button>
         <div class="import-footer-right">
-          <label class="import-dup-handle">
-            <input type="checkbox" id="importSkipDup" checked>
-            跳过重复编号的记录
-          </label>
+          <span class="import-summary" id="importSummaryText">请选择要导入的记录</span>
           <button type="button" id="importConfirmBtn" class="primary" disabled>确认导入</button>
         </div>
       </footer>
