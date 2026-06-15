@@ -2913,7 +2913,7 @@ function renderImportedPackages() {
         </div>
         <div class="imported-package-actions">
           <button type="button" class="ghost small" data-edit-rubrics="${pkg.packageId}">⚙️ 编辑评分项</button>
-          <button type="button class="primary small" data-go-grading="${pkg.packageId}">📝 去评分</button>
+          <button type="button" class="primary small" data-go-grading="${pkg.packageId}">📝 去评分</button>
         </div>
       </div>
     `;
@@ -3287,7 +3287,7 @@ function openRubricEditorModal(lessonPackageId) {
       alert("评分项保存成功！");
       closeLessonModal();
       renderLessonPage();
-      if (!$("#tab-grading")?.classList.contains("active")) {
+      if ($("#tab-grading")?.classList.contains("active")) {
         renderGradingPage();
       }
     } catch (err) {
