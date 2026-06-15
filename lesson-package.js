@@ -690,19 +690,19 @@
             }
           }
 
-          if (data.rubrics && data.lessonPackageId) {
+          if (data.lessonPackageId) {
             if (!state.lessonMetas[data.lessonPackageId]) {
               state.lessonMetas[data.lessonPackageId] = {
                 packageId: data.lessonPackageId,
                 title: data.lessonTitle || "",
                 description: "",
-                rubrics: data.rubrics,
+                rubrics: data.rubrics || buildDefaultRubrics(),
                 referenceAnswers: data.referenceAnswers || {},
                 importedAt: new Date().toISOString()
               };
             } else {
               if (!state.lessonMetas[data.lessonPackageId].rubrics || state.lessonMetas[data.lessonPackageId].rubrics.length === 0) {
-                state.lessonMetas[data.lessonPackageId].rubrics = data.rubrics;
+                state.lessonMetas[data.lessonPackageId].rubrics = data.rubrics || buildDefaultRubrics();
               }
               if (!state.lessonMetas[data.lessonPackageId].referenceAnswers || Object.keys(state.lessonMetas[data.lessonPackageId].referenceAnswers).length === 0) {
                 state.lessonMetas[data.lessonPackageId].referenceAnswers = data.referenceAnswers || {};
@@ -811,7 +811,15 @@
       result = result.filter(s => s.tasks.some(t => t.id === filters.taskId || t.title === filters.taskId));
     }
 
-    if (filters.graded !== undefined) {
+    if (filters.status) {
+      if (filters.status === "graded") {
+        result = result.filter(s => getSubmissionStatus(s) === "graded");
+      } else if (filters.status === "ungraded") {
+        result = result.filter(s => getSubmissionStatus(s) === "ungraded");
+      } else if (filters.status === "abnormal") {
+        result = result.filter(s => isSubmissionAbnormal(s));
+      }
+    } else if (filters.graded !== undefined) {
       result = result.filter(s => {
         const hasScores = Object.keys(s.scores || {}).length > 0;
         return filters.graded ? hasScores : !hasScores;
@@ -1107,18 +1115,122 @@
     Object.entries(state.lessonMetas).forEach(([id, meta]) => {
       if (!packageIds.has(id)) {
         packageIds.add(id);
+        const submissions = state.submissions.filter(s => s.lessonPackageId === id);
+        const gradedCount = submissions.filter(s => getSubmissionStatus(s) === "graded").length;
+        const ungradedCount = submissions.filter(s => getSubmissionStatus(s) === "ungraded").length;
+        const abnormalCount = submissions.filter(s => isSubmissionAbnormal(s)).length;
+        const scoredSubmissions = submissions.filter(s => s.finalScore !== null && !isSubmissionAbnormal(s));
+        const avgScore = scoredSubmissions.length > 0
+          ? Math.round(scoredSubmissions.reduce((sum, s) => sum + (s.finalScore || 0), 0) / scoredSubmissions.length)
+          : 0;
+
         packages.push({
           packageId: id,
           title: meta.title || "未命名课堂包",
           description: meta.description || "",
           importedAt: meta.importedAt || "",
           rubrics: meta.rubrics || [],
-          submissionCount: state.submissions.filter(s => s.lessonPackageId === id).length
+          referenceAnswers: meta.referenceAnswers || {},
+          submissionCount: submissions.length,
+          gradedCount,
+          ungradedCount,
+          abnormalCount,
+          avgScore
         });
       }
     });
 
     return packages;
+  }
+
+  function isSubmissionAbnormal(submission) {
+    if (!submission) return false;
+    const rubrics = getRubricsForLesson(submission.lessonPackageId);
+    const answerCount = Object.keys(submission.answers || {}).length;
+    const scoreCount = Object.keys(submission.scores || {}).length;
+
+    if (answerCount === 0) return true;
+
+    if (scoreCount > 0 && submission.finalScore !== null) {
+      const maxPossibleScore = rubrics.reduce((sum, r) => sum + r.maxScore, 0) * answerCount;
+      if (maxPossibleScore > 0 && submission.finalScore > maxPossibleScore) return true;
+    }
+
+    const studentId = submission.studentInfo?.studentId;
+    if (!studentId || studentId.trim().length === 0) return true;
+
+    const studentName = submission.studentInfo?.name;
+    if (!studentName || studentName.trim().length === 0) return true;
+
+    return false;
+  }
+
+  function getSubmissionStatus(submission) {
+    if (isSubmissionAbnormal(submission)) return "abnormal";
+    const hasScores = Object.keys(submission.scores || {}).length > 0;
+    return hasScores ? "graded" : "ungraded";
+  }
+
+  function getSubmissionStatusLabel(status) {
+    const labels = {
+      ungraded: "待评分",
+      graded: "已评分",
+      abnormal: "异常"
+    };
+    return labels[status] || "未知";
+  }
+
+  function calculateSubmissionTotalScore(submission) {
+    if (!submission || !submission.scores) return 0;
+    let total = 0;
+    Object.values(submission.scores).forEach(scoreData => {
+      if (scoreData && typeof scoreData === "object") {
+        Object.entries(scoreData).forEach(([key, value]) => {
+          if (key !== "comment" && key !== "scoredAt" && typeof value === "number") {
+            total += value;
+          }
+        });
+      }
+    });
+    return total;
+  }
+
+  function getMaxScoreForLesson(lessonPackageId) {
+    const rubrics = getRubricsForLesson(lessonPackageId);
+    return rubrics.reduce((sum, r) => sum + r.maxScore, 0);
+  }
+
+  function getGradingStatsByLesson(lessonPackageId) {
+    const submissions = getSubmissionsByLesson(lessonPackageId);
+    const rubrics = getRubricsForLesson(lessonPackageId);
+    const maxScorePerSample = rubrics.reduce((sum, r) => sum + r.maxScore, 0);
+
+    const graded = submissions.filter(s => getSubmissionStatus(s) === "graded");
+    const ungraded = submissions.filter(s => getSubmissionStatus(s) === "ungraded");
+    const abnormal = submissions.filter(s => isSubmissionAbnormal(s));
+
+    const scoredSubmissions = graded.filter(s => s.finalScore !== null);
+    const totalScores = scoredSubmissions.reduce((sum, s) => sum + (s.finalScore || 0), 0);
+    const avgScore = scoredSubmissions.length > 0 ? Math.round(totalScores / scoredSubmissions.length) : 0;
+
+    const highestScore = scoredSubmissions.length > 0
+      ? Math.max(...scoredSubmissions.map(s => s.finalScore || 0))
+      : 0;
+    const lowestScore = scoredSubmissions.length > 0
+      ? Math.min(...scoredSubmissions.map(s => s.finalScore || 0))
+      : 0;
+
+    return {
+      total: submissions.length,
+      graded: graded.length,
+      ungraded: ungraded.length,
+      abnormal: abnormal.length,
+      avgScore,
+      highestScore,
+      lowestScore,
+      maxScorePerSample,
+      rubricCount: rubrics.length
+    };
   }
 
   global.LessonPackage = {
@@ -1172,6 +1284,13 @@
     getAggregatedByTask,
     getAggregatedBySample,
     getImportedLessonPackages,
+
+    isSubmissionAbnormal,
+    getSubmissionStatus,
+    getSubmissionStatusLabel,
+    calculateSubmissionTotalScore,
+    getMaxScoreForLesson,
+    getGradingStatsByLesson,
 
     computeContentHash,
     verifyContentHash,

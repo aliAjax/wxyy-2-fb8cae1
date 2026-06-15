@@ -2877,6 +2877,7 @@ function renderImportedPackages() {
   container.innerHTML = packages.map(pkg => {
     const lessonTasks = state.tasks.filter(t => t.lessonPackageId === pkg.packageId);
     const sampleCount = new Set(lessonTasks.flatMap(t => t.sampleIds)).size;
+    const stats = window.LessonPackage.getGradingStatsByLesson(pkg.packageId);
     return `
       <div class="imported-package-card">
         <div class="imported-package-header">
@@ -2890,9 +2891,46 @@ function renderImportedPackages() {
           <span>${pkg.rubrics.length} 个评分项</span>
           <span>导入于 ${formatDateTime(pkg.importedAt)}</span>
         </div>
+        <div class="grading-stats-mini">
+          <div class="stat-mini-item">
+            <span class="stat-mini-label">已评分</span>
+            <span class="stat-mini-value success">${stats.graded}</span>
+          </div>
+          <div class="stat-mini-item">
+            <span class="stat-mini-label">待评分</span>
+            <span class="stat-mini-value warning">${stats.ungraded}</span>
+          </div>
+          <div class="stat-mini-item">
+            <span class="stat-mini-label">异常</span>
+            <span class="stat-mini-value danger">${stats.abnormal}</span>
+          </div>
+          ${stats.avgScore > 0 ? `
+          <div class="stat-mini-item">
+            <span class="stat-mini-label">平均分</span>
+            <span class="stat-mini-value">${stats.avgScore}</span>
+          </div>
+          ` : ""}
+        </div>
+        <div class="imported-package-actions">
+          <button type="button" class="ghost small" data-edit-rubrics="${pkg.packageId}">⚙️ 编辑评分项</button>
+          <button type="button class="primary small" data-go-grading="${pkg.packageId}">📝 去评分</button>
+        </div>
       </div>
     `;
   }).join("");
+
+  $$('[data-edit-rubrics]', container).forEach(btn => {
+    btn.addEventListener('click', () => {
+      openRubricEditorModal(btn.dataset.editRubrics);
+    });
+  });
+
+  $$('[data-go-grading]', container).forEach(btn => {
+    btn.addEventListener('click', () => {
+      gradingFilters.lessonPackageId = btn.dataset.goGrading;
+      switchTab('grading');
+    });
+  });
 }
 
 function renderLessonTaskList() {
@@ -3126,6 +3164,138 @@ function showExportLessonModal() {
 function closeLessonModal() {
   $("#lessonModal")?.classList.add("hidden");
   lessonState.selectedTaskIds.clear();
+}
+
+let editingRubricLessonId = null;
+
+function openRubricEditorModal(lessonPackageId) {
+  editingRubricLessonId = lessonPackageId;
+
+  const modal = $("#lessonModal");
+  const title = $("#lessonModalTitle");
+  const body = $("#lessonModalBody");
+  const footer = $("#lessonModalFooter");
+
+  const lessonMeta = window.LessonPackage.getLessonMeta(lessonPackageId);
+  const rubrics = window.LessonPackage.getRubricsForLesson(lessonPackageId);
+
+  title.textContent = "⚙️ 评分项配置";
+
+  const totalMaxScore = rubrics.reduce((sum, r) => sum + r.maxScore, 0);
+
+  body.innerHTML = `
+    <div class="form-group">
+      <label>课堂包</label>
+      <p style="margin:0;color:">${escapeHtml(lessonMeta?.title || "未命名课堂包")}</p>
+    </div>
+    <div class="form-group">
+      <label>评分项配置</label>
+      <div id="rubricEditorModal" class="rubric-editor">
+        ${rubrics.map((r, i) => `
+          <div class="rubric-row" data-rubric-index="${i}" data-rubric-id="${r.id}">
+            <input type="text" class="rubric-name" value="${escapeHtml(r.name)}" placeholder="评分项名称">
+            <input type="number" class="rubric-score" value="${r.maxScore}" min="0" placeholder="满分">
+            <input type="text" class="rubric-desc" value="${escapeHtml(r.description)}" placeholder="评分说明">
+            <button type="button" class="ghost rubric-remove" data-remove-rubric="${i}">✕</button>
+          </div>
+        `).join("")}
+      </div>
+      <button type="button" class="ghost" id="addRubricModalBtn">+ 添加评分项</button>
+    </div>
+    <div class="form-group">
+      <p style="margin:0;color:var(--muted);">满分合计：<strong id="rubricTotalScore">${totalMaxScore}</strong> 分</p>
+    </div>
+  `;
+
+  footer.innerHTML = `
+    <button type="button" class="ghost" onclick="closeLessonModal()">取消</button>
+    <button type="button" class="primary" id="saveRubricsBtn">保存评分项</button>
+  `;
+
+  let rubricModalIndex = rubrics.length;
+
+  $("#addRubricModalBtn")?.addEventListener("click", () => {
+    const editor = $("#rubricEditorModal");
+    const row = document.createElement("div");
+    row.className = "rubric-row";
+    row.dataset.rubricIndex = rubricModalIndex;
+    row.innerHTML = `
+      <input type="text" class="rubric-name" value="" placeholder="评分项名称">
+      <input type="number" class="rubric-score" value="10" min="0" placeholder="满分">
+      <input type="text" class="rubric-desc" value="" placeholder="评分说明">
+      <button type="button" class="ghost rubric-remove" data-remove-rubric="${rubricModalIndex}">✕</button>
+    `;
+    editor.appendChild(row);
+    rubricModalIndex++;
+    bindRubricModalRemoveButtons();
+    updateRubricTotalScore();
+  });
+
+  function bindRubricModalRemoveButtons() {
+    $$('[data-remove-rubric]', body).forEach(btn => {
+      btn.onclick = () => {
+        const row = btn.closest(".rubric-row");
+        if (row) {
+          row.remove();
+          updateRubricTotalScore();
+        }
+      };
+    });
+  }
+  bindRubricModalRemoveButtons();
+
+  $$(".rubric-score", body).forEach(input => {
+    input.addEventListener("input", updateRubricTotalScore);
+  });
+
+  function updateRubricTotalScore() {
+    const scoreInputs = $$(".rubric-score", body);
+    let total = 0;
+    scoreInputs.forEach(input => {
+      const val = parseFloat(input.value);
+      if (!isNaN(val)) total += val;
+    });
+    const totalEl = $("#rubricTotalScore");
+    if (totalEl) totalEl.textContent = total;
+  }
+
+  $("#saveRubricsBtn")?.addEventListener("click", async () => {
+    const rubricRows = $$(".rubric-row", body);
+    const newRubrics = [];
+    rubricRows.forEach(row => {
+      const id = row.dataset.rubricId || "";
+      const name = row.querySelector(".rubric-name").value.trim();
+      const maxScore = parseInt(row.querySelector(".rubric-score").value, 10) || 0;
+      const desc = row.querySelector(".rubric-desc").value.trim();
+      if (name && maxScore > 0) {
+        newRubrics.push({
+          id: id || crypto.randomUUID(),
+          name,
+          maxScore,
+          description: desc
+        });
+      }
+    });
+
+    if (newRubrics.length === 0) {
+      alert("请至少添加一个评分项");
+      return;
+    }
+
+    try {
+      await window.LessonPackage.saveRubrics(newRubrics, editingRubricLessonId);
+      alert("评分项保存成功！");
+      closeLessonModal();
+      renderLessonPage();
+      if (!$("#tab-grading")?.classList.contains("active")) {
+        renderGradingPage();
+      }
+    } catch (err) {
+      alert("保存失败：" + err.message);
+    }
+  });
+
+  modal.classList.remove("hidden");
 }
 
 function openAnswerModal(taskId) {
@@ -3468,7 +3638,7 @@ let gradingFilters = {
   lessonPackageId: "",
   studentId: "",
   taskId: "",
-  graded: undefined,
+  status: "",
   studentName: ""
 };
 
@@ -3496,7 +3666,7 @@ function initGradingFilters() {
 
   $("#filterGraded")?.addEventListener("change", (e) => {
     const val = e.target.value;
-    gradingFilters.graded = val === "" ? undefined : val === "true";
+    gradingFilters.status = val;
     renderGradingPage();
   });
 
@@ -3512,6 +3682,23 @@ function initGradingFilters() {
       btn.classList.add("active");
       renderGradingPage();
     });
+  });
+
+  $$('[data-grading-status]').forEach(btn => {
+    btn.addEventListener("click", () => {
+      gradingFilters.status = btn.dataset.gradingStatus;
+      $$('[data-grading-status]').forEach(b => b.classList.remove("active"));
+      btn.classList.add("active");
+      renderGradingPage();
+    });
+  });
+
+  $("#manageRubricsBtn")?.addEventListener("click", () => {
+    if (!gradingFilters.lessonPackageId) {
+      alert("请先选择一个课堂包");
+      return;
+    }
+    openRubricEditorModal(gradingFilters.lessonPackageId);
   });
 
   $("#batchImportAnswerBtn")?.addEventListener("click", () => {
@@ -3616,20 +3803,42 @@ function updateGradingFilterOptions() {
       Array.from(allTasks).map(t => `<option value="${escapeHtml(t)}">${escapeHtml(t)}</option>`).join("");
     taskSelect.value = currentVal;
   }
+
+  const gradedSelect = $("#filterGraded");
+  if (gradedSelect) {
+    gradedSelect.value = gradingFilters.status || "";
+  }
+
+  $$('[data-grading-status]').forEach(btn => {
+    const isActive = btn.dataset.gradingStatus === (gradingFilters.status || "");
+    btn.classList.toggle("active", isActive);
+  });
 }
 
 function updateGradingStats() {
   const submissions = window.LessonPackage.getAllSubmissions();
-  const graded = submissions.filter(s => Object.keys(s.scores || {}).length > 0);
-  const ungraded = submissions.filter(s => Object.keys(s.scores || {}).length === 0);
-  const scored = submissions.filter(s => s.finalScore !== null);
+  const filteredSubmissions = gradingFilters.lessonPackageId
+    ? window.LessonPackage.getSubmissionsByLesson(gradingFilters.lessonPackageId)
+    : submissions;
+
+  const graded = filteredSubmissions.filter(s => {
+    const hasAnyScore = Object.keys(s.scores || {}).length > 0;
+    return hasAnyScore && !window.LessonPackage.isSubmissionAbnormal(s);
+  });
+  const ungraded = filteredSubmissions.filter(s => {
+    const hasAnyScore = Object.keys(s.scores || {}).length > 0;
+    return !hasAnyScore && !window.LessonPackage.isSubmissionAbnormal(s);
+  });
+  const abnormal = filteredSubmissions.filter(s => window.LessonPackage.isSubmissionAbnormal(s));
+  const scored = filteredSubmissions.filter(s => s.finalScore !== null);
   const avg = scored.length > 0
     ? Math.round(scored.reduce((sum, s) => sum + (s.finalScore || 0), 0) / scored.length)
     : 0;
 
-  if ($("#statTotal")) $("#statTotal").textContent = submissions.length;
+  if ($("#statTotal")) $("#statTotal").textContent = filteredSubmissions.length;
   if ($("#statGraded")) $("#statGraded").textContent = graded.length;
   if ($("#statUngraded")) $("#statUngraded").textContent = ungraded.length;
+  if ($("#statAbnormal")) $("#statAbnormal").textContent = abnormal.length;
   if ($("#statAvg")) $("#statAvg").textContent = avg;
 }
 
@@ -3645,13 +3854,14 @@ function renderSubmissionList() {
   }
 
   container.innerHTML = submissions.map(sub => {
-    const isGraded = Object.keys(sub.scores || {}).length > 0;
+    const status = window.LessonPackage.getSubmissionStatus(sub);
+    const statusLabel = window.LessonPackage.getSubmissionStatusLabel(status);
     const sampleCount = Object.keys(sub.answers || {}).length;
     return `
-      <div class="submission-card ${sub.id === gradingState.selectedSubmissionId ? "active" : ""}" data-submission-id="${sub.id}">
+      <div class="submission-card ${sub.id === gradingState.selectedSubmissionId ? "active" : ""} status-${status}" data-submission-id="${sub.id}">
         <div class="submission-header">
           <h4>${escapeHtml(sub.studentInfo.name)}</h4>
-          <span class="badge ${isGraded ? "completed" : "pending"}">${isGraded ? "已评分" : "待评分"}</span>
+          <span class="badge ${status}">${statusLabel}</span>
         </div>
         <div class="submission-meta">
           <span>学号：${escapeHtml(sub.studentInfo.studentId)}</span>
@@ -3697,7 +3907,9 @@ function renderGradingDetail() {
   emptyEl?.classList.add("hidden");
   detailEl?.classList.remove("hidden");
 
-  const rubrics = window.LessonPackage.getRubrics();
+  const rubrics = submission.lessonPackageId
+    ? window.LessonPackage.getRubricsForLesson(submission.lessonPackageId)
+    : window.LessonPackage.getRubrics();
   const answers = Object.entries(submission.answers || {});
 
   detailEl.innerHTML = `

@@ -340,8 +340,9 @@
             </select>
             <select id="filterGraded">
               <option value="">全部状态</option>
-              <option value="false">未评分</option>
-              <option value="true">已评分</option>
+              <option value="ungraded">未评分</option>
+              <option value="graded">已评分</option>
+              <option value="abnormal">异常</option>
             </select>
             <input id="searchStudent" placeholder="搜索学生姓名...">
             <button type="button" id="importAnswerBtn" class="primary">📥 导入作答包</button>
@@ -362,16 +363,29 @@
               <span class="stat-value warning" id="statUngraded">0</span>
             </div>
             <div class="stat-card">
+              <span class="stat-label">异常</span>
+              <span class="stat-value danger" id="statAbnormal">0</span>
+            </div>
+            <div class="stat-card">
               <span class="stat-label">平均分</span>
               <span class="stat-value" id="statAvg">0</span>
             </div>
           </div>
 
-          <div class="grading-view-toggle">
-            <button type="button" class="view-toggle-btn active" data-grading-view="student">按学生</button>
-            <button type="button" class="view-toggle-btn" data-grading-view="task">按任务</button>
-            <button type="button" class="view-toggle-btn" data-grading-view="sample">按样本</button>
-            <button type="button" id="exportGradingBtn" class="ghost" style="margin-left:auto;">📊 导出评分结果</button>
+          <div class="grading-status-bar">
+            <div class="grading-status-tabs">
+              <button type="button" class="status-tab active" data-grading-status="">全部</button>
+              <button type="button" class="status-tab" data-grading-status="ungraded">待评分</button>
+              <button type="button" class="status-tab" data-grading-status="graded">已评分</button>
+              <button type="button" class="status-tab" data-grading-status="abnormal">异常</button>
+            </div>
+            <div class="grading-view-toggle">
+              <button type="button" class="view-toggle-btn active" data-grading-view="student">按学生</button>
+              <button type="button" class="view-toggle-btn" data-grading-view="task">按任务</button>
+              <button type="button" class="view-toggle-btn" data-grading-view="sample">按样本</button>
+              <button type="button" id="manageRubricsBtn" class="ghost" style="margin-left:auto;">⚙️ 管理评分项</button>
+              <button type="button" id="exportGradingBtn" class="ghost">📊 导出评分结果</button>
+            </div>
           </div>
         </section>
 

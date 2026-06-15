@@ -3849,6 +3849,114 @@ textarea {
   width: fit-content;
 }
 
+.grading-status-bar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-top: 14px;
+  padding-top: 14px;
+  border-top: 1px solid var(--line);
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.grading-status-tabs {
+  display: flex;
+  gap: 4px;
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 4px;
+}
+
+.status-tab {
+  min-height: 34px;
+  padding: 0 16px;
+  font-size: 13px;
+  background: transparent;
+  color: var(--muted);
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  font-weight: 500;
+}
+
+.status-tab:hover {
+  color: var(--ink);
+  background: white;
+}
+
+.status-tab.active {
+  background: var(--primary);
+  color: white;
+}
+
+.grading-stats .stat-card .stat-value.danger {
+  color: var(--danger);
+}
+
+.submission-card.status-abnormal {
+  border-left: 3px solid var(--danger);
+}
+
+.submission-card .badge.abnormal {
+  background: var(--danger-bg);
+  color: var(--danger);
+}
+
+.grading-stats-mini {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 8px;
+  margin-top: 10px;
+  padding-top: 10px;
+  border-top: 1px dashed var(--line);
+}
+
+.stat-mini-item {
+  text-align: center;
+}
+
+.stat-mini-label {
+  font-size: 11px;
+  color: var(--muted);
+  display: block;
+  margin-bottom: 2px;
+}
+
+.stat-mini-value {
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--ink);
+}
+
+.stat-mini-value.success {
+  color: var(--success);
+}
+
+.stat-mini-value.warning {
+  color: var(--warning);
+}
+
+.stat-mini-value.danger {
+  color: var(--danger);
+}
+
+.imported-package-actions {
+  display: flex;
+  gap: 8px;
+  margin-top: 12px;
+  padding-top: 12px;
+  border-top: 1px solid var(--line);
+}
+
+.imported-package-actions button {
+  flex: 1;
+  font-size: 12px;
+  min-height: 32px;
+}
+
 .view-toggle-btn {
   min-height: 34px;
   padding: 0 14px;
@@ -4244,6 +4352,23 @@ textarea {
 
   .grading-view-toggle {
     flex-wrap: wrap;
+  }
+
+  .grading-status-bar {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .grading-status-tabs {
+    justify-content: center;
+    overflow-x: auto;
+  }
+
+  .status-tab {
+    flex: 1;
+    min-width: 80px;
+    padding: 0 10px;
+    font-size: 12px;
   }
 
   .aggregate-student-item {

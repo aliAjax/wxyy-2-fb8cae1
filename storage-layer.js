@@ -887,6 +887,10 @@
     const filterViews = await AppStateStore.getFilterViews(projectId);
     const sampleGroups = await AppStateStore.getSampleGroups(projectId);
 
+    const submissions = await getAppState(`submissions_${projectId}`, []);
+    const rubrics = await getAppState(`rubrics_${projectId}`, []);
+    const lessonMetas = await getAppState(`lessonMetas_${projectId}`, {});
+
     const result = {
       format: "wxyy-thin-section-project-backup",
       version: 2,
@@ -919,6 +923,14 @@
     const answers = await AnswerStore.getAll(projectId);
     if (answers.length > 0) {
       result.studentAnswers = answers;
+    }
+
+    if (submissions.length > 0 || rubrics.length > 0 || Object.keys(lessonMetas).length > 0) {
+      result.lessonGrading = {
+        submissions,
+        rubrics,
+        lessonMetas
+      };
     }
 
     return result;
@@ -1013,6 +1025,77 @@
           taskId: idMapping[ans.taskId] || ans.taskId,
           sampleId: idMapping[ans.sampleId] || ans.sampleId
         });
+      }
+    }
+
+    if (data.lessonGrading) {
+      const { submissions, rubrics, lessonMetas } = data.lessonGrading;
+
+      const mappedLessonMetas = {};
+      if (lessonMetas && typeof lessonMetas === "object") {
+        Object.entries(lessonMetas).forEach(([pkgId, meta]) => {
+          const mappedRefAnswers = {};
+          if (meta.referenceAnswers && typeof meta.referenceAnswers === "object") {
+            Object.entries(meta.referenceAnswers).forEach(([oldSampleId, ref]) => {
+              const newSampleId = idMapping[oldSampleId] || oldSampleId;
+              mappedRefAnswers[newSampleId] = ref;
+            });
+          }
+          mappedLessonMetas[pkgId] = {
+            ...meta,
+            referenceAnswers: mappedRefAnswers
+          };
+        });
+        await setAppState(`lessonMetas_${newProjectId}`, mappedLessonMetas);
+      }
+
+      if (Array.isArray(rubrics)) {
+        await setAppState(`rubrics_${newProjectId}`, rubrics);
+      }
+
+      if (Array.isArray(submissions)) {
+        const mappedSubmissions = submissions.map(sub => {
+          const mappedAnswers = {};
+          if (sub.answers && typeof sub.answers === "object") {
+            Object.entries(sub.answers).forEach(([oldSampleId, answer]) => {
+              const newSampleId = idMapping[oldSampleId] || oldSampleId;
+              mappedAnswers[newSampleId] = answer;
+            });
+          }
+          const mappedScores = {};
+          if (sub.scores && typeof sub.scores === "object") {
+            Object.entries(sub.scores).forEach(([oldSampleId, score]) => {
+              const newSampleId = idMapping[oldSampleId] || oldSampleId;
+              mappedScores[newSampleId] = score;
+            });
+          }
+          const mappedTasks = (sub.tasks || []).map(task => ({
+            ...task,
+            id: idMapping[task.id] || task.id,
+            sampleIds: (task.sampleIds || []).map(sid => idMapping[sid] || sid),
+            completedSamples: (task.completedSamples || []).map(sid => idMapping[sid] || sid)
+          }));
+          const mappedTaskProgress = {};
+          if (sub.taskProgress && typeof sub.taskProgress === "object") {
+            Object.entries(sub.taskProgress).forEach(([oldTaskId, progress]) => {
+              const newTaskId = idMapping[oldTaskId] || oldTaskId;
+              mappedTaskProgress[newTaskId] = {
+                ...progress,
+                taskId: newTaskId,
+                completedSamples: (progress.completedSamples || []).map(sid => idMapping[sid] || sid)
+              };
+            });
+          }
+          return {
+            ...sub,
+            id: sub.id || crypto.randomUUID(),
+            answers: mappedAnswers,
+            scores: mappedScores,
+            tasks: mappedTasks,
+            taskProgress: mappedTaskProgress
+          };
+        });
+        await setAppState(`submissions_${newProjectId}`, mappedSubmissions);
       }
     }
 
