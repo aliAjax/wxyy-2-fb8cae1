@@ -214,6 +214,132 @@ function renderGroupSection(group, samples) {
   `;
 }
 
+async function renderOverview() {
+  if (!state) return;
+
+  const projectId = window.ProjectManager?.getCurrentProjectId();
+  const project = window.ProjectManager?.getCurrentProjectSync?.();
+
+  const projectNameEl = $("#overviewProjectName");
+  if (projectNameEl && project) {
+    projectNameEl.textContent = project.name || "未命名项目";
+  }
+
+  let stats = null;
+  if (projectId && window.ProjectManager?.getProjectStats) {
+    try {
+      stats = await window.ProjectManager.getProjectStats(projectId);
+    } catch (e) {
+      console.warn("获取项目统计失败:", e);
+    }
+  }
+
+  const sampleCountEl = $("#overviewSampleCount");
+  const taskCountEl = $("#overviewTaskCount");
+  const pendingCountEl = $("#overviewPendingCount");
+  const recycleCountEl = $("#overviewRecycleCount");
+
+  if (sampleCountEl) sampleCountEl.textContent = stats?.sampleCount ?? state.samples.length;
+  if (taskCountEl) taskCountEl.textContent = stats?.taskCount ?? state.tasks.length;
+  if (pendingCountEl) pendingCountEl.textContent = stats?.pendingReviewCount ?? 0;
+  if (recycleCountEl) recycleCountEl.textContent = stats?.recycleCount ?? 0;
+
+  const lastUpdateEl = $("#overviewLastUpdate");
+  if (lastUpdateEl) {
+    const updateTime = stats?.lastUpdateTime || project?.updatedAt;
+    lastUpdateEl.textContent = updateTime ? formatDateTime(updateTime) : "暂无更新记录";
+  }
+
+  const backupStatusEl = $("#overviewBackupStatus");
+  if (backupStatusEl) {
+    const hasBackup = stats?.backupStatus?.hasBackup;
+    const backupTime = stats?.backupStatus?.lastBackupAt;
+    if (hasBackup && backupTime) {
+      backupStatusEl.innerHTML = `<span class="backup-status-indicator backed-up">✅ 已备份 · ${formatDateTime(backupTime)}</span>`;
+    } else {
+      backupStatusEl.innerHTML = `<span class="backup-status-indicator no-backup">⚠️ 尚未备份</span>`;
+    }
+  }
+
+  const createdAtEl = $("#overviewCreatedAt");
+  if (createdAtEl && project?.createdAt) {
+    createdAtEl.textContent = formatDateTime(project.createdAt);
+  }
+
+  const incEl = $("#overviewStatIncomplete");
+  const penEl = $("#overviewStatPending");
+  const conEl = $("#overviewStatConfirmed");
+  if (stats) {
+    if (incEl) incEl.textContent = stats.incompleteCount ?? 0;
+    if (penEl) penEl.textContent = stats.pendingReviewCount ?? 0;
+    if (conEl) conEl.textContent = stats.confirmedCount ?? 0;
+  } else if (window.ReviewModule) {
+    const { incomplete, pending, confirmed } = getReviewCounts();
+    if (incEl) incEl.textContent = incomplete;
+    if (penEl) penEl.textContent = pending;
+    if (conEl) conEl.textContent = confirmed;
+  }
+
+  const recentEl = $("#overviewRecentSamples");
+  if (recentEl) {
+    const recent = state.samples.slice(0, 6);
+    if (recent.length === 0) {
+      recentEl.innerHTML = '<p style="color: var(--muted); text-align: center; padding: 20px;">还没有样本，点击右上角"快速录入样本"开始</p>';
+    } else {
+      recentEl.innerHTML = recent.map(s => `
+        <div class="overview-recent-item" data-sample-id="${s.id}">
+          <div class="overview-recent-thumb">
+            ${s.photo ? `<img src="${s.photo}" alt="${s.code}">` : '<span class="no-photo-icon">📷</span>'}
+          </div>
+          <div class="overview-recent-info">
+            <h4>${escapeHtml(s.code)}</h4>
+            <p>${escapeHtml(s.location || "未记录地点")}</p>
+          </div>
+        </div>
+      `).join("");
+
+      recentEl.querySelectorAll(".overview-recent-item").forEach(item => {
+        item.addEventListener("click", () => {
+          const sampleId = item.dataset.sampleId;
+          switchTab("samples");
+          setTimeout(() => {
+            const card = document.querySelector(`[data-view="${sampleId}"]`);
+            if (card) card.scrollIntoView({ behavior: "smooth", block: "center" });
+          }, 100);
+        });
+      });
+    }
+  }
+
+  const statsGrid = $("#overviewStatsGrid");
+  if (statsGrid) {
+    statsGrid.querySelectorAll(".overview-stat-card").forEach(card => {
+      card.addEventListener("click", () => {
+        const goto = card.dataset.goto;
+        if (goto) switchTab(goto);
+      });
+    });
+  }
+
+  const quickEntryBtn = $("#overviewQuickEntryBtn");
+  if (quickEntryBtn) {
+    quickEntryBtn.onclick = () => switchTab("entry");
+  }
+
+  const viewAllBtn = $("#overviewViewAllBtn");
+  if (viewAllBtn) {
+    viewAllBtn.onclick = () => switchTab("samples");
+  }
+
+  const backupBtn = $("#overviewBackupBtn");
+  if (backupBtn) {
+    backupBtn.onclick = () => {
+      const btn = document.getElementById("backupBtn");
+      if (btn) btn.click();
+    };
+  }
+}
+
 function renderSamples() {
   const rows = filteredSamples();
   const emptyHTML = "<p style=\"grid-column:1/-1;text-align:center;padding:40px;color:var(--muted);\">还没有样本，先从左侧录入一张薄片照片。</p>";
@@ -277,6 +403,7 @@ function renderCompare() {
 function switchTab(tabName) {
   tabBtns.forEach((btn) => btn.classList.toggle("active", btn.dataset.tab === tabName));
   tabPanels.forEach((panel) => panel.classList.toggle("active", panel.id === `tab-${tabName}`));
+  if (tabName === "overview") renderOverview();
   if (tabName === "tasks") renderTasks();
   if (tabName === "review" && window.ReviewModule) {
     window.ReviewModule.renderReviewBoard();
@@ -1550,6 +1677,7 @@ function renderAll() {
   renderCompare();
   renderFilterViews();
   refreshGroupSelector();
+  if ($("#tab-overview").classList.contains("active")) renderOverview();
   if ($("#tab-tasks").classList.contains("active")) renderTasks();
   if ($("#tab-review").classList.contains("active") && window.ReviewModule) {
     window.ReviewModule.renderReviewBoard();
@@ -4532,6 +4660,9 @@ async function loadProjectDataAndUI() {
 
 async function reloadDataForProject() {
   try {
+    if (window.ProjectManager) {
+      await window.ProjectManager.refreshProjectsCache();
+    }
     if (window.DataManager) {
       await window.DataManager.reloadForProject();
     }
@@ -4547,6 +4678,9 @@ async function reloadDataForProject() {
       if ($("#tab-lesson").classList.contains("active")) renderLessonPage();
       if ($("#tab-grading").classList.contains("active")) renderGradingPage();
       if ($("#tab-recycle").classList.contains("active")) renderRecycleBin();
+    }
+    if (!projectSelector?.classList.contains("hidden")) {
+      await renderProjectList();
     }
   } catch (e) {
     console.error("切换项目失败:", e);
@@ -4650,23 +4784,90 @@ function toggleProjectDropdown() {
   }
 }
 
-function renderProjectDropdown() {
+async function renderProjectDropdown() {
   if (!projectDropdownList) return;
   const allProjects = window.ProjectManager?.getProjects?.() || [];
   const activeProjects = allProjects.filter(p => !p.isArchived);
   const currentId = window.ProjectManager?.getCurrentProjectId();
 
+  let currentStats = null;
+  if (currentId && window.ProjectManager?.getProjectStats) {
+    try {
+      currentStats = await window.ProjectManager.getProjectStats(currentId);
+    } catch (e) { console.warn(e); }
+  }
+
+  const projectStatsMap = {};
+  for (const p of activeProjects) {
+    try {
+      if (window.ProjectManager?.getProjectStats) {
+        projectStatsMap[p.id] = await window.ProjectManager.getProjectStats(p.id);
+      }
+    } catch (e) { console.warn(e); }
+  }
+
+  let currentStatsHTML = "";
+  if (currentStats) {
+    const backupText = currentStats.backupStatus?.hasBackup ? "✅ 已备份" : "⚠️ 未备份";
+    currentStatsHTML = `
+      <div class="dropdown-current-stats">
+        <div class="dropdown-stat-item" data-stat="samples" data-goto="samples" title="点击查看样本列表">
+          <span class="dropdown-stat-icon">📋</span>
+          <span class="dropdown-stat-value">${currentStats.sampleCount}</span>
+          <span class="dropdown-stat-label">样本</span>
+        </div>
+        <div class="dropdown-stat-item" data-stat="tasks" data-goto="tasks" title="点击查看任务列表">
+          <span class="dropdown-stat-icon">📝</span>
+          <span class="dropdown-stat-value">${currentStats.taskCount}</span>
+          <span class="dropdown-stat-label">任务</span>
+        </div>
+        <div class="dropdown-stat-item" data-stat="pending" data-goto="review" title="点击进入审核工作台">
+          <span class="dropdown-stat-icon">⏳</span>
+          <span class="dropdown-stat-value">${currentStats.pendingReviewCount}</span>
+          <span class="dropdown-stat-label">待复核</span>
+        </div>
+        <div class="dropdown-stat-item" data-stat="recycle" data-goto="recycle" title="点击查看回收站">
+          <span class="dropdown-stat-icon">🗑️</span>
+          <span class="dropdown-stat-value">${currentStats.recycleCount}</span>
+          <span class="dropdown-stat-label">已删除</span>
+        </div>
+      </div>
+      <div class="dropdown-stats-footer">
+        <span class="dropdown-stat-update">🕐 ${currentStats.lastUpdateTime ? formatDateTime(currentStats.lastUpdateTime) : "暂无更新"}</span>
+        <span class="dropdown-stat-backup">${backupText}</span>
+      </div>
+    `;
+  }
+
   let html = "";
   if (activeProjects.length === 0) {
     html = '<div style="padding: 14px; text-align: center; color: var(--muted); font-size: 13px;">暂无项目</div>';
   } else {
-    html = activeProjects.map(p => `
+    html = activeProjects.map(p => {
+      const stats = projectStatsMap[p.id];
+      const statSummary = stats ? `📋${stats.sampleCount} 📝${stats.taskCount}` : "";
+      return `
       <div class="dropdown-item ${p.id === currentId ? "active" : ""}" data-project-id="${p.id}">
-        <span>${p.name}</span>
+        <div class="dropdown-item-main">
+          <span class="dropdown-item-name">${p.name}</span>
+          <span class="dropdown-item-stats">${statSummary}</span>
+        </div>
       </div>
-    `).join("");
+    `;}).join("");
   }
-  projectDropdownList.innerHTML = html;
+
+  projectDropdownList.innerHTML = currentStatsHTML + '<div class="dropdown-divider"></div>' + html;
+
+  projectDropdownList.querySelectorAll(".dropdown-stat-item[data-goto]").forEach(item => {
+    item.addEventListener("click", (e) => {
+      e.stopPropagation();
+      const goto = item.dataset.goto;
+      if (goto) {
+        projectDropdown.classList.add("hidden");
+        switchTab(goto);
+      }
+    });
+  });
 
   projectDropdownList.querySelectorAll(".dropdown-item").forEach(item => {
     item.addEventListener("click", async () => {
@@ -4696,13 +4897,17 @@ async function renderProjectList() {
 
   const cards = [];
   for (const p of projects) {
-    let stats = { sampleCount: 0, taskCount: 0 };
+    let stats = { sampleCount: 0, taskCount: 0, pendingReviewCount: 0, recycleCount: 0, lastUpdateTime: null, backupStatus: { hasBackup: false, lastBackupAt: null } };
     try {
       if (window.ProjectManager?.getProjectStats) {
         stats = await window.ProjectManager.getProjectStats(p.id);
       }
     } catch (e) { console.warn(e); }
     const createdStr = p.createdAt ? formatDateTime(p.createdAt).split(" ")[0] : "";
+    const lastUpdateStr = stats.lastUpdateTime ? formatDateTime(stats.lastUpdateTime) : "暂无更新";
+    const backupText = stats.backupStatus?.hasBackup && stats.backupStatus?.lastBackupAt
+      ? `✅ 已备份 · ${formatDateTime(stats.backupStatus.lastBackupAt).split(" ")[0]}`
+      : "⚠️ 未备份";
     const classes = ["project-card"];
     if (p.id === "default-project") classes.push("default-project");
     if (p.isArchived) classes.push("archived");
@@ -4714,19 +4919,40 @@ async function renderProjectList() {
         </div>
         <p class="project-card-desc">${escapeHtml(p.description || "暂无描述")}</p>
         <div class="project-card-stats">
-          <span class="project-card-stat">📋 ${stats.sampleCount} 样本</span>
-          <span class="project-card-stat">📝 ${stats.taskCount} 任务</span>
+          <span class="project-card-stat" data-goto="samples" data-project-id="${p.id}" title="点击查看样本列表">📋 ${stats.sampleCount} 样本</span>
+          <span class="project-card-stat" data-goto="tasks" data-project-id="${p.id}" title="点击查看任务列表">📝 ${stats.taskCount} 任务</span>
+          <span class="project-card-stat stat-pending" data-goto="review" data-project-id="${p.id}" title="点击进入审核工作台">⏳ ${stats.pendingReviewCount} 待复核</span>
+          <span class="project-card-stat stat-recycle" data-goto="recycle" data-project-id="${p.id}" title="点击查看回收站">🗑️ ${stats.recycleCount} 已删除</span>
         </div>
-        <div class="project-card-meta">创建于 ${createdStr}</div>
+        <div class="project-card-footer">
+          <span class="project-card-update">🕐 更新: ${lastUpdateStr}</span>
+          <span class="project-card-backup ${stats.backupStatus?.hasBackup ? 'backed-up' : 'no-backup'}">${backupText}</span>
+        </div>
       </div>
     `);
   }
 
   projectGrid.innerHTML = cards.join("");
 
+  projectGrid.querySelectorAll(".project-card-stat[data-goto]").forEach(stat => {
+    stat.addEventListener("click", async (e) => {
+      e.stopPropagation();
+      const pid = stat.dataset.projectId;
+      const goto = stat.dataset.goto;
+      if (!pid || !goto) return;
+      try {
+        await window.ProjectManager.setCurrentProject(pid);
+        await loadProjectDataAndUI();
+        switchTab(goto);
+      } catch (err) {
+        alert("打开项目失败：" + err.message);
+      }
+    });
+  });
+
   projectGrid.querySelectorAll(".project-card").forEach(card => {
     card.addEventListener("click", async (e) => {
-      if (e.target.closest("[data-project-menu]")) return;
+      if (e.target.closest("[data-project-menu]") || e.target.closest("[data-goto]")) return;
       const pid = card.dataset.projectId;
       try {
         await window.ProjectManager.setCurrentProject(pid);
@@ -4881,7 +5107,7 @@ async function renderManagerList() {
 
   const rows = [];
   for (const p of projects) {
-    let stats = { sampleCount: 0, taskCount: 0 };
+    let stats = { sampleCount: 0, taskCount: 0, pendingReviewCount: 0, recycleCount: 0, lastUpdateTime: null, backupStatus: { hasBackup: false, lastBackupAt: null } };
     try {
       if (window.ProjectManager?.getProjectStats) {
         stats = await window.ProjectManager.getProjectStats(p.id);
@@ -4891,7 +5117,10 @@ async function renderManagerList() {
     const badges = [];
     if (isDefault) badges.push('<span class="manager-row-badge default-badge">默认</span>');
     if (p.isArchived) badges.push('<span class="manager-row-badge archived-badge">已归档</span>');
-    const updatedStr = p.updatedAt ? formatDateTime(p.updatedAt) : "-";
+    const updatedStr = stats.lastUpdateTime ? formatDateTime(stats.lastUpdateTime) : (p.updatedAt ? formatDateTime(p.updatedAt) : "-");
+    const backupText = stats.backupStatus?.hasBackup && stats.backupStatus?.lastBackupAt
+      ? '<span class="manager-row-backup backed-up">✅ 已备份</span>'
+      : '<span class="manager-row-backup no-backup">⚠️ 未备份</span>';
     rows.push(`
       <div class="manager-row ${p.isArchived ? "archived" : ""}">
         <div class="manager-row-info">
@@ -4901,9 +5130,12 @@ async function renderManagerList() {
           </div>
           <div class="manager-row-desc">${escapeHtml(p.description || "暂无描述")}</div>
           <div class="manager-row-meta">
-            <span>${stats.sampleCount} 样本</span>
-            <span>${stats.taskCount} 任务</span>
-            <span>更新于 ${updatedStr}</span>
+            <span>📋 ${stats.sampleCount} 样本</span>
+            <span>📝 ${stats.taskCount} 任务</span>
+            <span>⏳ ${stats.pendingReviewCount} 待复核</span>
+            <span>🗑️ ${stats.recycleCount} 已删除</span>
+            <span>🕐 更新于 ${updatedStr}</span>
+            ${backupText}
           </div>
         </div>
         <div class="manager-row-actions">

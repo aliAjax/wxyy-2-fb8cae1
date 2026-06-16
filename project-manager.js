@@ -213,6 +213,12 @@
     link.click();
     URL.revokeObjectURL(link.href);
 
+    try {
+      await updateLastBackupTime(projectId);
+    } catch (e) {
+      console.warn("更新备份时间失败:", e);
+    }
+
     return { filename, data };
   }
 
@@ -301,11 +307,25 @@
     };
   }
 
+  function calculateReviewStatus(sample) {
+    if (!sample) return "incomplete";
+    if (sample.reviewStatus) return sample.reviewStatus;
+    let filled = 0;
+    let total = 4;
+    if (sample.photo || sample.hasPhoto) filled++;
+    if (sample.minerals && sample.minerals.trim()) filled++;
+    if (sample.texture && sample.texture.trim()) filled++;
+    if (sample.comment && sample.comment.trim()) filled++;
+    const percent = Math.round((filled / total) * 100);
+    return percent < 60 ? "incomplete" : "pending";
+  }
+
   async function getProjectStats(projectId) {
     const samples = await window.StorageLayer.SampleStore.getAll(projectId);
     const tasks = await window.StorageLayer.TaskStore.getAll(projectId);
     const compare = await window.StorageLayer.AppStateStore.getCompareList(projectId);
     const recycleItems = await window.StorageLayer.RecycleStore.getAll(projectId);
+    const project = await window.StorageLayer.ProjectStore.getById(projectId);
     let answerCount = 0;
     try {
       if (window.StorageLayer.AnswerStore) {
@@ -314,14 +334,56 @@
       }
     } catch (e) {}
 
+    let pendingReviewCount = 0;
+    let incompleteCount = 0;
+    let confirmedCount = 0;
+    let lastSampleUpdate = null;
+    samples.forEach(sample => {
+      const status = calculateReviewStatus(sample);
+      if (status === "pending") {
+        pendingReviewCount++;
+      } else if (status === "incomplete") {
+        incompleteCount++;
+      } else if (status === "confirmed") {
+        confirmedCount++;
+      }
+      if (sample.updatedAt) {
+        const t = new Date(sample.updatedAt).getTime();
+        if (!lastSampleUpdate || t > lastSampleUpdate) {
+          lastSampleUpdate = t;
+        }
+      }
+    });
+
+    const projectUpdatedAt = project?.updatedAt ? new Date(project.updatedAt).getTime() : 0;
+    const lastBackupAt = project?.meta?.lastBackupAt || null;
+    const latestUpdateTime = Math.max(projectUpdatedAt, lastSampleUpdate || 0);
+
     return {
       sampleCount: samples.length,
       taskCount: tasks.length,
-      compareCount: compare.length,
+      pendingReviewCount,
+      incompleteCount,
+      confirmedCount,
       recycleCount: recycleItems.length,
+      compareCount: compare.length,
       photosCount: samples.filter(s => s.photo || s.hasPhoto).length,
-      answerCount
+      answerCount,
+      lastUpdateTime: latestUpdateTime ? new Date(latestUpdateTime).toISOString() : null,
+      backupStatus: {
+        hasBackup: !!lastBackupAt,
+        lastBackupAt: lastBackupAt
+      }
     };
+  }
+
+  async function updateLastBackupTime(projectId) {
+    const project = await window.StorageLayer.ProjectStore.getById(projectId);
+    if (!project) return null;
+    const meta = { ...(project.meta || {}), lastBackupAt: new Date().toISOString() };
+    const updated = await window.StorageLayer.ProjectStore.update(projectId, { meta });
+    await refreshProjectsCache();
+    return updated;
   }
 
   global.ProjectManager = {
@@ -346,6 +408,8 @@
     downloadProjectBackup,
     importProjectBackup,
     getProjectStats,
+    calculateReviewStatus,
+    updateLastBackupTime,
     ensureDefaultProject
   };
 

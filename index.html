@@ -72,7 +72,8 @@
     </header>
 
     <nav class="tabs">
-      <button class="tab-btn active" data-tab="entry">样本录入</button>
+      <button class="tab-btn active" data-tab="overview">项目概览</button>
+      <button class="tab-btn" data-tab="entry">样本录入</button>
       <button class="tab-btn" data-tab="samples">样本列表</button>
       <button class="tab-btn" data-tab="review">审核工作台</button>
       <button class="tab-btn" data-tab="tasks">观察任务</button>
@@ -81,7 +82,105 @@
       <button class="tab-btn" data-tab="recycle">回收站</button>
     </nav>
 
-    <section id="tab-entry" class="tab-panel active">
+    <section id="tab-overview" class="tab-panel active">
+      <section class="overview-layout">
+        <section class="board full overview-board">
+          <div class="overview-header">
+            <div>
+              <h2>项目概览</h2>
+              <p class="overview-subtitle" id="overviewProjectName">默认项目</p>
+            </div>
+            <div class="overview-actions">
+              <button type="button" id="overviewBackupBtn" class="ghost">📦 数据备份</button>
+              <button type="button" id="overviewQuickEntryBtn" class="primary">➕ 快速录入样本</button>
+            </div>
+          </div>
+
+          <div class="overview-stats-grid" id="overviewStatsGrid">
+            <div class="overview-stat-card" data-goto="samples">
+              <div class="overview-stat-icon">📋</div>
+              <div class="overview-stat-content">
+                <span class="overview-stat-value" id="overviewSampleCount">0</span>
+                <span class="overview-stat-label">样本总数</span>
+              </div>
+              <span class="overview-stat-arrow">→</span>
+            </div>
+            <div class="overview-stat-card" data-goto="tasks">
+              <div class="overview-stat-icon">📝</div>
+              <div class="overview-stat-content">
+                <span class="overview-stat-value" id="overviewTaskCount">0</span>
+                <span class="overview-stat-label">观察任务</span>
+              </div>
+              <span class="overview-stat-arrow">→</span>
+            </div>
+            <div class="overview-stat-card stat-pending" data-goto="review">
+              <div class="overview-stat-icon">⏳</div>
+              <div class="overview-stat-content">
+                <span class="overview-stat-value" id="overviewPendingCount">0</span>
+                <span class="overview-stat-label">待复核</span>
+              </div>
+              <span class="overview-stat-arrow">→</span>
+            </div>
+            <div class="overview-stat-card stat-recycle" data-goto="recycle">
+              <div class="overview-stat-icon">🗑️</div>
+              <div class="overview-stat-content">
+                <span class="overview-stat-value" id="overviewRecycleCount">0</span>
+                <span class="overview-stat-label">已删除样本</span>
+              </div>
+              <span class="overview-stat-arrow">→</span>
+            </div>
+          </div>
+
+          <div class="overview-info-row">
+            <div class="overview-info-card">
+              <h3>最近更新</h3>
+              <p id="overviewLastUpdate">暂无更新记录</p>
+            </div>
+            <div class="overview-info-card">
+              <h3>备份状态</h3>
+              <p id="overviewBackupStatus">
+                <span class="backup-status-indicator no-backup">⚠️ 未备份</span>
+              </p>
+            </div>
+            <div class="overview-info-card">
+              <h3>创建时间</h3>
+              <p id="overviewCreatedAt">-</p>
+            </div>
+          </div>
+
+          <div class="overview-sections">
+            <div class="overview-section">
+              <div class="overview-section-header">
+                <h3>📊 审核进度</h3>
+              </div>
+              <div class="review-stats overview-review-stats">
+                <div class="review-stat-card incomplete">
+                  <span class="stat-num" id="overviewStatIncomplete">0</span>
+                  <span class="stat-label">未完善</span>
+                </div>
+                <div class="review-stat-card pending">
+                  <span class="stat-num" id="overviewStatPending">0</span>
+                  <span class="stat-label">待复核</span>
+                </div>
+                <div class="review-stat-card confirmed">
+                  <span class="stat-num" id="overviewStatConfirmed">0</span>
+                  <span class="stat-label">已确认</span>
+                </div>
+              </div>
+            </div>
+            <div class="overview-section">
+              <div class="overview-section-header">
+                <h3>🕐 最近录入</h3>
+                <button type="button" class="ghost small" id="overviewViewAllBtn">查看全部 →</button>
+              </div>
+              <div id="overviewRecentSamples" class="overview-recent-samples"></div>
+            </div>
+          </div>
+        </section>
+      </section>
+    </section>
+
+    <section id="tab-entry" class="tab-panel">
       <section class="layout layout-entry">
         <form id="sampleForm" class="editor">
           <h2>样本录入</h2>

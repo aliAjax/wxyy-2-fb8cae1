@@ -75,6 +75,17 @@
     link.click();
     URL.revokeObjectURL(link.href);
 
+    if (window.ProjectManager && window.ProjectManager.updateLastBackupTime) {
+      const projectId = window.ProjectManager.getCurrentProjectId();
+      if (projectId) {
+        try {
+          await window.ProjectManager.updateLastBackupTime(projectId);
+        } catch (e) {
+          console.warn("更新备份时间失败:", e);
+        }
+      }
+    }
+
     return backup;
   }
 
