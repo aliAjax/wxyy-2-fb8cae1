@@ -3,6 +3,410 @@
 
   const BACKUP_FORMAT_VERSION = 3;
 
+  async function computeContentHash(data) {
+    try {
+      const stableStr = JSON.stringify(data, Object.keys(data).sort());
+      let hash = 0;
+      for (let i = 0; i < stableStr.length; i++) {
+        const char = stableStr.charCodeAt(i);
+        hash = ((hash << 5) - hash) + char;
+        hash = hash & hash;
+      }
+      if (window.crypto && window.crypto.subtle && window.crypto.subtle.digest) {
+        try {
+          const encoder = new TextEncoder();
+          const buffer = encoder.encode(stableStr);
+          const hashBuffer = await window.crypto.subtle.digest("SHA-1", buffer);
+          const hashArray = Array.from(new Uint8Array(hashBuffer));
+          return hashArray.map(b => b.toString(16).padStart(2, "0")).join("");
+        } catch (e) {}
+      }
+      return Math.abs(hash).toString(16);
+    } catch (e) {
+      return "unknown";
+    }
+  }
+
+  function normalizeBackupData(data) {
+    if (!data) return null;
+
+    const isProjectBackup = data.format === "wxyy-thin-section-project-backup" && data.project;
+    const isFullBackup = data.format === "wxyy-thin-section-full-backup" && data.projects;
+    const isLegacyFormat = Array.isArray(data) || (data.samples && !data.format);
+
+    if (isLegacyFormat) {
+      const normalized = normalizeLegacyFormat(data);
+      return {
+        format: "wxyy-thin-section-backup",
+        version: 0,
+        isLegacy: true,
+        ...normalized
+      };
+    }
+
+    return data;
+  }
+
+  function getBackupFormatInfo(data) {
+    if (!data) return { type: "invalid" };
+    if (data.project && data.format === "wxyy-thin-section-project-backup") {
+      return { type: "project", project: data.project };
+    }
+    if (data.projects && data.format === "wxyy-thin-section-full-backup") {
+      return { type: "full", projectCount: data.projects.length };
+    }
+    if (Array.isArray(data) || (data.samples && !data.format)) {
+      return { type: "legacy" };
+    }
+    if (data.format === "wxyy-thin-section-backup" || data.samples) {
+      return { type: "standard" };
+    }
+    return { type: "unknown" };
+  }
+
+  function getLessonPackageInfo(data) {
+    const lessonTasks = [];
+    const gradingSubmissions = [];
+
+    if (data.tasks && Array.isArray(data.tasks)) {
+      data.tasks.forEach(t => {
+        if (t.lessonPackageId) {
+          lessonTasks.push({
+            id: t.id,
+            lessonPackageId: t.lessonPackageId,
+            title: t.title || t.name,
+            sampleCount: (t.sampleIds || []).length
+          });
+        }
+      });
+    }
+
+    if (data.project && data.projects) {
+      data.projects.forEach(p => {
+        if (p.tasks) {
+          p.tasks.forEach(t => {
+            if (t.lessonPackageId) {
+              lessonTasks.push({
+                projectName: p.project?.name,
+                id: t.id,
+                lessonPackageId: t.lessonPackageId,
+                title: t.title || t.name,
+                sampleCount: (t.sampleIds || []).length
+              });
+            }
+          });
+        }
+      });
+    }
+
+    if (data.studentAnswers && Array.isArray(data.studentAnswers)) {
+      gradingSubmissions.push(...data.studentAnswers);
+    }
+
+    const lessonGrading = data.lessonGrading || {};
+    const rubricCount = (lessonGrading.rubrics || []).length;
+    const submissionCount = (lessonGrading.submissions || []).length;
+    const lessonMetaCount = Object.keys(lessonGrading.lessonMetas || {}).length;
+
+    return {
+      lessonTaskCount: lessonTasks.length,
+      lessonTasks,
+      gradingSubmissionCount: gradingSubmissions.length,
+      rubricCount,
+      submissionCount,
+      lessonMetaCount
+    };
+  }
+
+  async function analyzeBackupForPreview(fileOrData) {
+    let data;
+    let fileName = null;
+
+    if (fileOrData instanceof File) {
+      fileName = fileOrData.name;
+      data = await new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = (e) => {
+          try {
+            resolve(JSON.parse(e.target.result));
+          } catch (err) {
+            reject(new Error("文件格式错误，不是有效的 JSON"));
+          }
+        };
+        reader.onerror = () => reject(new Error("文件读取失败"));
+        reader.readAsText(fileOrData, "UTF-8");
+      });
+    } else {
+      data = fileOrData;
+    }
+
+    const normalized = normalizeBackupData(data);
+    const formatInfo = getBackupFormatInfo(data);
+
+    if (formatInfo.type === "invalid" || formatInfo.type === "unknown") {
+      throw new Error("无效的备份文件格式");
+    }
+
+    const summary = getBackupSummary(data);
+    const lessonInfo = getLessonPackageInfo(normalized);
+    const contentHash = await computeContentHash(normalized);
+
+    const sampleCodes = [];
+    const duplicateSampleCodes = [];
+    const codeCount = new Map();
+
+    if (normalized.samples && Array.isArray(normalized.samples)) {
+      normalized.samples.forEach(s => {
+        if (s.code) {
+          sampleCodes.push(s.code);
+          codeCount.set(s.code, (codeCount.get(s.code) || 0) + 1);
+        }
+      });
+    }
+
+    if (normalized.projects && Array.isArray(normalized.projects)) {
+      normalized.projects.forEach(p => {
+        if (p.samples && Array.isArray(p.samples)) {
+          p.samples.forEach(s => {
+            if (s.code) {
+              sampleCodes.push(s.code);
+              codeCount.set(s.code, (codeCount.get(s.code) || 0) + 1);
+            }
+          });
+        }
+      });
+    }
+
+    codeCount.forEach((count, code) => {
+      if (count > 1) {
+        duplicateSampleCodes.push({ code, count });
+      }
+    });
+
+    let currentProjectNames = [];
+    try {
+      if (window.ProjectManager && window.ProjectManager.getProjects) {
+        currentProjectNames = window.ProjectManager.getProjects().map(p => p.name);
+      } else if (window.StorageLayer && window.StorageLayer.ProjectStore) {
+        const allProjects = await window.StorageLayer.ProjectStore.getAll(true);
+        currentProjectNames = allProjects.map(p => p.name);
+      }
+    } catch (e) {}
+
+    const risks = [];
+    const warnings = [];
+
+    if (normalized.version && normalized.version > BACKUP_FORMAT_VERSION) {
+      risks.push({
+        type: "version_too_high",
+        severity: "error",
+        title: "备份版本过高",
+        message: `该备份文件版本为 v${normalized.version}，当前应用仅支持到 v${BACKUP_FORMAT_VERSION}，请更新应用后再尝试恢复。`
+      });
+    }
+
+    if (data.contentHash && data.contentHash !== contentHash) {
+      risks.push({
+        type: "hash_mismatch",
+        severity: "warning",
+        title: "内容哈希异常",
+        message: "备份文件内容与记录的哈希值不一致，文件可能已损坏或被篡改。建议谨慎恢复。"
+      });
+    }
+
+    if (duplicateSampleCodes.length > 0) {
+      warnings.push({
+        type: "duplicate_sample_codes",
+        severity: "warning",
+        title: "样本编号重复",
+        message: `备份中存在 ${duplicateSampleCodes.length} 组重复的样本编号：${duplicateSampleCodes.map(d => `${d.code}(${d.count}次)`).join("、")}。导入后可能需要手动处理。`,
+        details: duplicateSampleCodes
+      });
+    }
+
+    let conflictingProjects = [];
+    if (formatInfo.type === "project" && formatInfo.project) {
+      const projectName = formatInfo.project.name;
+      if (currentProjectNames.includes(projectName)) {
+        conflictingProjects.push(projectName);
+        risks.push({
+          type: "project_name_conflict",
+          severity: "warning",
+          title: "项目名称冲突",
+          message: `已存在同名项目「${projectName}」，需要选择新建、重命名或覆盖策略。`,
+          projectName
+        });
+      }
+    } else if (formatInfo.type === "full" && normalized.projects) {
+      normalized.projects.forEach(p => {
+        const pName = p.project?.name;
+        if (pName && currentProjectNames.includes(pName)) {
+          conflictingProjects.push(pName);
+        }
+      });
+      if (conflictingProjects.length > 0) {
+        risks.push({
+          type: "project_name_conflict",
+          severity: "warning",
+          title: "项目名称冲突",
+          message: `有 ${conflictingProjects.length} 个项目名称与现有项目冲突：${conflictingProjects.join("、")}。导入时将自动重命名。`,
+          projectNames: conflictingProjects
+        });
+      }
+    }
+
+    if (normalized.isLegacy) {
+      warnings.push({
+        type: "legacy_format",
+        severity: "info",
+        title: "旧版备份格式",
+        message: "该备份文件为旧版格式，将自动转换后导入。部分高级功能数据可能不完整。"
+      });
+    }
+
+    return {
+      fileName,
+      formatInfo,
+      summary,
+      lessonInfo,
+      contentHash,
+      sampleCodes,
+      duplicateSampleCodes,
+      conflictingProjects,
+      currentProjectNames,
+      risks,
+      warnings,
+      normalizedData: normalized,
+      rawData: data,
+      hasErrors: risks.some(r => r.severity === "error"),
+      hasWarnings: risks.length > 0 || warnings.length > 0
+    };
+  }
+
+  async function importBackupWithStrategy(file, strategy, options = {}) {
+    const { renameProject = null, overwriteProjectId = null, onProgress = null } = options;
+
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+
+      reader.onload = async (e) => {
+        try {
+          const data = JSON.parse(e.target.result);
+          const normalized = normalizeBackupData(data);
+
+          if (onProgress) onProgress(0.1, "验证数据格式");
+
+          if (normalized.version && normalized.version > BACKUP_FORMAT_VERSION) {
+            throw new Error(`备份文件版本过高 (v${normalized.version})，请更新应用`);
+          }
+
+          const formatInfo = getBackupFormatInfo(data);
+          let result;
+
+          if (formatInfo.type === "project") {
+            if (strategy === "overwrite" && overwriteProjectId) {
+              if (onProgress) onProgress(0.15, "删除同名项目数据");
+              try {
+                if (window.ProjectManager && window.ProjectManager.deleteProject) {
+                  await window.ProjectManager.deleteProject(overwriteProjectId);
+                } else if (window.StorageLayer && window.StorageLayer.ProjectStore) {
+                  await window.StorageLayer.ProjectStore.remove(overwriteProjectId);
+                }
+              } catch (e) {
+                console.warn("删除旧项目失败，将继续导入:", e);
+              }
+            }
+
+            const importOptions = {};
+            if (strategy === "rename" && renameProject) {
+              importOptions.renameProject = renameProject;
+            }
+
+            if (onProgress) onProgress(0.3, "导入项目数据");
+            result = await window.StorageLayer.importProjectData(data, importOptions);
+
+            if (window.ProjectManager && window.ProjectManager.refreshProjectsCache) {
+              await window.ProjectManager.refreshProjectsCache();
+            }
+
+            if (onProgress) onProgress(1.0, "导入完成");
+            resolve({
+              success: true,
+              sampleCount: result.sampleCount,
+              taskCount: result.taskCount,
+              project: result.project,
+              strategy,
+              renamedTo: strategy === "rename" ? renameProject : null
+            });
+            return;
+          }
+
+          if (formatInfo.type === "full" && data.projects) {
+            const totalProjects = data.projects.length;
+            for (let i = 0; i < totalProjects; i++) {
+              if (onProgress) onProgress(0.2 + (i / totalProjects) * 0.7, `导入项目 ${i + 1}/${totalProjects}`);
+              const projData = data.projects[i];
+              const projName = projData.project?.name;
+              let importOptions = {};
+
+              if (projName && options.conflictingProjectNames?.includes(projName)) {
+                if (strategy === "overwrite") {
+                  const existingProject = (window.ProjectManager?.getProjects?.() || []).find(p => p.name === projName);
+                  if (existingProject) {
+                    try {
+                      if (window.ProjectManager?.deleteProject) {
+                        await window.ProjectManager.deleteProject(existingProject.id);
+                      }
+                    } catch (e) {}
+                  }
+                } else if (strategy === "rename") {
+                  importOptions.renameProject = `${projName} (导入-${new Date().toLocaleDateString()})`;
+                }
+              }
+
+              await window.StorageLayer.importProjectData(projData, importOptions);
+            }
+            if (window.ProjectManager?.refreshProjectsCache) {
+              await window.ProjectManager.refreshProjectsCache();
+            }
+            if (onProgress) onProgress(1.0, "导入完成");
+            resolve({
+              success: true,
+              projectCount: totalProjects,
+              strategy
+            });
+            return;
+          }
+
+          if (window.ProjectManager) {
+            const customName = strategy === "rename" ? renameProject : null;
+            if (onProgress) onProgress(0.3, "导入为新项目");
+            result = await importAsNewProject(normalized, customName);
+            if (onProgress) onProgress(1.0, "导入完成");
+            resolve({ ...result, strategy });
+            return;
+          }
+
+          if (onProgress) onProgress(0.4, "准备导入数据");
+          await window.StorageLayer.importAllData(normalized, { merge: strategy === "merge" });
+          if (onProgress) onProgress(1.0, "导入完成");
+          resolve({
+            success: true,
+            sampleCount: normalized.samples?.length || 0,
+            taskCount: normalized.tasks?.length || 0,
+            strategy
+          });
+
+        } catch (err) {
+          reject(err);
+        }
+      };
+
+      reader.onerror = () => reject(new Error("文件读取失败"));
+      reader.readAsText(file, "UTF-8");
+    });
+  }
+
   async function exportBackup(options = {}) {
     const { includePhotos = true, includeHistory = true } = options;
 
@@ -519,7 +923,13 @@
     importBackupFile,
     validateAndImport,
     getBackupSummary,
-    getStorageStats
+    getStorageStats,
+    computeContentHash,
+    normalizeBackupData,
+    getBackupFormatInfo,
+    getLessonPackageInfo,
+    analyzeBackupForPreview,
+    importBackupWithStrategy
   };
 
 })(window);

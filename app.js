@@ -84,6 +84,34 @@ let editingTaskId = null;
 let selectedTaskId = null;
 let pickerSelectedIds = new Set();
 
+let currentRestorePreviewData = null;
+let currentRestoreFile = null;
+const restoreCheckOverlay = $("#restoreCheckOverlay");
+const restoreCheckSubtitle = $("#restoreCheckSubtitle");
+const restoreCheckCloseBtn = $("#restoreCheckCloseBtn");
+const restoreCheckLoading = $("#restoreCheckLoading");
+const restoreCheckContent = $("#restoreCheckContent");
+const restoreCheckError = $("#restoreCheckError");
+const restoreCheckErrorMessage = $("#restoreCheckErrorMessage");
+const restoreSummaryGrid = $("#restoreSummaryGrid");
+const restoreLessonSection = $("#restoreLessonSection");
+const restoreLessonGrid = $("#restoreLessonGrid");
+const restoreRiskSection = $("#restoreRiskSection");
+const restoreRiskList = $("#restoreRiskList");
+const restoreStrategySection = $("#restoreStrategySection");
+const restoreRenameInput = $("#restoreRenameInput");
+const restoreRenameProjectName = $("#restoreRenameProjectName");
+const restoreOverwriteWarning = $("#restoreOverwriteWarning");
+const overwriteTargetName = $("#overwriteTargetName");
+const overwriteStrategyCard = $("#overwriteStrategyCard");
+const restoreProgressSection = $("#restoreProgressSection");
+const restoreProgressText = $("#restoreProgressText");
+const restoreProgressPercent = $("#restoreProgressPercent");
+const restoreProgressFill = $("#restoreProgressFill");
+const restoreCheckFooter = $("#restoreCheckFooter");
+const restoreCheckCancelBtn = $("#restoreCheckCancelBtn");
+const restoreCheckConfirmBtn = $("#restoreCheckConfirmBtn");
+
 function readFileAsDataUrl(file) {
   return new Promise((resolve) => {
     if (!file) return resolve("");
@@ -4441,54 +4469,11 @@ function initBackupRestoreUI() {
     restoreFileInput?.click();
   });
 
-  restoreFileInput?.addEventListener("change", async (e) => {
+  restoreFileInput?.addEventListener("change", (e) => {
     const file = e.target.files?.[0];
+    e.target.value = "";
     if (!file) return;
-
-    if (!confirm(`确定要导入备份文件「${file.name}」吗？\n这将覆盖当前所有数据！`)) {
-      e.target.value = "";
-      return;
-    }
-
-    try {
-      restoreBtn.disabled = true;
-      restoreBtn.textContent = "恢复中...";
-
-      const result = await window.BackupRestore.importBackupFile(file, { merge: false });
-
-      if (window.ProjectManager && window.ProjectManager.refreshProjectsCache) {
-        await window.ProjectManager.refreshProjectsCache();
-      }
-      if (window.ProjectManager && window.ProjectManager.getCurrentProjectId) {
-        const pid = window.ProjectManager.getCurrentProjectId();
-        if (pid) {
-          await window.DataManager.reloadForProject();
-          state = window.DataManager.getState();
-        }
-      } else {
-        await window.DataManager.reload();
-        state = window.DataManager.getState();
-      }
-
-      updateHeaderProjectName();
-      await renderProjectList();
-      renderAll();
-
-      if (result.project) {
-        alert(`恢复成功！\n导入了项目「${result.project.name}」\n包含 ${result.sampleCount || 0} 个样本、${result.taskCount || 0} 个任务`);
-      } else if (result.projectCount) {
-        alert(`恢复成功！\n导入了 ${result.projectCount} 个项目`);
-      } else {
-        alert(`恢复成功！\n导入了 ${result.sampleCount || 0} 个样本、${result.taskCount || 0} 个任务`);
-      }
-    } catch (err) {
-      console.error("恢复失败:", err);
-      alert("恢复失败：" + err.message);
-    } finally {
-      restoreBtn.disabled = false;
-      restoreBtn.textContent = "数据恢复";
-      e.target.value = "";
-    }
+    openRestoreCheckModal(file);
   });
 }
 
@@ -4629,6 +4614,7 @@ async function loadProjectDataAndUI() {
     }
 
     initBackupRestoreUI();
+    initRestoreCheckModalEvents();
     initLessonUI();
     initEntryAssistant();
 
@@ -5073,15 +5059,446 @@ async function handleProjectAction(projectId, action) {
   }
 }
 
+function openRestoreCheckModal(file) {
+  if (!file) return;
+  currentRestoreFile = file;
+  currentRestorePreviewData = null;
+
+  restoreCheckOverlay?.classList.remove("hidden");
+  document.body.style.overflow = "hidden";
+
+  restoreCheckLoading?.classList.remove("hidden");
+  restoreCheckContent?.classList.add("hidden");
+  restoreCheckError?.classList.add("hidden");
+  restoreProgressSection?.classList.add("hidden");
+  restoreCheckFooter?.classList.remove("hidden");
+  restoreCheckConfirmBtn.disabled = true;
+  restoreCheckConfirmBtn.textContent = "确认导入";
+  restoreCheckCancelBtn.disabled = false;
+
+  if (restoreCheckSubtitle) {
+    restoreCheckSubtitle.textContent = `文件：${file.name}（${(file.size / 1024).toFixed(1)} KB）`;
+  }
+
+  setTimeout(() => analyzeAndRenderRestorePreview(file), 100);
+}
+
+function closeRestoreCheckModal() {
+  restoreCheckOverlay?.classList.add("hidden");
+  document.body.style.overflow = "";
+  currentRestoreFile = null;
+  currentRestorePreviewData = null;
+}
+
+async function analyzeAndRenderRestorePreview(file) {
+  try {
+    const preview = await window.BackupRestore.analyzeBackupForPreview(file);
+    currentRestorePreviewData = preview;
+
+    restoreCheckLoading?.classList.add("hidden");
+    restoreCheckContent?.classList.remove("hidden");
+
+    renderRestoreSummary(preview);
+    renderRestoreLessonInfo(preview);
+    renderRestoreRisks(preview);
+    setupRestoreStrategyOptions(preview);
+
+    if (!preview.hasErrors) {
+      restoreCheckConfirmBtn.disabled = false;
+    }
+  } catch (e) {
+    restoreCheckLoading?.classList.add("hidden");
+    restoreCheckError?.classList.remove("hidden");
+    if (restoreCheckErrorMessage) {
+      restoreCheckErrorMessage.textContent = e.message || "未知错误";
+    }
+  }
+}
+
+function renderRestoreSummary(preview) {
+  if (!restoreSummaryGrid) return;
+
+  const s = preview.summary;
+  const fi = preview.formatInfo;
+  const items = [];
+
+  if (fi.type === "project" || s.isProjectBackup) {
+    items.push({
+      icon: "📁",
+      label: "项目名称",
+      value: s.projectName || fi.project?.name || "未命名项目"
+    });
+    if (s.projectDescription) {
+      items.push({
+        icon: "📝",
+        label: "项目描述",
+        value: s.projectDescription
+      });
+    }
+  } else if (fi.type === "full" || s.isFullBackup) {
+    items.push({
+      icon: "🗂️",
+      label: "项目数量",
+      value: `${s.projectCount || fi.projectCount || 0} 个项目`
+    });
+  }
+
+  items.push({
+    icon: "🧪",
+    label: "样本数",
+    value: `${s.sampleCount || 0} 个`
+  });
+
+  items.push({
+    icon: "📋",
+    label: "任务数",
+    value: `${s.taskCount || 0} 个`
+  });
+
+  if (s.photosCount != null) {
+    items.push({
+      icon: "🖼️",
+      label: "照片数",
+      value: `${s.photosCount} 张`
+    });
+  }
+
+  if (s.annotationsCount != null) {
+    items.push({
+      icon: "✏️",
+      label: "标注数",
+      value: `${s.annotationsCount} 条`
+    });
+  }
+
+  if (s.versionHistoryCount != null) {
+    items.push({
+      icon: "🕒",
+      label: "版本历史",
+      value: `${s.versionHistoryCount} 条记录`
+    });
+  }
+
+  if (s.recycleBinCount != null) {
+    items.push({
+      icon: "🗑️",
+      label: "回收站",
+      value: `${s.recycleBinCount} 条`
+    });
+  }
+
+  if (s.createdAt) {
+    items.push({
+      icon: "📅",
+      label: "备份时间",
+      value: formatDateTime(s.createdAt)
+    });
+  }
+
+  if (s.version != null) {
+    items.push({
+      icon: "🏷️",
+      label: "备份格式版本",
+      value: `v${s.version}`
+    });
+  } else if (preview.normalizedData?.isLegacy) {
+    items.push({
+      icon: "🏷️",
+      label: "备份格式版本",
+      value: "旧版格式"
+    });
+  }
+
+  if (preview.contentHash) {
+    items.push({
+      icon: "🔐",
+      label: "内容哈希",
+      value: preview.contentHash.substring(0, 16) + "..."
+    });
+  }
+
+  restoreSummaryGrid.innerHTML = items.map(it => `
+    <div class="restore-summary-item">
+      <span class="restore-summary-icon">${it.icon}</span>
+      <div class="restore-summary-text">
+        <span class="restore-summary-label">${it.label}</span>
+        <span class="restore-summary-value">${escapeHtml(String(it.value))}</span>
+      </div>
+    </div>
+  `).join("");
+}
+
+function renderRestoreLessonInfo(preview) {
+  if (!restoreLessonSection || !restoreLessonGrid) return;
+
+  const li = preview.lessonInfo;
+  if (!li || (li.lessonTaskCount === 0 && li.gradingSubmissionCount === 0 && li.rubricCount === 0 && li.submissionCount === 0 && li.lessonMetaCount === 0)) {
+    restoreLessonSection.classList.add("hidden");
+    return;
+  }
+
+  restoreLessonSection.classList.remove("hidden");
+  const items = [];
+
+  if (li.lessonTaskCount > 0) {
+    items.push({
+      icon: "📚",
+      label: "课堂任务",
+      value: `${li.lessonTaskCount} 个`
+    });
+  }
+
+  if (li.lessonMetaCount > 0) {
+    items.push({
+      icon: "📦",
+      label: "课堂包",
+      value: `${li.lessonMetaCount} 个`
+    });
+  }
+
+  if (li.rubricCount > 0) {
+    items.push({
+      icon: "📊",
+      label: "评分项",
+      value: `${li.rubricCount} 项`
+    });
+  }
+
+  if (li.submissionCount > 0 || li.gradingSubmissionCount > 0) {
+    items.push({
+      icon: "📝",
+      label: "作答/提交",
+      value: `${li.submissionCount || li.gradingSubmissionCount || 0} 条`
+    });
+  }
+
+  restoreLessonGrid.innerHTML = items.map(it => `
+    <div class="restore-summary-item">
+      <span class="restore-summary-icon">${it.icon}</span>
+      <div class="restore-summary-text">
+        <span class="restore-summary-label">${it.label}</span>
+        <span class="restore-summary-value">${escapeHtml(String(it.value))}</span>
+      </div>
+    </div>
+  `).join("");
+}
+
+function renderRestoreRisks(preview) {
+  if (!restoreRiskSection || !restoreRiskList) return;
+
+  const allItems = [...(preview.risks || []), ...(preview.warnings || [])];
+  if (allItems.length === 0) {
+    restoreRiskSection.classList.add("hidden");
+    return;
+  }
+
+  restoreRiskSection.classList.remove("hidden");
+  restoreRiskList.innerHTML = allItems.map(item => {
+    let icon = "ℹ️";
+    let cls = "risk-info";
+    if (item.severity === "error") {
+      icon = "❌";
+      cls = "risk-error";
+    } else if (item.severity === "warning") {
+      icon = "⚠️";
+      cls = "risk-warning";
+    }
+    return `
+      <div class="restore-risk-item ${cls}">
+        <span class="risk-icon">${icon}</span>
+        <div class="risk-content">
+          <div class="risk-title">${escapeHtml(item.title)}</div>
+          <div class="risk-message">${escapeHtml(item.message)}</div>
+        </div>
+      </div>
+    `;
+  }).join("");
+}
+
+function setupRestoreStrategyOptions(preview) {
+  if (!restoreStrategySection) return;
+
+  const hasConflict = preview.conflictingProjects && preview.conflictingProjects.length > 0;
+  const isProjectBackup = preview.formatInfo?.type === "project" || preview.summary?.isProjectBackup;
+
+  const newRadio = document.querySelector('input[name="restoreStrategy"][value="new"]');
+  const renameRadio = document.querySelector('input[name="restoreStrategy"][value="rename"]');
+  const overwriteRadio = document.querySelector('input[name="restoreStrategy"][value="overwrite"]');
+
+  if (restoreRenameInput) restoreRenameInput.classList.add("hidden");
+  if (restoreOverwriteWarning) restoreOverwriteWarning.classList.add("hidden");
+
+  if (overwriteStrategyCard) {
+    if (isProjectBackup && hasConflict) {
+      overwriteStrategyCard.style.display = "";
+      overwriteTargetName.textContent = preview.conflictingProjects[0];
+      if (overwriteRadio) overwriteRadio.disabled = false;
+    } else {
+      overwriteStrategyCard.style.display = "none";
+      if (overwriteRadio) {
+        overwriteRadio.checked = false;
+        overwriteRadio.disabled = true;
+      }
+    }
+  }
+
+  if (hasConflict && renameRadio) {
+    renameRadio.checked = true;
+    if (restoreRenameInput) {
+      restoreRenameInput.classList.remove("hidden");
+      const suggestedName = `${preview.conflictingProjects[0]} (导入-${new Date().toLocaleDateString()})`;
+      restoreRenameProjectName.value = suggestedName;
+    }
+  } else if (newRadio) {
+    newRadio.checked = true;
+  }
+
+  updateRestoreConfirmButton();
+}
+
+function updateRestoreConfirmButton() {
+  if (!restoreCheckConfirmBtn || !currentRestorePreviewData) return;
+
+  if (currentRestorePreviewData.hasErrors) {
+    restoreCheckConfirmBtn.disabled = true;
+    return;
+  }
+
+  const strategy = document.querySelector('input[name="restoreStrategy"]:checked')?.value;
+
+  if (strategy === "rename") {
+    const name = restoreRenameProjectName?.value?.trim();
+    restoreCheckConfirmBtn.disabled = !name;
+  } else {
+    restoreCheckConfirmBtn.disabled = false;
+  }
+}
+
+async function executeRestore() {
+  if (!currentRestoreFile || !currentRestorePreviewData) return;
+
+  const strategy = document.querySelector('input[name="restoreStrategy"]:checked')?.value;
+  let renameProject = null;
+  let overwriteProjectId = null;
+
+  if (strategy === "rename") {
+    renameProject = restoreRenameProjectName?.value?.trim();
+    if (!renameProject) {
+      alert("请输入新项目名称");
+      return;
+    }
+  }
+
+  if (strategy === "overwrite") {
+    const conflictName = currentRestorePreviewData.conflictingProjects?.[0];
+    if (conflictName) {
+      const existing = (window.ProjectManager?.getProjects?.() || []).find(p => p.name === conflictName);
+      if (existing) {
+        overwriteProjectId = existing.id;
+      }
+    }
+    if (!confirm(`确定要覆盖项目「${conflictName}」吗？\n此操作将永久删除该项目的所有数据，不可恢复！`)) {
+      return;
+    }
+  }
+
+  restoreProgressSection?.classList.remove("hidden");
+  restoreCheckFooter?.classList.add("hidden");
+
+  try {
+    const conflictingProjectNames = currentRestorePreviewData.conflictingProjects || null;
+    const result = await window.BackupRestore.importBackupWithStrategy(
+      currentRestoreFile,
+      strategy,
+      {
+        renameProject,
+        overwriteProjectId,
+        conflictingProjectNames,
+        onProgress: (progress, text) => {
+          const pct = Math.round(progress * 100);
+          if (restoreProgressFill) restoreProgressFill.style.width = `${pct}%`;
+          if (restoreProgressPercent) restoreProgressPercent.textContent = `${pct}%`;
+          if (restoreProgressText) restoreProgressText.textContent = text || "导入中...";
+        }
+      }
+    );
+
+    if (window.ProjectManager?.refreshProjectsCache) {
+      await window.ProjectManager.refreshProjectsCache();
+    }
+    if (window.ProjectManager?.getCurrentProjectId) {
+      const pid = window.ProjectManager.getCurrentProjectId();
+      if (pid && window.DataManager?.reloadForProject) {
+        await window.DataManager.reloadForProject();
+        state = window.DataManager.getState();
+      } else if (window.DataManager?.reload) {
+        await window.DataManager.reload();
+        state = window.DataManager.getState();
+      }
+    }
+
+    updateHeaderProjectName?.();
+    await renderProjectList?.();
+    if (typeof renderAll === "function") renderAll();
+
+    let successMsg = "恢复成功！";
+    if (result.project) {
+      successMsg = `恢复成功！\n导入了项目「${result.project.name}」\n包含 ${result.sampleCount || 0} 个样本、${result.taskCount || 0} 个任务`;
+    } else if (result.projectCount) {
+      successMsg = `恢复成功！\n导入了 ${result.projectCount} 个项目`;
+    } else {
+      successMsg = `恢复成功！\n导入了 ${result.sampleCount || 0} 个样本、${result.taskCount || 0} 个任务`;
+    }
+
+    if (restoreProgressText) restoreProgressText.textContent = "完成！";
+    if (restoreProgressFill) restoreProgressFill.style.width = "100%";
+    if (restoreProgressPercent) restoreProgressPercent.textContent = "100%";
+
+    setTimeout(() => {
+      alert(successMsg);
+      closeRestoreCheckModal();
+    }, 300);
+
+  } catch (e) {
+    console.error("恢复失败:", e);
+    alert("恢复失败：" + e.message);
+    restoreProgressSection?.classList.add("hidden");
+    restoreCheckFooter?.classList.remove("hidden");
+  }
+}
+
+function initRestoreCheckModalEvents() {
+  restoreCheckCloseBtn?.addEventListener("click", closeRestoreCheckModal);
+  restoreCheckCancelBtn?.addEventListener("click", closeRestoreCheckModal);
+  restoreCheckConfirmBtn?.addEventListener("click", executeRestore);
+
+  document.querySelectorAll('input[name="restoreStrategy"]').forEach(radio => {
+    radio.addEventListener("change", () => {
+      const strategy = radio.value;
+      if (strategy === "rename") {
+        restoreRenameInput?.classList.remove("hidden");
+        restoreOverwriteWarning?.classList.add("hidden");
+      } else if (strategy === "overwrite") {
+        restoreRenameInput?.classList.add("hidden");
+        restoreOverwriteWarning?.classList.remove("hidden");
+      } else {
+        restoreRenameInput?.classList.add("hidden");
+        restoreOverwriteWarning?.classList.add("hidden");
+      }
+      updateRestoreConfirmButton();
+    });
+  });
+
+  restoreRenameProjectName?.addEventListener("input", updateRestoreConfirmButton);
+
+  restoreCheckOverlay?.addEventListener("click", (e) => {
+    if (e.target === restoreCheckOverlay) closeRestoreCheckModal();
+  });
+}
+
 async function handleImportProjectBackup(file) {
   if (!file) return;
-  try {
-    const result = await window.ProjectManager.importProjectBackup(file);
-    alert(`项目「${result.project.name}」导入成功！包含 ${result.sampleCount || result.stats?.sampleCount || 0} 个样本、${result.taskCount || result.stats?.taskCount || 0} 个任务。`);
-    await renderProjectList();
-  } catch (e) {
-    alert("导入失败：" + e.message);
-  }
+  openRestoreCheckModal(file);
 }
 
 async function openProjectManager() {

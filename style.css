@@ -6947,3 +6947,450 @@ label.ma-field-autofilled select:focus {
     grid-template-columns: 1fr;
   }
 }
+
+.restore-check-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(23, 32, 29, 0.6);
+  backdrop-filter: blur(4px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  padding: 20px;
+}
+
+.restore-check-modal {
+  width: 100%;
+  max-width: 720px;
+  max-height: 90vh;
+  background: var(--panel);
+  border-radius: 14px;
+  box-shadow: 0 24px 60px rgba(23, 32, 29, 0.3);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  animation: modalIn 0.25s ease;
+}
+
+.restore-check-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 20px 24px;
+  border-bottom: 1px solid var(--line);
+  background: white;
+}
+
+.restore-check-header h2 {
+  font-size: 18px;
+  margin: 0 0 4px;
+}
+
+.restore-check-subtitle {
+  margin: 0;
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.restore-check-close-btn {
+  background: transparent;
+  border: none;
+  font-size: 24px;
+  line-height: 1;
+  cursor: pointer;
+  color: var(--muted);
+  padding: 4px 8px;
+  border-radius: 6px;
+  min-height: auto;
+}
+
+.restore-check-close-btn:hover {
+  background: var(--accent-soft);
+  color: var(--ink);
+  transform: none;
+}
+
+.restore-check-body {
+  flex: 1;
+  overflow-y: auto;
+  padding: 20px 24px;
+}
+
+.restore-check-loading {
+  text-align: center;
+  padding: 40px 20px;
+  color: var(--muted);
+}
+
+.restore-spinner {
+  width: 40px;
+  height: 40px;
+  border: 3px solid var(--line);
+  border-top-color: var(--accent);
+  border-radius: 50%;
+  margin: 0 auto 16px;
+  animation: spin 0.8s linear infinite;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+.restore-check-error {
+  text-align: center;
+  padding: 30px 20px;
+  color: var(--danger);
+}
+
+.restore-check-error .error-icon {
+  font-size: 48px;
+  margin-bottom: 12px;
+}
+
+.restore-check-error h3 {
+  margin: 0 0 8px;
+  color: var(--danger);
+}
+
+.restore-check-error p {
+  margin: 0;
+  color: var(--muted);
+}
+
+.restore-summary-section,
+.restore-lesson-section,
+.restore-risk-section,
+.restore-strategy-section {
+  margin-bottom: 24px;
+}
+
+.restore-summary-section:last-child,
+.restore-lesson-section:last-child,
+.restore-risk-section:last-child,
+.restore-strategy-section:last-child {
+  margin-bottom: 0;
+}
+
+.restore-summary-section h3,
+.restore-lesson-section h3,
+.restore-risk-section h3,
+.restore-strategy-section h3 {
+  margin: 0 0 12px;
+  font-size: 15px;
+  color: var(--ink);
+}
+
+.restore-summary-grid,
+.restore-lesson-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  gap: 10px;
+}
+
+.restore-summary-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 10px 12px;
+  background: var(--accent-soft);
+  border-radius: 8px;
+}
+
+.restore-summary-icon {
+  font-size: 20px;
+  line-height: 1.2;
+  flex-shrink: 0;
+}
+
+.restore-summary-text {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.restore-summary-label {
+  font-size: 11px;
+  color: var(--muted);
+  text-transform: uppercase;
+  font-weight: 600;
+  letter-spacing: 0.3px;
+  margin-bottom: 2px;
+}
+
+.restore-summary-value {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--ink);
+  word-break: break-word;
+}
+
+.restore-risk-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.restore-risk-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 12px 14px;
+  border-radius: 10px;
+  border: 1px solid;
+}
+
+.restore-risk-item.risk-error {
+  background: var(--danger-soft);
+  border-color: rgba(192, 57, 43, 0.3);
+}
+
+.restore-risk-item.risk-warning {
+  background: #fef5e7;
+  border-color: rgba(230, 126, 34, 0.3);
+}
+
+.restore-risk-item.risk-info {
+  background: var(--accent-soft);
+  border-color: rgba(43, 118, 102, 0.2);
+}
+
+.risk-icon {
+  font-size: 18px;
+  line-height: 1.3;
+  flex-shrink: 0;
+}
+
+.risk-content {
+  flex: 1;
+  min-width: 0;
+}
+
+.risk-title {
+  font-weight: 600;
+  font-size: 14px;
+  margin-bottom: 2px;
+}
+
+.risk-error .risk-title {
+  color: var(--danger);
+}
+
+.risk-warning .risk-title {
+  color: var(--warning);
+}
+
+.risk-info .risk-title {
+  color: var(--accent);
+}
+
+.risk-message {
+  font-size: 13px;
+  color: var(--muted);
+  line-height: 1.5;
+}
+
+.restore-strategy-options {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-bottom: 16px;
+}
+
+.strategy-card {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 14px 16px;
+  background: white;
+  border: 2px solid var(--line);
+  border-radius: 10px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.strategy-card:hover {
+  border-color: var(--accent);
+  background: var(--accent-soft);
+}
+
+.strategy-card input[type="radio"] {
+  margin-top: 2px;
+  width: 18px;
+  height: 18px;
+  accent-color: var(--accent);
+  flex-shrink: 0;
+}
+
+.strategy-card:has(input:checked) {
+  border-color: var(--accent);
+  background: var(--accent-soft);
+  box-shadow: 0 0 0 3px rgba(43, 118, 102, 0.15);
+}
+
+.strategy-card.strategy-danger:has(input:checked) {
+  border-color: var(--danger);
+  background: var(--danger-soft);
+  box-shadow: 0 0 0 3px rgba(192, 57, 43, 0.15);
+}
+
+.strategy-card-content {
+  flex: 1;
+  min-width: 0;
+}
+
+.strategy-title {
+  font-weight: 600;
+  font-size: 14px;
+  margin-bottom: 2px;
+  color: var(--ink);
+}
+
+.strategy-card.strategy-danger .strategy-title {
+  color: var(--danger);
+}
+
+.strategy-desc {
+  font-size: 12px;
+  color: var(--muted);
+  line-height: 1.5;
+}
+
+.restore-rename-input {
+  margin-bottom: 16px;
+  padding: 12px 14px;
+  background: white;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+}
+
+.restore-rename-input label {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--ink);
+}
+
+.restore-rename-input input[type="text"] {
+  padding: 8px 12px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  font-size: 14px;
+  background: var(--bg);
+}
+
+.restore-rename-input input[type="text"]:focus {
+  outline: none;
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px rgba(43, 118, 102, 0.15);
+}
+
+.restore-overwrite-warning {
+  margin-bottom: 16px;
+}
+
+.overwrite-warning-box {
+  padding: 12px 14px;
+  background: var(--danger-soft);
+  border: 1px solid rgba(192, 57, 43, 0.3);
+  border-radius: 8px;
+  font-size: 13px;
+  color: var(--danger);
+  line-height: 1.6;
+}
+
+.overwrite-warning-box strong {
+  color: var(--danger);
+}
+
+.restore-progress-section {
+  padding: 16px 24px;
+  border-top: 1px solid var(--line);
+  background: white;
+}
+
+.restore-progress-info {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 8px;
+  font-size: 13px;
+}
+
+.restore-progress-text {
+  color: var(--ink);
+  font-weight: 500;
+}
+
+.restore-progress-percent {
+  color: var(--accent);
+  font-weight: 600;
+}
+
+.restore-progress-bar {
+  width: 100%;
+  height: 8px;
+  background: var(--accent-soft);
+  border-radius: 4px;
+  overflow: hidden;
+}
+
+.restore-progress-fill {
+  height: 100%;
+  background: var(--accent);
+  border-radius: 4px;
+  transition: width 0.2s ease;
+  width: 0%;
+}
+
+.restore-check-footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  padding: 16px 24px;
+  border-top: 1px solid var(--line);
+  background: white;
+}
+
+.restore-check-footer button {
+  min-width: 100px;
+}
+
+.restore-check-footer button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  transform: none;
+  filter: none;
+}
+
+@media (max-width: 600px) {
+  .restore-check-modal {
+    max-height: 95vh;
+    border-radius: 12px;
+  }
+
+  .restore-check-header {
+    padding: 16px 18px;
+  }
+
+  .restore-check-body {
+    padding: 16px 18px;
+  }
+
+  .restore-summary-grid,
+  .restore-lesson-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .restore-check-footer {
+    padding: 14px 18px;
+  }
+
+  .restore-check-footer button {
+    flex: 1;
+    min-width: 0;
+  }
+}

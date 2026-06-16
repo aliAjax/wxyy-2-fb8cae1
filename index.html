@@ -766,6 +766,104 @@
     </div>
   </div>
 
+  <div id="restoreCheckOverlay" class="restore-check-overlay hidden">
+    <div class="restore-check-modal">
+      <header class="restore-check-header">
+        <div>
+          <h2>📦 备份恢复前检查</h2>
+          <p class="restore-check-subtitle" id="restoreCheckSubtitle">正在分析备份文件...</p>
+        </div>
+        <button type="button" class="restore-check-close-btn" id="restoreCheckCloseBtn">×</button>
+      </header>
+
+      <div class="restore-check-body">
+        <div id="restoreCheckLoading" class="restore-check-loading">
+          <div class="restore-spinner"></div>
+          <p>正在读取并分析备份文件，请稍候...</p>
+        </div>
+
+        <div id="restoreCheckContent" class="restore-check-content hidden">
+          <div class="restore-summary-section">
+            <h3>📋 备份内容摘要</h3>
+            <div class="restore-summary-grid" id="restoreSummaryGrid"></div>
+          </div>
+
+          <div class="restore-lesson-section" id="restoreLessonSection">
+            <h3>📚 课堂包信息</h3>
+            <div class="restore-lesson-grid" id="restoreLessonGrid"></div>
+          </div>
+
+          <div class="restore-risk-section" id="restoreRiskSection">
+            <h3>⚠️ 风险提示</h3>
+            <div id="restoreRiskList" class="restore-risk-list"></div>
+          </div>
+
+          <div class="restore-strategy-section" id="restoreStrategySection">
+            <h3>🔧 选择导入方式</h3>
+            <div class="restore-strategy-options">
+              <label class="strategy-card">
+                <input type="radio" name="restoreStrategy" value="new" checked>
+                <div class="strategy-card-content">
+                  <div class="strategy-title">✨ 新建项目</div>
+                  <div class="strategy-desc">将备份作为全新项目导入，不影响现有数据</div>
+                </div>
+              </label>
+
+              <label class="strategy-card">
+                <input type="radio" name="restoreStrategy" value="rename">
+                <div class="strategy-card-content">
+                  <div class="strategy-title">✏️ 重命名导入</div>
+                  <div class="strategy-desc">自定义项目名称后导入，避免与现有项目冲突</div>
+                </div>
+              </label>
+
+              <label class="strategy-card strategy-danger" id="overwriteStrategyCard">
+                <input type="radio" name="restoreStrategy" value="overwrite">
+                <div class="strategy-card-content">
+                  <div class="strategy-title">🗑️ 覆盖同名项目</div>
+                  <div class="strategy-desc">删除现有同名项目及其所有数据后导入，此操作不可撤销！</div>
+                </div>
+              </label>
+            </div>
+
+            <div class="restore-rename-input hidden" id="restoreRenameInput">
+              <label>新项目名称
+                <input type="text" id="restoreRenameProjectName" placeholder="请输入新项目名称">
+              </label>
+            </div>
+
+            <div class="restore-overwrite-warning hidden" id="restoreOverwriteWarning">
+              <div class="overwrite-warning-box">
+                <strong>⚠️ 危险操作：</strong>选择覆盖将永久删除现有项目「<span id="overwriteTargetName"></span>」的所有数据，包括样本、任务、版本历史和回收站内容。请确认已做好必要备份！
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div id="restoreCheckError" class="restore-check-error hidden">
+          <div class="error-icon">❌</div>
+          <h3>备份文件分析失败</h3>
+          <p id="restoreCheckErrorMessage"></p>
+        </div>
+      </div>
+
+      <div class="restore-progress-section hidden" id="restoreProgressSection">
+        <div class="restore-progress-info">
+          <span id="restoreProgressText">准备导入...</span>
+          <span id="restoreProgressPercent">0%</span>
+        </div>
+        <div class="restore-progress-bar">
+          <div class="restore-progress-fill" id="restoreProgressFill"></div>
+        </div>
+      </div>
+
+      <footer class="restore-check-footer" id="restoreCheckFooter">
+        <button type="button" class="ghost" id="restoreCheckCancelBtn">取消</button>
+        <button type="button" class="primary" id="restoreCheckConfirmBtn" disabled>确认导入</button>
+      </footer>
+    </div>
+  </div>
+
   <script src="./storage-layer.js"></script>
   <script src="./project-manager.js"></script>
   <script src="./data-manager.js"></script>
