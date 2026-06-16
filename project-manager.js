@@ -340,7 +340,7 @@
   }
 
   async function getProjectStats(projectId) {
-    const samples = await window.StorageLayer.SampleStore.getAll(projectId);
+    const samples = await window.StorageLayer.SampleStore.getAllWithPhotos(projectId);
     const tasks = await window.StorageLayer.TaskStore.getAll(projectId);
     const compare = await window.StorageLayer.AppStateStore.getCompareList(projectId);
     const recycleItems = await window.StorageLayer.RecycleStore.getAll(projectId);
