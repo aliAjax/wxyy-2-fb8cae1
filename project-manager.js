@@ -307,16 +307,35 @@
     };
   }
 
+  const COMPLETENESS_FIELDS = [
+    { key: "code", weight: 20 },
+    { key: "photo", weight: 25 },
+    { key: "minerals", weight: 20 },
+    { key: "texture", weight: 15 },
+    { key: "comment", weight: 10 },
+    { key: "location", weight: 5 },
+    { key: "magnification", weight: 5 }
+  ];
+
+  function calcCompleteness(sample) {
+    if (!sample) return { score: 0, percent: 0 };
+    let score = 0;
+    COMPLETENESS_FIELDS.forEach((field) => {
+      const value = field.key === "photo" ? (sample.photo || sample.hasPhoto) : sample[field.key];
+      const hasValue = field.key === "photo"
+        ? !!value
+        : (value && String(value).trim().length > 0);
+      if (hasValue) {
+        score += field.weight;
+      }
+    });
+    return { score, percent: Math.round(score) };
+  }
+
   function calculateReviewStatus(sample) {
     if (!sample) return "incomplete";
     if (sample.reviewStatus) return sample.reviewStatus;
-    let filled = 0;
-    let total = 4;
-    if (sample.photo || sample.hasPhoto) filled++;
-    if (sample.minerals && sample.minerals.trim()) filled++;
-    if (sample.texture && sample.texture.trim()) filled++;
-    if (sample.comment && sample.comment.trim()) filled++;
-    const percent = Math.round((filled / total) * 100);
+    const { percent } = calcCompleteness(sample);
     return percent < 60 ? "incomplete" : "pending";
   }
 
@@ -408,9 +427,11 @@
     downloadProjectBackup,
     importProjectBackup,
     getProjectStats,
+    calcCompleteness,
     calculateReviewStatus,
     updateLastBackupTime,
-    ensureDefaultProject
+    ensureDefaultProject,
+    COMPLETENESS_FIELDS
   };
 
 })(window);
