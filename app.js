@@ -5141,6 +5141,19 @@ function renderRestoreSummary(preview) {
       label: "项目数量",
       value: `${s.projectCount || fi.projectCount || 0} 个项目`
     });
+    if (s.projectNames && s.projectNames.length > 0) {
+      items.push({
+        icon: "📋",
+        label: "包含项目",
+        value: s.projectNames.length <= 5 ? s.projectNames.join("、") : s.projectNames.slice(0, 5).join("、") + ` 等${s.projectNames.length}个`
+      });
+    }
+  } else if (s.isLegacy || preview.normalizedData?.isLegacy) {
+    items.push({
+      icon: "📁",
+      label: "导入项目名",
+      value: s.projectName || "旧版导入项目"
+    });
   }
 
   items.push({
@@ -5168,6 +5181,30 @@ function renderRestoreSummary(preview) {
       icon: "✏️",
       label: "标注数",
       value: `${s.annotationsCount} 条`
+    });
+  }
+
+  if (s.reviewedCount != null && s.reviewedCount > 0) {
+    items.push({
+      icon: "✅",
+      label: "已审核样本",
+      value: `${s.reviewedCount} 个`
+    });
+  }
+
+  if (s.sampleGroupCount != null && s.sampleGroupCount > 0) {
+    items.push({
+      icon: "👥",
+      label: "样本分组",
+      value: `${s.sampleGroupCount} 组`
+    });
+  }
+
+  if (s.studentAnswerCount != null && s.studentAnswerCount > 0) {
+    items.push({
+      icon: "📝",
+      label: "学生作答",
+      value: `${s.studentAnswerCount} 条`
     });
   }
 

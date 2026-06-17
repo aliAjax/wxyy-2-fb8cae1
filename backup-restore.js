@@ -5,7 +5,22 @@
 
   async function computeContentHash(data) {
     try {
-      const stableStr = JSON.stringify(data, Object.keys(data).sort());
+      const cleanData = (obj) => {
+        if (Array.isArray(obj)) {
+          return obj.map(cleanData);
+        }
+        if (obj && typeof obj === "object") {
+          const result = {};
+          for (const key of Object.keys(obj).sort()) {
+            if (key === "contentHash") continue;
+            result[key] = cleanData(obj[key]);
+          }
+          return result;
+        }
+        return obj;
+      };
+      const stableObj = cleanData(data);
+      const stableStr = JSON.stringify(stableObj);
       let hash = 0;
       for (let i = 0; i < stableStr.length; i++) {
         const char = stableStr.charCodeAt(i);
@@ -49,16 +64,17 @@
 
   function getBackupFormatInfo(data) {
     if (!data) return { type: "invalid" };
-    if (data.project && data.format === "wxyy-thin-section-project-backup") {
+    const format = data.format;
+    if (data.project && (format === "wxyy-thin-section-project-backup" || format === "wxyy-thin-section-backup")) {
       return { type: "project", project: data.project };
     }
-    if (data.projects && data.format === "wxyy-thin-section-full-backup") {
+    if (data.projects && (format === "wxyy-thin-section-full-backup" || format === "wxyy-thin-section-backup")) {
       return { type: "full", projectCount: data.projects.length };
     }
-    if (Array.isArray(data) || (data.samples && !data.format)) {
+    if (Array.isArray(data) || (data.samples && !format)) {
       return { type: "legacy" };
     }
-    if (data.format === "wxyy-thin-section-backup" || data.samples) {
+    if (format === "wxyy-thin-section-backup" || data.samples) {
       return { type: "standard" };
     }
     return { type: "unknown" };
@@ -81,19 +97,28 @@
       });
     }
 
-    if (data.project && data.projects) {
+    if (data.projects && Array.isArray(data.projects)) {
       data.projects.forEach(p => {
-        if (p.tasks) {
+        const pName = p.project?.name;
+        if (p.tasks && Array.isArray(p.tasks)) {
           p.tasks.forEach(t => {
             if (t.lessonPackageId) {
               lessonTasks.push({
-                projectName: p.project?.name,
+                projectName: pName,
                 id: t.id,
                 lessonPackageId: t.lessonPackageId,
                 title: t.title || t.name,
                 sampleCount: (t.sampleIds || []).length
               });
             }
+          });
+        }
+        if (p.studentAnswers && Array.isArray(p.studentAnswers)) {
+          p.studentAnswers.forEach(sa => {
+            gradingSubmissions.push({
+              projectName: pName,
+              ...sa
+            });
           });
         }
       });
@@ -104,9 +129,18 @@
     }
 
     const lessonGrading = data.lessonGrading || {};
-    const rubricCount = (lessonGrading.rubrics || []).length;
-    const submissionCount = (lessonGrading.submissions || []).length;
-    const lessonMetaCount = Object.keys(lessonGrading.lessonMetas || {}).length;
+    let rubricCount = (lessonGrading.rubrics || []).length;
+    let submissionCount = (lessonGrading.submissions || []).length;
+    let lessonMetaCount = Object.keys(lessonGrading.lessonMetas || {}).length;
+
+    if (data.projects && Array.isArray(data.projects)) {
+      data.projects.forEach(p => {
+        const pg = p.lessonGrading || {};
+        rubricCount += (pg.rubrics || []).length;
+        submissionCount += (pg.submissions || []).length;
+        lessonMetaCount += Object.keys(pg.lessonMetas || {}).length;
+      });
+    }
 
     return {
       lessonTaskCount: lessonTasks.length,
@@ -147,9 +181,9 @@
       throw new Error("无效的备份文件格式");
     }
 
-    const summary = getBackupSummary(data);
+    const summary = getBackupSummary(normalized);
     const lessonInfo = getLessonPackageInfo(normalized);
-    const contentHash = await computeContentHash(normalized);
+    const contentHash = await computeContentHash(data);
 
     const sampleCodes = [];
     const duplicateSampleCodes = [];
@@ -214,6 +248,15 @@
       });
     }
 
+    if (data.contentHash && data.contentHash === contentHash) {
+      warnings.push({
+        type: "hash_valid",
+        severity: "info",
+        title: "内容哈希校验通过",
+        message: "备份文件完整性校验通过，数据未被篡改。"
+      });
+    }
+
     if (duplicateSampleCodes.length > 0) {
       warnings.push({
         type: "duplicate_sample_codes",
@@ -251,6 +294,18 @@
           title: "项目名称冲突",
           message: `有 ${conflictingProjects.length} 个项目名称与现有项目冲突：${conflictingProjects.join("、")}。导入时将自动重命名。`,
           projectNames: conflictingProjects
+        });
+      }
+    } else if (normalized.isLegacy) {
+      const legacyDefaultName = summary.projectName || "旧版导入项目";
+      if (currentProjectNames.includes(legacyDefaultName)) {
+        conflictingProjects.push(legacyDefaultName);
+        risks.push({
+          type: "project_name_conflict",
+          severity: "warning",
+          title: "项目名称冲突",
+          message: `已存在同名项目「${legacyDefaultName}」，建议重命名导入。`,
+          projectName: legacyDefaultName
         });
       }
     }
@@ -418,39 +473,46 @@
       ? window.ProjectManager.getCurrentProjectId()
       : window.StorageLayer.DEFAULT_PROJECT_ID;
 
+    let backupData;
+
     if (projectId && window.ProjectManager) {
       const data = await window.ProjectManager.exportProjectBackup(projectId);
       if (!includePhotos) {
         data.samples = (data.samples || []).map(s => ({ ...s, photo: "" }));
       }
-      return {
+      backupData = {
         ...data,
         format: "wxyy-thin-section-backup",
         version: BACKUP_FORMAT_VERSION,
         createdAt: new Date().toISOString(),
         includeHistory
       };
+    } else {
+      const allData = await window.StorageLayer.exportAllData({
+        includeHistory,
+        includeRecycleBin: includeHistory
+      });
+
+      if (!includePhotos && allData.projects) {
+        allData.projects = allData.projects.map(p => ({
+          ...p,
+          samples: (p.samples || []).map(s => ({ ...s, photo: "" }))
+        }));
+      }
+
+      backupData = {
+        format: "wxyy-thin-section-backup",
+        version: BACKUP_FORMAT_VERSION,
+        createdAt: new Date().toISOString(),
+        includeHistory,
+        ...allData
+      };
     }
 
-    const allData = await window.StorageLayer.exportAllData({
-      includeHistory,
-      includeRecycleBin: includeHistory
-    });
+    const contentHash = await computeContentHash(backupData);
+    backupData.contentHash = contentHash;
 
-    if (!includePhotos && allData.projects) {
-      allData.projects = allData.projects.map(p => ({
-        ...p,
-        samples: (p.samples || []).map(s => ({ ...s, photo: "" }))
-      }));
-    }
-
-    return {
-      format: "wxyy-thin-section-backup",
-      version: BACKUP_FORMAT_VERSION,
-      createdAt: new Date().toISOString(),
-      includeHistory,
-      ...allData
-    };
+    return backupData;
   }
 
   async function downloadBackup(filename = null) {
@@ -815,45 +877,79 @@
   }
 
   function getBackupSummary(data) {
-    if (data.project && data.format === "wxyy-thin-section-project-backup") {
+    const format = data?.format;
+    if (data.project && (format === "wxyy-thin-section-project-backup" || format === "wxyy-thin-section-backup")) {
       const samples = data.samples || [];
       const tasks = data.tasks || [];
       let photosCount = 0;
       let annotationsCount = 0;
+      let reviewedCount = 0;
       samples.forEach(s => {
         if (s.photo) photosCount++;
         if (s.annotations) annotationsCount += s.annotations.length;
+        if (s.reviewStatus && s.reviewStatus !== "pending" && s.reviewStatus !== null) reviewedCount++;
       });
       return {
         isProjectBackup: true,
         projectName: data.project.name,
-        projectDescription: data.project.description,
+        projectDescription: data.project.description || "",
         sampleCount: samples.length,
         taskCount: tasks.length,
         photosCount,
         annotationsCount,
+        reviewedCount,
+        sampleGroupCount: (data.sampleGroups || []).length,
         versionHistoryCount: (data.versionHistory || []).length,
         recycleBinCount: (data.recycleBin || []).length,
+        studentAnswerCount: (data.studentAnswers || []).length,
         createdAt: data.createdAt || data.exportDate || null,
         version: data.version || null,
         includeHistory: data.includeHistory !== false
       };
     }
 
-    if (data.projects && data.format === "wxyy-thin-section-full-backup") {
+    if (data.projects && (format === "wxyy-thin-section-full-backup" || format === "wxyy-thin-section-backup")) {
       let totalSamples = 0;
       let totalTasks = 0;
+      let totalPhotos = 0;
+      let totalAnnotations = 0;
+      let totalReviewed = 0;
+      let totalVersionHistory = 0;
+      let totalRecycleBin = 0;
+      let totalSampleGroups = 0;
+      let totalStudentAnswers = 0;
+      const projectNames = [];
       data.projects.forEach(p => {
-        totalSamples += (p.samples || []).length;
+        projectNames.push(p.project?.name || "(未命名项目)");
+        const pSamples = p.samples || [];
+        totalSamples += pSamples.length;
         totalTasks += (p.tasks || []).length;
+        totalSampleGroups += (p.sampleGroups || []).length;
+        totalVersionHistory += (p.versionHistory || []).length;
+        totalRecycleBin += (p.recycleBin || []).length;
+        totalStudentAnswers += (p.studentAnswers || []).length;
+        pSamples.forEach(s => {
+          if (s.photo) totalPhotos++;
+          if (s.annotations) totalAnnotations += s.annotations.length;
+          if (s.reviewStatus && s.reviewStatus !== "pending" && s.reviewStatus !== null) totalReviewed++;
+        });
       });
       return {
         isFullBackup: true,
         projectCount: data.projects.length,
+        projectNames,
         sampleCount: totalSamples,
         taskCount: totalTasks,
+        photosCount: totalPhotos,
+        annotationsCount: totalAnnotations,
+        reviewedCount: totalReviewed,
+        sampleGroupCount: totalSampleGroups,
+        versionHistoryCount: totalVersionHistory,
+        recycleBinCount: totalRecycleBin,
+        studentAnswerCount: totalStudentAnswers,
         createdAt: data.createdAt || data.exportDate || null,
-        version: data.version || null
+        version: data.version || null,
+        includeHistory: data.includeHistory !== false
       };
     }
 
@@ -861,22 +957,36 @@
     const tasks = data.tasks || [];
     const versionHistory = data.versionHistory || [];
     const recycleBin = data.recycleBin || [];
+    const sampleGroups = data.sampleGroups || [];
+    const studentAnswers = data.studentAnswers || [];
 
     let photosCount = 0;
     let annotationsCount = 0;
+    let reviewedCount = 0;
 
     samples.forEach(s => {
       if (s.photo) photosCount++;
       if (s.annotations) annotationsCount += s.annotations.length;
+      if (s.reviewStatus && s.reviewStatus !== "pending" && s.reviewStatus !== null) reviewedCount++;
     });
 
+    const projectName = data.project?.name
+      || (data.isLegacy ? "旧版导入项目" : null);
+    const projectDescription = data.project?.description || "";
+
     return {
+      isLegacy: !!data.isLegacy,
+      projectName,
+      projectDescription,
       sampleCount: samples.length,
       taskCount: tasks.length,
       photosCount,
       annotationsCount,
+      reviewedCount,
+      sampleGroupCount: sampleGroups.length,
       versionHistoryCount: versionHistory.length,
       recycleBinCount: recycleBin.length,
+      studentAnswerCount: studentAnswers.length,
       createdAt: data.createdAt || null,
       version: data.version || null,
       includeHistory: data.includeHistory !== false
