@@ -2,19 +2,25 @@
   "use strict";
 
   const DB_NAME = "wxyy-thin-section-db";
-  const DB_VERSION = 5;
+  const DB_VERSION = 7;
   const DEFAULT_PROJECT_ID = "default-project";
+  const SCHEMA_LAYER_VERSION = 2;
+  const RESOURCE_MODEL_VERSION = 1;
 
   const STORES = {
     PROJECTS: "projects",
     SAMPLES: "samples",
     PHOTOS: "photos",
+    PHOTO_RESOURCES: "photoResources",
+    ANNOTATION_RESOURCES: "annotationResources",
     TASKS: "tasks",
     APP_STATE: "appState",
     ANNOTATIONS: "annotations",
     STUDENT_ANSWERS: "studentAnswers",
     VERSION_HISTORY: "versionHistory",
-    RECYCLE_BIN: "recycleBin"
+    RECYCLE_BIN: "recycleBin",
+    MIGRATION_STATE: "migrationState",
+    VERSION_SNAPSHOTS: "versionSnapshots"
   };
 
   let db = null;
@@ -49,6 +55,8 @@
           sampleStore.createIndex("polarization", "polarization", { unique: false });
           sampleStore.createIndex("projectId", "projectId", { unique: false });
           sampleStore.createIndex("groupId", "groupId", { unique: false });
+          sampleStore.createIndex("photoResourceId", "photoResourceId", { unique: false });
+          sampleStore.createIndex("annotationResourceId", "annotationResourceId", { unique: false });
         } else if (oldVersion < 4) {
           const sampleStore = event.target.transaction.objectStore(STORES.SAMPLES);
           if (!sampleStore.indexNames.contains("projectId")) {
@@ -66,9 +74,47 @@
           }
         }
 
+        if (oldVersion < 6) {
+          if (database.objectStoreNames.contains(STORES.SAMPLES)) {
+            const sampleStore = event.target.transaction.objectStore(STORES.SAMPLES);
+            if (!sampleStore.indexNames.contains("photoResourceId")) {
+              sampleStore.createIndex("photoResourceId", "photoResourceId", { unique: false });
+            }
+            if (!sampleStore.indexNames.contains("annotationResourceId")) {
+              sampleStore.createIndex("annotationResourceId", "annotationResourceId", { unique: false });
+            }
+          }
+        }
+
+        if (oldVersion < 7) {
+          if (!database.objectStoreNames.contains(STORES.VERSION_SNAPSHOTS)) {
+            const snapshotStore = database.createObjectStore(STORES.VERSION_SNAPSHOTS, { keyPath: "id" });
+            snapshotStore.createIndex("sampleId", "sampleId", { unique: false });
+            snapshotStore.createIndex("resourceType", "resourceType", { unique: false });
+            snapshotStore.createIndex("createdAt", "createdAt", { unique: false });
+          }
+        }
+
         if (!database.objectStoreNames.contains(STORES.PHOTOS)) {
           const photoStore = database.createObjectStore(STORES.PHOTOS, { keyPath: "sampleId" });
           photoStore.createIndex("sampleId", "sampleId", { unique: true });
+        }
+
+        if (!database.objectStoreNames.contains(STORES.PHOTO_RESOURCES)) {
+          const photoResStore = database.createObjectStore(STORES.PHOTO_RESOURCES, { keyPath: "id" });
+          photoResStore.createIndex("sampleId", "sampleId", { unique: false });
+          photoResStore.createIndex("createdAt", "createdAt", { unique: false });
+          photoResStore.createIndex("checksum", "checksum", { unique: false });
+        }
+
+        if (!database.objectStoreNames.contains(STORES.ANNOTATION_RESOURCES)) {
+          const annResStore = database.createObjectStore(STORES.ANNOTATION_RESOURCES, { keyPath: "id" });
+          annResStore.createIndex("sampleId", "sampleId", { unique: false });
+          annResStore.createIndex("createdAt", "createdAt", { unique: false });
+        }
+
+        if (!database.objectStoreNames.contains(STORES.MIGRATION_STATE)) {
+          database.createObjectStore(STORES.MIGRATION_STATE, { keyPath: "id" });
         }
 
         if (!database.objectStoreNames.contains(STORES.TASKS)) {
@@ -306,6 +352,36 @@
     }
   };
 
+  async function getPhotoBySampleId(sampleId) {
+    const sample = await getById(STORES.SAMPLES, sampleId);
+    if (sample && sample.photoResourceId) {
+      const resource = await PhotoResourceStore.getById(sample.photoResourceId);
+      if (resource) return resource.data;
+    }
+    try {
+      const photo = await getById(STORES.PHOTOS, sampleId);
+      return photo ? photo.data : null;
+    } catch {
+      return null;
+    }
+  }
+
+  async function getAnnotationsBySampleId(sampleId) {
+    const sample = await getById(STORES.SAMPLES, sampleId);
+    if (sample && sample.annotationResourceId) {
+      const resource = await AnnotationResourceStore.getById(sample.annotationResourceId);
+      if (resource) return resource.annotations || [];
+    }
+    return getByIndex(STORES.ANNOTATIONS, "sampleId", sampleId);
+  }
+
+  async function hydrateSampleWithResources(sample) {
+    if (!sample) return null;
+    const photo = await getPhotoBySampleId(sample.id);
+    const annotations = await getAnnotationsBySampleId(sample.id);
+    return { ...sample, photo: photo || "", annotations };
+  }
+
   const SampleStore = {
     async getAll(projectId = null) {
       await initDB();
@@ -327,20 +403,37 @@
       if (!sampleData.projectId) {
         sampleData.projectId = DEFAULT_PROJECT_ID;
       }
+
       const photoData = sampleData.photo;
+      const annotationsData = sampleData.annotations;
       delete sampleData.photo;
+      delete sampleData.annotations;
+
+      if (photoData) {
+        const photoResource = await PhotoResourceStore.add(sampleData.id, photoData);
+        if (photoResource) {
+          sampleData.photoResourceId = photoResource.id;
+        }
+      }
+
+      if (annotationsData && annotationsData.length > 0) {
+        const annResource = await AnnotationResourceStore.add(sampleData.id, annotationsData);
+        if (annResource) {
+          sampleData.annotationResourceId = annResource.id;
+        }
+      }
 
       await put(STORES.SAMPLES, sampleData);
 
       if (photoData) {
-        await put(STORES.PHOTOS, { sampleId: sample.id, data: photoData });
+        try { await put(STORES.PHOTOS, { sampleId: sample.id, data: photoData }); } catch (e) {}
       }
 
-      if (sampleData.annotations && sampleData.annotations.length > 0) {
-        await bulkPut(STORES.ANNOTATIONS, sampleData.annotations.map(a => ({ ...a, sampleId: sample.id })));
+      if (annotationsData && annotationsData.length > 0) {
+        try { await bulkPut(STORES.ANNOTATIONS, annotationsData.map(a => ({ ...a, sampleId: sample.id }))); } catch (e) {}
       }
 
-      return sample;
+      return { ...sampleData, photo: photoData || "", annotations: annotationsData || [] };
     },
 
     async update(id, updates) {
@@ -349,22 +442,69 @@
 
       const updated = { ...existing, ...updates };
       const photoData = updated.photo;
+      const annotationsData = updated.annotations;
       delete updated.photo;
-
-      await put(STORES.SAMPLES, updated);
+      delete updated.annotations;
 
       if (photoData !== undefined) {
         if (photoData) {
-          await put(STORES.PHOTOS, { sampleId: id, data: photoData });
+          if (existing.photoResourceId) {
+            await PhotoResourceStore.update(existing.photoResourceId, { data: photoData });
+          } else {
+            const photoResource = await PhotoResourceStore.add(id, photoData);
+            if (photoResource) {
+              updated.photoResourceId = photoResource.id;
+            }
+          }
         } else {
-          await remove(STORES.PHOTOS, id);
+          if (existing.photoResourceId) {
+            await PhotoResourceStore.remove(existing.photoResourceId);
+            delete updated.photoResourceId;
+          }
         }
+        try {
+          if (photoData) {
+            await put(STORES.PHOTOS, { sampleId: id, data: photoData });
+          } else {
+            await remove(STORES.PHOTOS, id);
+          }
+        } catch (e) {}
       }
 
+      if (annotationsData !== undefined) {
+        if (existing.annotationResourceId) {
+          await AnnotationResourceStore.update(existing.annotationResourceId, { annotations: annotationsData });
+        } else {
+          const annResource = await AnnotationResourceStore.add(id, annotationsData);
+          if (annResource) {
+            updated.annotationResourceId = annResource.id;
+          }
+        }
+        try {
+          const oldAnns = await getByIndex(STORES.ANNOTATIONS, "sampleId", id);
+          for (const ann of oldAnns) {
+            await remove(STORES.ANNOTATIONS, ann.id);
+          }
+          if (annotationsData && annotationsData.length > 0) {
+            await bulkPut(STORES.ANNOTATIONS, annotationsData.map(a => ({ ...a, sampleId: id })));
+          }
+        } catch (e) {}
+      }
+
+      await put(STORES.SAMPLES, updated);
       return updated;
     },
 
     async remove(id) {
+      const sample = await this.getById(id);
+      if (sample) {
+        if (sample.photoResourceId) {
+          try { await PhotoResourceStore.remove(sample.photoResourceId); } catch (e) {}
+        }
+        if (sample.annotationResourceId) {
+          try { await AnnotationResourceStore.remove(sample.annotationResourceId); } catch (e) {}
+        }
+      }
       await remove(STORES.SAMPLES, id);
       try { await remove(STORES.PHOTOS, id); } catch (e) {}
 
@@ -372,33 +512,27 @@
       for (const ann of annotations) {
         await remove(STORES.ANNOTATIONS, ann.id);
       }
+
+      try { await PhotoResourceStore.removeBySampleId(id); } catch (e) {}
+      try { await AnnotationResourceStore.removeBySampleId(id); } catch (e) {}
+      try { await VersionSnapshotStore.removeBySampleId(id); } catch (e) {}
     },
 
     async getPhoto(sampleId) {
-      try {
-        const photo = await getById(STORES.PHOTOS, sampleId);
-        return photo ? photo.data : null;
-      } catch {
-        return null;
-      }
+      return getPhotoBySampleId(sampleId);
     },
 
     async getWithPhoto(id) {
       const sample = await this.getById(id);
-      if (!sample) return null;
-      const photo = await this.getPhoto(id);
-      const annotations = await getByIndex(STORES.ANNOTATIONS, "sampleId", id);
-      return { ...sample, photo: photo || "", annotations };
+      return hydrateSampleWithResources(sample);
     },
 
     async getAllWithPhotos(projectId = null) {
       const samples = await this.getAll(projectId);
-      const allAnnotations = await getAll(STORES.ANNOTATIONS);
       const result = [];
       for (const sample of samples) {
-        const photo = await this.getPhoto(sample.id);
-        const annotations = allAnnotations.filter(a => a.sampleId === sample.id);
-        result.push({ ...sample, photo: photo || "", annotations });
+        const hydrated = await hydrateSampleWithResources(sample);
+        if (hydrated) result.push(hydrated);
       }
       return result;
     },
@@ -407,44 +541,80 @@
       const sampleDataList = [];
       const photoDataList = [];
       const annotationList = [];
+      const photoResources = [];
+      const annotationResources = [];
 
-      samples.forEach((sample) => {
+      for (const sample of samples) {
         const s = { ...sample };
         if (!s.projectId) {
           s.projectId = DEFAULT_PROJECT_ID;
         }
+
         if (s.photo) {
           photoDataList.push({ sampleId: s.id, data: s.photo });
+          const checksum = await computeChecksum(s.photo);
+          const photoRes = {
+            id: crypto.randomUUID(),
+            sampleId: s.id,
+            data: s.photo,
+            checksum,
+            createdAt: new Date().toISOString()
+          };
+          photoResources.push(photoRes);
+          s.photoResourceId = photoRes.id;
           delete s.photo;
         }
+
         if (s.annotations && s.annotations.length > 0) {
           s.annotations.forEach(a => annotationList.push({ ...a, sampleId: s.id }));
+          const annRes = {
+            id: crypto.randomUUID(),
+            sampleId: s.id,
+            annotations: s.annotations,
+            checksum: await computeChecksum(s.annotations),
+            createdAt: new Date().toISOString()
+          };
+          annotationResources.push(annRes);
+          s.annotationResourceId = annRes.id;
           delete s.annotations;
         }
+
         sampleDataList.push(s);
-      });
+      }
 
       await bulkPut(STORES.SAMPLES, sampleDataList);
+      if (photoResources.length > 0) {
+        await bulkPut(STORES.PHOTO_RESOURCES, photoResources);
+      }
+      if (annotationResources.length > 0) {
+        await bulkPut(STORES.ANNOTATION_RESOURCES, annotationResources);
+      }
       if (photoDataList.length > 0) {
-        await bulkPut(STORES.PHOTOS, photoDataList);
+        try { await bulkPut(STORES.PHOTOS, photoDataList); } catch (e) {}
       }
       if (annotationList.length > 0) {
-        await bulkPut(STORES.ANNOTATIONS, annotationList);
+        try { await bulkPut(STORES.ANNOTATIONS, annotationList); } catch (e) {}
       }
     },
 
     async clearAll(projectId = null) {
+      let sampleIds = [];
       if (projectId) {
         await initDB();
         const store = getStore(STORES.SAMPLES, "readwrite");
         const index = store.index("projectId");
-        const sampleIds = [];
         await new Promise((resolve, reject) => {
           const request = index.openCursor(projectId);
           request.onsuccess = (e) => {
             const cursor = e.target.result;
             if (cursor) {
               sampleIds.push(cursor.value.id);
+              if (cursor.value.photoResourceId) {
+                PhotoResourceStore.remove(cursor.value.photoResourceId).catch(() => {});
+              }
+              if (cursor.value.annotationResourceId) {
+                AnnotationResourceStore.remove(cursor.value.annotationResourceId).catch(() => {});
+              }
               cursor.delete();
               cursor.continue();
             } else {
@@ -459,11 +629,26 @@
           for (const ann of annotations) {
             await remove(STORES.ANNOTATIONS, ann.id);
           }
+          try { await PhotoResourceStore.removeBySampleId(sid); } catch (e) {}
+          try { await AnnotationResourceStore.removeBySampleId(sid); } catch (e) {}
+          try { await VersionSnapshotStore.removeBySampleId(sid); } catch (e) {}
         }
       } else {
+        const allSamples = await getAll(STORES.SAMPLES);
+        for (const s of allSamples) {
+          if (s.photoResourceId) {
+            try { await PhotoResourceStore.remove(s.photoResourceId); } catch (e) {}
+          }
+          if (s.annotationResourceId) {
+            try { await AnnotationResourceStore.remove(s.annotationResourceId); } catch (e) {}
+          }
+        }
         await clearStore(STORES.SAMPLES);
         await clearStore(STORES.PHOTOS);
         await clearStore(STORES.ANNOTATIONS);
+        await clearStore(STORES.PHOTO_RESOURCES);
+        await clearStore(STORES.ANNOTATION_RESOURCES);
+        await clearStore(STORES.VERSION_SNAPSHOTS);
       }
     }
   };
@@ -744,6 +929,169 @@
     }
   };
 
+  async function computeChecksum(data) {
+    if (!data) return "empty";
+    try {
+      if (window.crypto && window.crypto.subtle && window.crypto.subtle.digest) {
+        const encoder = new TextEncoder();
+        const buffer = encoder.encode(typeof data === "string" ? data : JSON.stringify(data));
+        const hashBuffer = await window.crypto.subtle.digest("SHA-1", buffer);
+        const hashArray = Array.from(new Uint8Array(hashBuffer));
+        return hashArray.map(b => b.toString(16).padStart(2, "0")).join("");
+      }
+    } catch (e) {}
+    let hash = 0;
+    const str = typeof data === "string" ? data : JSON.stringify(data);
+    for (let i = 0; i < str.length; i++) {
+      const char = str.charCodeAt(i);
+      hash = ((hash << 5) - hash) + char;
+      hash = hash & hash;
+    }
+    return Math.abs(hash).toString(16);
+  }
+
+  const PhotoResourceStore = {
+    async getAll() {
+      return getAll(STORES.PHOTO_RESOURCES);
+    },
+
+    async getById(id) {
+      return getById(STORES.PHOTO_RESOURCES, id);
+    },
+
+    async getBySampleId(sampleId) {
+      return getByIndex(STORES.PHOTO_RESOURCES, "sampleId", sampleId);
+    },
+
+    async getByChecksum(checksum) {
+      return getByIndex(STORES.PHOTO_RESOURCES, "checksum", checksum);
+    },
+
+    async add(sampleId, photoData) {
+      if (!photoData) return null;
+      const checksum = await computeChecksum(photoData);
+      const existingByChecksum = await this.getByChecksum(checksum);
+      if (existingByChecksum.length > 0) {
+        return existingByChecksum[0];
+      }
+      const resource = {
+        id: crypto.randomUUID(),
+        sampleId,
+        data: photoData,
+        checksum,
+        createdAt: new Date().toISOString()
+      };
+      await put(STORES.PHOTO_RESOURCES, resource);
+      return resource;
+    },
+
+    async update(id, updates) {
+      const existing = await this.getById(id);
+      if (!existing) throw new Error("Photo resource not found");
+      const updated = { ...existing, ...updates };
+      if (updates.data !== undefined) {
+        updated.checksum = await computeChecksum(updates.data);
+      }
+      await put(STORES.PHOTO_RESOURCES, updated);
+      return updated;
+    },
+
+    async remove(id) {
+      return remove(STORES.PHOTO_RESOURCES, id);
+    },
+
+    async removeBySampleId(sampleId) {
+      const resources = await this.getBySampleId(sampleId);
+      for (const r of resources) {
+        await this.remove(r.id);
+      }
+    }
+  };
+
+  const AnnotationResourceStore = {
+    async getAll() {
+      return getAll(STORES.ANNOTATION_RESOURCES);
+    },
+
+    async getById(id) {
+      return getById(STORES.ANNOTATION_RESOURCES, id);
+    },
+
+    async getBySampleId(sampleId) {
+      return getByIndex(STORES.ANNOTATION_RESOURCES, "sampleId", sampleId);
+    },
+
+    async add(sampleId, annotations) {
+      const annArray = Array.isArray(annotations) ? annotations : [];
+      const resource = {
+        id: crypto.randomUUID(),
+        sampleId,
+        annotations: annArray,
+        checksum: await computeChecksum(annArray),
+        createdAt: new Date().toISOString()
+      };
+      await put(STORES.ANNOTATION_RESOURCES, resource);
+      return resource;
+    },
+
+    async update(id, updates) {
+      const existing = await this.getById(id);
+      if (!existing) throw new Error("Annotation resource not found");
+      const updated = { ...existing, ...updates };
+      if (updates.annotations !== undefined) {
+        updated.checksum = await computeChecksum(updates.annotations);
+      }
+      await put(STORES.ANNOTATION_RESOURCES, updated);
+      return updated;
+    },
+
+    async remove(id) {
+      return remove(STORES.ANNOTATION_RESOURCES, id);
+    },
+
+    async removeBySampleId(sampleId) {
+      const resources = await this.getBySampleId(sampleId);
+      for (const r of resources) {
+        await this.remove(r.id);
+      }
+    }
+  };
+
+  const VersionSnapshotStore = {
+    async getAll() {
+      return getAll(STORES.VERSION_SNAPSHOTS);
+    },
+
+    async getById(id) {
+      return getById(STORES.VERSION_SNAPSHOTS, id);
+    },
+
+    async getBySampleId(sampleId) {
+      return getByIndex(STORES.VERSION_SNAPSHOTS, "sampleId", sampleId);
+    },
+
+    async add(snapshot) {
+      const record = {
+        id: crypto.randomUUID(),
+        createdAt: new Date().toISOString(),
+        ...snapshot
+      };
+      await put(STORES.VERSION_SNAPSHOTS, record);
+      return record;
+    },
+
+    async remove(id) {
+      return remove(STORES.VERSION_SNAPSHOTS, id);
+    },
+
+    async removeBySampleId(sampleId) {
+      const snapshots = await this.getBySampleId(sampleId);
+      for (const s of snapshots) {
+        await this.remove(s.id);
+      }
+    }
+  };
+
   const AppStateStore = {
     async getCompareList(projectId = DEFAULT_PROJECT_ID) {
       return getAppState(`compareList_${projectId}`, []);
@@ -775,6 +1123,22 @@
 
     async setProjectMigrationStatus(done) {
       return setAppState("projectMigrationDone", done);
+    },
+
+    async getResourceMigrationStatus() {
+      return getAppState("resourceMigrationDone", false);
+    },
+
+    async setResourceMigrationStatus(done) {
+      return setAppState("resourceMigrationDone", done);
+    },
+
+    async getResourceMigrationProgress() {
+      return getAppState("resourceMigrationProgress", { processed: 0, total: 0, phase: "idle" });
+    },
+
+    async setResourceMigrationProgress(progress) {
+      return setAppState("resourceMigrationProgress", progress);
     },
 
     async getCurrentProjectId() {
@@ -866,21 +1230,46 @@
     if (!project) throw new Error("Project not found");
 
     const samples = await SampleStore.getAll(projectId);
-    const photos = await getAll(STORES.PHOTOS);
     const tasks = await TaskStore.getAll(projectId);
-    const annotations = await getAll(STORES.ANNOTATIONS);
+    const photoResources = await PhotoResourceStore.getAll();
+    const annotationResources = await AnnotationResourceStore.getAll();
+    const oldPhotos = await getAll(STORES.PHOTOS);
+    const oldAnnotations = await getAll(STORES.ANNOTATIONS);
 
     const sampleIds = new Set(samples.map(s => s.id));
 
-    const samplesWithPhotos = samples.map(s => {
-      const photo = photos.find(p => p.sampleId === s.id);
-      const sampleAnnotations = annotations.filter(a => a.sampleId === s.id);
-      return {
-        ...s,
-        photo: photo ? photo.data : "",
-        annotations: sampleAnnotations
-      };
-    });
+    const samplesWithPhotos = [];
+    for (const s of samples) {
+      let photoData = "";
+      let annotationsData = [];
+
+      if (s.photoResourceId) {
+        const pr = photoResources.find(p => p.id === s.photoResourceId);
+        if (pr) photoData = pr.data;
+      }
+      if (!photoData) {
+        const oldPhoto = oldPhotos.find(p => p.sampleId === s.id);
+        if (oldPhoto) photoData = oldPhoto.data;
+      }
+
+      if (s.annotationResourceId) {
+        const ar = annotationResources.find(a => a.id === s.annotationResourceId);
+        if (ar) annotationsData = ar.annotations || [];
+      }
+      if (!annotationsData || annotationsData.length === 0) {
+        annotationsData = oldAnnotations.filter(a => a.sampleId === s.id);
+      }
+
+      const sampleExport = { ...s };
+      if (includeHistory) {
+        sampleExport.photo = photoData;
+        sampleExport.annotations = annotationsData;
+      } else {
+        sampleExport.photo = "";
+        sampleExport.annotations = [];
+      }
+      samplesWithPhotos.push(sampleExport);
+    }
 
     const compareList = await AppStateStore.getCompareList(projectId);
     const filteredCompare = compareList.filter(id => sampleIds.has(id));
@@ -958,11 +1347,14 @@
       }
     });
 
+    const importedSampleIds = [];
+
     if (data.samples && Array.isArray(data.samples)) {
       const samplesWithNewIds = data.samples.map(s => {
         const oldId = s.id;
         const newId = crypto.randomUUID();
         idMapping[oldId] = newId;
+        importedSampleIds.push(newId);
         return {
           ...s,
           id: newId,
@@ -1151,6 +1543,31 @@
       }
     }
 
+    if (importedSampleIds.length > 0 && window.DataMigration) {
+      try {
+        for (const sampleId of importedSampleIds) {
+          const sample = await SampleStore.getById(sampleId);
+          if (!sample) continue;
+
+          if (!sample.photoResourceId && sample.photo) {
+            const photoResource = await PhotoResourceStore.add(sampleId, sample.photo);
+            if (photoResource) {
+              await SampleStore.update(sampleId, { photoResourceId: photoResource.id });
+            }
+          }
+
+          if (!sample.annotationResourceId && sample.annotations && sample.annotations.length > 0) {
+            const annResource = await AnnotationResourceStore.add(sampleId, sample.annotations);
+            if (annResource) {
+              await SampleStore.update(sampleId, { annotationResourceId: annResource.id });
+            }
+          }
+        }
+      } catch (e) {
+        console.warn("导入后资源迁移失败:", e);
+      }
+    }
+
     return {
       project: projectRecord,
       sampleCount: (data.samples || []).length,
@@ -1252,10 +1669,13 @@
     await clearStore(STORES.PROJECTS);
     await clearStore(STORES.SAMPLES);
     await clearStore(STORES.PHOTOS);
+    await clearStore(STORES.PHOTO_RESOURCES);
+    await clearStore(STORES.ANNOTATION_RESOURCES);
     await clearStore(STORES.TASKS);
     await clearStore(STORES.ANNOTATIONS);
     await clearStore(STORES.STUDENT_ANSWERS);
     await clearStore(STORES.VERSION_HISTORY);
+    await clearStore(STORES.VERSION_SNAPSHOTS);
     await clearStore(STORES.RECYCLE_BIN);
     await clearStore(STORES.APP_STATE);
   }
@@ -1266,16 +1686,22 @@
     STORES,
     DB_NAME,
     DB_VERSION,
+    RESOURCE_MODEL_VERSION,
     getAppState,
     setAppState,
+    computeChecksum,
     ProjectStore,
     SampleStore,
+    PhotoResourceStore,
+    AnnotationResourceStore,
+    VersionSnapshotStore,
     AnnotationStore,
     AnswerStore,
     TaskStore,
     VersionStore,
     RecycleStore,
     AppStateStore,
+    hydrateSampleWithResources,
     exportProjectData,
     importProjectData,
     exportAllData,

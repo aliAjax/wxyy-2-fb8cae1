@@ -34,9 +34,19 @@
       const val = sample[f.key];
       snapshot[f.key] = Array.isArray(val) ? [...val] : (val ?? "");
     });
-    snapshot.photo = sample.photo ? String(sample.photo) : "";
-    snapshot.hasPhoto = snapshot.photo.trim().length > 0;
-    if (Array.isArray(sample.annotations)) {
+    if (sample.photoResourceId) {
+      snapshot.photoResourceId = sample.photoResourceId;
+      snapshot.hasPhoto = true;
+    } else {
+      snapshot.photo = sample.photo ? String(sample.photo) : "";
+      snapshot.hasPhoto = snapshot.photo.trim().length > 0;
+    }
+    if (sample.annotationResourceId) {
+      snapshot.annotationResourceId = sample.annotationResourceId;
+      const annCount = Array.isArray(sample.annotations) ? sample.annotations.length : 0;
+      snapshot.annotationCount = annCount;
+      snapshot.annotations = annCount > 0 ? sample.annotations.map(a => ({ ...a })) : [];
+    } else if (Array.isArray(sample.annotations)) {
       snapshot.annotations = sample.annotations.map(a => ({ ...a }));
       snapshot.annotationCount = sample.annotations.length;
     } else {
@@ -55,19 +65,33 @@
         changed.push(f.key);
       }
     });
-    const oldPhoto = String(oldSnapshot.photo || "").trim();
-    const newPhoto = String(newSnapshot.photo || "").trim();
-    if (oldPhoto !== newPhoto) {
+
+    const oldPhotoId = oldSnapshot.photoResourceId || null;
+    const newPhotoId = newSnapshot.photoResourceId || null;
+    if (oldPhotoId !== newPhotoId) {
       changed.push("photo");
-    } else if (oldSnapshot.hasPhoto !== newSnapshot.hasPhoto) {
-      changed.push("hasPhoto");
+    } else {
+      const oldPhoto = String(oldSnapshot.photo || "").trim();
+      const newPhoto = String(newSnapshot.photo || "").trim();
+      if (oldPhoto !== newPhoto) {
+        changed.push("photo");
+      } else if (oldSnapshot.hasPhoto !== newSnapshot.hasPhoto) {
+        changed.push("hasPhoto");
+      }
     }
-    const oldAnnJson = JSON.stringify(oldSnapshot.annotations || []);
-    const newAnnJson = JSON.stringify(newSnapshot.annotations || []);
-    if (oldAnnJson !== newAnnJson) {
+
+    const oldAnnId = oldSnapshot.annotationResourceId || null;
+    const newAnnId = newSnapshot.annotationResourceId || null;
+    if (oldAnnId !== newAnnId) {
       changed.push("annotations");
-    } else if (oldSnapshot.annotationCount !== newSnapshot.annotationCount) {
-      changed.push("annotationCount");
+    } else {
+      const oldAnnJson = JSON.stringify(oldSnapshot.annotations || []);
+      const newAnnJson = JSON.stringify(newSnapshot.annotations || []);
+      if (oldAnnJson !== newAnnJson) {
+        changed.push("annotations");
+      } else if (oldSnapshot.annotationCount !== newSnapshot.annotationCount) {
+        changed.push("annotationCount");
+      }
     }
     return changed;
   }
@@ -141,7 +165,7 @@
     return window.StorageLayer.VersionStore.getBySampleId(sampleId);
   }
 
-  function diffTwoVersions(v1, v2) {
+  async function diffTwoVersions(v1, v2) {
     const result = [];
     TRACKED_FIELDS.forEach(f => {
       const oldVal = normalizeValue(v1.snapshot[f.key]);
@@ -155,41 +179,97 @@
         });
       }
     });
-    const oldPhoto = String(v1.snapshot.photo || "").trim();
-    const newPhoto = String(v2.snapshot.photo || "").trim();
-    if (oldPhoto !== newPhoto) {
+
+    const oldPhotoId = v1.snapshot.photoResourceId || null;
+    const newPhotoId = v2.snapshot.photoResourceId || null;
+    if (oldPhotoId !== newPhotoId) {
+      const snap1 = await hydrateSnapshotWithResources(v1.snapshot);
+      const snap2 = await hydrateSnapshotWithResources(v2.snapshot);
+      const oldPhotoData = String(snap1.photo || "").trim();
+      const newPhotoData = String(snap2.photo || "").trim();
       result.push({
         field: "photo",
         label: "照片",
-        oldValue: { __type: "photo", data: oldPhoto },
-        newValue: { __type: "photo", data: newPhoto }
+        oldValue: { __type: "photo", data: oldPhotoData },
+        newValue: { __type: "photo", data: newPhotoData }
       });
-    } else if (v1.snapshot.hasPhoto !== v2.snapshot.hasPhoto) {
-      result.push({
-        field: "hasPhoto",
-        label: "照片",
-        oldValue: v1.snapshot.hasPhoto ? "有" : "无",
-        newValue: v2.snapshot.hasPhoto ? "有" : "无"
-      });
+    } else {
+      const oldPhoto = String(v1.snapshot.photo || "").trim();
+      const newPhoto = String(v2.snapshot.photo || "").trim();
+      if (oldPhoto !== newPhoto) {
+        result.push({
+          field: "photo",
+          label: "照片",
+          oldValue: { __type: "photo", data: oldPhoto },
+          newValue: { __type: "photo", data: newPhoto }
+        });
+      } else if (v1.snapshot.hasPhoto !== v2.snapshot.hasPhoto) {
+        result.push({
+          field: "hasPhoto",
+          label: "照片",
+          oldValue: v1.snapshot.hasPhoto ? "有" : "无",
+          newValue: v2.snapshot.hasPhoto ? "有" : "无"
+        });
+      }
     }
-    const oldAnn = v1.snapshot.annotations || [];
-    const newAnn = v2.snapshot.annotations || [];
-    if (JSON.stringify(oldAnn) !== JSON.stringify(newAnn)) {
+
+    const oldAnnId = v1.snapshot.annotationResourceId || null;
+    const newAnnId = v2.snapshot.annotationResourceId || null;
+    if (oldAnnId !== newAnnId) {
+      const snap1 = await hydrateSnapshotWithResources(v1.snapshot);
+      const snap2 = await hydrateSnapshotWithResources(v2.snapshot);
+      const oldAnn = snap1.annotations || [];
+      const newAnn = snap2.annotations || [];
       result.push({
         field: "annotations",
         label: "标注",
         oldValue: { __type: "annotations", data: oldAnn },
         newValue: { __type: "annotations", data: newAnn }
       });
-    } else if (v1.snapshot.annotationCount !== v2.snapshot.annotationCount) {
-      result.push({
-        field: "annotationCount",
-        label: "标注",
-        oldValue: v1.snapshot.annotationCount + " 个",
-        newValue: v2.snapshot.annotationCount + " 个"
-      });
+    } else {
+      const oldAnn = v1.snapshot.annotations || [];
+      const newAnn = v2.snapshot.annotations || [];
+      if (JSON.stringify(oldAnn) !== JSON.stringify(newAnn)) {
+        result.push({
+          field: "annotations",
+          label: "标注",
+          oldValue: { __type: "annotations", data: oldAnn },
+          newValue: { __type: "annotations", data: newAnn }
+        });
+      } else if (v1.snapshot.annotationCount !== v2.snapshot.annotationCount) {
+        result.push({
+          field: "annotationCount",
+          label: "标注",
+          oldValue: v1.snapshot.annotationCount + " 个",
+          newValue: v2.snapshot.annotationCount + " 个"
+        });
+      }
     }
     return result;
+  }
+
+  async function hydrateSnapshotWithResources(snapshot) {
+    if (!window.StorageLayer) return snapshot;
+
+    const hydrated = { ...snapshot };
+
+    if (snapshot.photoResourceId && !snapshot.photo) {
+      const pr = await window.StorageLayer.PhotoResourceStore.getById(snapshot.photoResourceId);
+      if (pr) {
+        hydrated.photo = pr.data;
+        hydrated.hasPhoto = true;
+      }
+    }
+
+    if (snapshot.annotationResourceId && (!snapshot.annotations || snapshot.annotations.length === 0)) {
+      const ar = await window.StorageLayer.AnnotationResourceStore.getById(snapshot.annotationResourceId);
+      if (ar) {
+        hydrated.annotations = ar.annotations || [];
+        hydrated.annotationCount = hydrated.annotations.length;
+      }
+    }
+
+    return hydrated;
   }
 
   async function rollbackToVersion(sampleId, targetVersion) {
@@ -203,7 +283,7 @@
     if (!currentSample) throw new Error("样本不存在");
 
     const currentSnapshot = buildSnapshot(currentSample);
-    const targetSnapshot = target.snapshot;
+    const targetSnapshot = await hydrateSnapshotWithResources(target.snapshot);
 
     const updates = {};
     TRACKED_FIELDS.forEach(f => {
@@ -218,18 +298,46 @@
       }
     });
 
-    const curPhoto = String(currentSnapshot.photo || "").trim();
-    const tgtPhoto = String(targetSnapshot.photo || "").trim();
-    if (curPhoto !== tgtPhoto) {
-      updates.photo = targetSnapshot.photo || "";
+    const curPhotoId = currentSnapshot.photoResourceId || null;
+    const tgtPhotoId = targetSnapshot.photoResourceId || null;
+    if (curPhotoId !== tgtPhotoId) {
+      if (tgtPhotoId) {
+        updates.photoResourceId = tgtPhotoId;
+        const pr = await window.StorageLayer.PhotoResourceStore.getById(tgtPhotoId);
+        if (pr) updates.photo = pr.data;
+      } else {
+        updates.photoResourceId = null;
+        updates.photo = targetSnapshot.photo || "";
+      }
+    } else {
+      const curPhoto = String(currentSnapshot.photo || "").trim();
+      const tgtPhoto = String(targetSnapshot.photo || "").trim();
+      if (curPhoto !== tgtPhoto) {
+        updates.photo = targetSnapshot.photo || "";
+      }
     }
 
-    const curAnnJson = JSON.stringify(currentSnapshot.annotations || []);
-    const tgtAnnJson = JSON.stringify(targetSnapshot.annotations || []);
-    if (curAnnJson !== tgtAnnJson) {
-      updates.annotations = Array.isArray(targetSnapshot.annotations)
-        ? targetSnapshot.annotations.map(a => ({ ...a }))
-        : [];
+    const curAnnId = currentSnapshot.annotationResourceId || null;
+    const tgtAnnId = targetSnapshot.annotationResourceId || null;
+    if (curAnnId !== tgtAnnId) {
+      if (tgtAnnId) {
+        updates.annotationResourceId = tgtAnnId;
+        const ar = await window.StorageLayer.AnnotationResourceStore.getById(tgtAnnId);
+        if (ar) updates.annotations = ar.annotations || [];
+      } else {
+        updates.annotationResourceId = null;
+        updates.annotations = Array.isArray(targetSnapshot.annotations)
+          ? targetSnapshot.annotations.map(a => ({ ...a }))
+          : [];
+      }
+    } else {
+      const curAnnJson = JSON.stringify(currentSnapshot.annotations || []);
+      const tgtAnnJson = JSON.stringify(targetSnapshot.annotations || []);
+      if (curAnnJson !== tgtAnnJson) {
+        updates.annotations = Array.isArray(targetSnapshot.annotations)
+          ? targetSnapshot.annotations.map(a => ({ ...a }))
+          : [];
+      }
     }
 
     if (Object.keys(updates).length === 0) return null;
@@ -269,9 +377,12 @@
     const recycleItem = await window.StorageLayer.RecycleStore.getById(recycleId);
     if (!recycleItem) throw new Error("回收站中未找到该记录");
 
+    const snapshot = recycleItem.sampleSnapshot || {};
+    const hydratedSnapshot = await hydrateSnapshotWithResources(snapshot);
+
     await window.StorageLayer.RecycleStore.remove(recycleId);
 
-    return recycleItem.sampleSnapshot;
+    return hydratedSnapshot;
   }
 
   async function permanentlyDelete(recycleId) {
@@ -452,6 +563,7 @@
     recordVersion,
     getHistory,
     diffTwoVersions,
+    hydrateSnapshotWithResources,
     rollbackToVersion,
     moveToRecycleBin,
     getRecycleBin,

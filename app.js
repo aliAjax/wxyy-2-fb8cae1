@@ -5844,14 +5844,14 @@ function renderVersionHistoryContent(sampleId, sample, versions, body, footer) {
 
     const compareBtn = document.getElementById("vhCompareBtn");
     if (compareBtn) {
-      compareBtn.addEventListener("click", () => {
+      compareBtn.addEventListener("click", async () => {
         const v1Num = parseInt(diffV1Select.value, 10);
         const v2Num = parseInt(diffV2Select.value, 10);
         const v1 = versions.find(v => v.version === v1Num);
         const v2 = versions.find(v => v.version === v2Num);
         const resultEl = document.getElementById("vhDiffResult");
         if (v1 && v2 && resultEl) {
-          const diff = window.VersionHistory.diffTwoVersions(v1, v2);
+          const diff = await window.VersionHistory.diffTwoVersions(v1, v2);
           resultEl.innerHTML = window.VersionHistory.diffTableHTML(diff);
         }
       });
