@@ -1364,9 +1364,10 @@
     });
 
     const importedSampleIds = [];
+    let samplesWithNewIds = [];
 
     if (data.samples && Array.isArray(data.samples)) {
-      const samplesWithNewIds = data.samples.map(s => {
+      samplesWithNewIds = data.samples.map(s => {
         const oldId = s.id;
         const newId = crypto.randomUUID();
         idMapping[oldId] = newId;
