@@ -858,6 +858,14 @@
       return all.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
     },
 
+    async update(id, updates) {
+      const existing = await getById(STORES.VERSION_HISTORY, id);
+      if (!existing) return null;
+      const merged = { ...existing, ...updates };
+      await put(STORES.VERSION_HISTORY, merged);
+      return merged;
+    },
+
     async clearAll() {
       return clearStore(STORES.VERSION_HISTORY);
     }
@@ -903,6 +911,14 @@
       for (const item of items) {
         await remove(STORES.RECYCLE_BIN, item.id);
       }
+    },
+
+    async update(id, updates) {
+      const existing = await getById(STORES.RECYCLE_BIN, id);
+      if (!existing) return null;
+      const merged = { ...existing, ...updates };
+      await put(STORES.RECYCLE_BIN, merged);
+      return merged;
     },
 
     async clearAll(projectId = null) {
@@ -1543,7 +1559,7 @@
       }
     }
 
-    if (importedSampleIds.length > 0 && window.DataMigration) {
+    if (importedSampleIds.length > 0) {
       try {
         for (const sampleId of importedSampleIds) {
           const sample = await SampleStore.getById(sampleId);
@@ -1690,6 +1706,12 @@
     getAppState,
     setAppState,
     computeChecksum,
+    getAll,
+    getById,
+    getByIndex,
+    put,
+    remove,
+    clearStore,
     ProjectStore,
     SampleStore,
     PhotoResourceStore,

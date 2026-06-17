@@ -118,6 +118,15 @@
     await migrateExistingDataToProjects();
     await migrateAppStateSchema();
 
+    const resourceMigrationResult = await migrateToResourceModel();
+    if (resourceMigrationResult.migrated) {
+      migrationResult = {
+        ...migrationResult,
+        ...resourceMigrationResult,
+        resourceMigrated: true
+      };
+    }
+
     return migrationResult;
   }
 
@@ -268,6 +277,7 @@
     const hasLegacy = hasLegacyData();
     const migrationDone = await window.StorageLayer.AppStateStore.getMigrationStatus();
     const projectMigrationDone = await window.StorageLayer.AppStateStore.getProjectMigrationStatus();
+    const resourceMigrationDone = await window.StorageLayer.AppStateStore.getResourceMigrationStatus();
 
     if (!migrationDone && hasLegacy) {
       return true;
@@ -280,6 +290,13 @@
     const schemaVersion = await window.StorageLayer.AppStateStore.getSchemaVersion();
     if (schemaVersion < MIGRATION_VERSION) {
       return true;
+    }
+
+    if (!resourceMigrationDone) {
+      const samples = await window.StorageLayer.SampleStore.getAll();
+      if (samples.length > 0) {
+        return true;
+      }
     }
 
     return false;

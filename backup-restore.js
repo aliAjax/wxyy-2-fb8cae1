@@ -668,6 +668,7 @@
     const DEFAULT_PROJECT_ID = window.StorageLayer.DEFAULT_PROJECT_ID;
     const newProjectId = crypto.randomUUID();
     const idMapping = {};
+    let samplesWithNewIds = [];
 
     const projectName = customName || `导入项目-${new Date().toLocaleDateString()}`;
 
@@ -680,7 +681,7 @@
     });
 
     if (data.samples && Array.isArray(data.samples)) {
-      const samplesWithNewIds = data.samples.map(s => {
+      samplesWithNewIds = data.samples.map(s => {
         const oldId = s.id;
         const newId = crypto.randomUUID();
         idMapping[oldId] = newId;
