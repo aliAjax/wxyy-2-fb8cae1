@@ -3,13 +3,21 @@
 
   const LESSON_PACKAGE_FORMAT = "wxyy-lesson-package";
   const ANSWER_PACKAGE_FORMAT = "wxyy-answer-package";
-  const PACKAGE_FORMAT_VERSION = 3;
+  const PACKAGE_FORMAT_VERSION = 4;
 
   const CONFLICT_STRATEGIES = {
     SKIP: "skip",
     RENAME: "rename",
     OVERWRITE: "overwrite"
   };
+
+  const MERGE_STRATEGIES = {
+    KEEP_LATEST: "keepLatest",
+    MERGE_NON_EMPTY: "mergeNonEmpty",
+    ASK: "ask"
+  };
+
+  const ANSWER_MERGE_FIELDS = ["minerals", "texture", "observation", "comment"];
 
   let state = {
     submissions: [],
@@ -66,6 +74,12 @@
       }
       data.version = 3;
     }
+    if (data.version === 3) {
+      if (!data.lessonContentHash) {
+        data.lessonContentHash = computeLessonContentHash(data);
+      }
+      data.version = 4;
+    }
     return data;
   }
 
@@ -91,6 +105,21 @@
       }
       data.version = 3;
     }
+    if (data.version === 3) {
+      if (data.referenceAnswers) {
+        delete data.referenceAnswers;
+      }
+      if (data.rubrics) {
+        delete data.rubrics;
+      }
+      if (!data.lessonContentHash) {
+        data.lessonContentHash = "";
+      }
+      if (!data.submissionHistory) {
+        data.submissionHistory = [];
+      }
+      data.version = 4;
+    }
     return data;
   }
 
@@ -102,7 +131,114 @@
     ];
   }
 
+  function stableStringify(obj) {
+    if (obj === null || obj === undefined) return String(obj);
+    if (typeof obj !== "object") return JSON.stringify(obj);
+    if (Array.isArray(obj)) {
+      return "[" + obj.map(stableStringify).join(",") + "]";
+    }
+    const keys = Object.keys(obj).sort();
+    const parts = keys.map(k => JSON.stringify(k) + ":" + stableStringify(obj[k]));
+    return "{" + parts.join(",") + "}";
+  }
+
+  function computeNumericHash(str) {
+    let hash = 0;
+    for (let i = 0; i < str.length; i++) {
+      const ch = str.charCodeAt(i);
+      hash = ((hash << 5) - hash) + ch;
+      hash |= 0;
+    }
+    return Math.abs(hash);
+  }
+
+  async function computeSha1Hash(str) {
+    try {
+      if (window.crypto && window.crypto.subtle && window.crypto.subtle.digest) {
+        const encoder = new TextEncoder();
+        const buffer = encoder.encode(str);
+        const hashBuffer = await window.crypto.subtle.digest("SHA-1", buffer);
+        const hashArray = Array.from(new Uint8Array(hashBuffer));
+        return hashArray.map(b => b.toString(16).padStart(2, "0")).join("");
+      }
+    } catch (e) {}
+    return computeNumericHash(str).toString(36);
+  }
+
+  function computeLessonContentHash(data) {
+    const samplePayload = (data.samples || []).map(s => ({
+      id: s.id,
+      code: s.code,
+      polarization: s.polarization,
+      magnification: s.magnification,
+      location: s.location
+    })).sort((a, b) => a.id.localeCompare(b.id));
+
+    const taskPayload = (data.tasks || []).map(t => ({
+      id: t.id,
+      title: t.title,
+      sampleIds: [...(t.sampleIds || [])].sort()
+    })).sort((a, b) => a.id.localeCompare(b.id));
+
+    const rubricPayload = (data.rubrics || []).map(r => ({
+      name: r.name,
+      maxScore: r.maxScore
+    }));
+
+    const refAnswerKeys = Object.keys(data.referenceAnswers || {}).sort();
+
+    const payload = {
+      samples: samplePayload,
+      tasks: taskPayload,
+      rubrics: rubricPayload,
+      referenceAnswerKeys: refAnswerKeys,
+      packageId: data.packageId || ""
+    };
+
+    return computeNumericHash(stableStringify(payload)).toString(36);
+  }
+
   function computeContentHash(data) {
+    if (data.format === LESSON_PACKAGE_FORMAT) {
+      const payload = {
+        format: data.format,
+        version: data.version,
+        packageId: data.packageId,
+        tasks: (data.tasks || []).map(t => ({ id: t.id, title: t.title, sampleIds: [...(t.sampleIds || [])].sort() })).sort((a, b) => a.id.localeCompare(b.id)),
+        samples: (data.samples || []).map(s => ({ id: s.id, code: s.code, groupId: s.groupId })).sort((a, b) => a.id.localeCompare(b.id)),
+        referenceAnswerKeys: Object.keys(data.referenceAnswers || {}).sort(),
+        rubricCount: (data.rubrics || []).length,
+        lessonContentHash: data.lessonContentHash || ""
+      };
+      return computeNumericHash(stableStringify(payload)).toString(36);
+    }
+
+    if (data.format === ANSWER_PACKAGE_FORMAT) {
+      const payload = {
+        format: data.format,
+        version: data.version,
+        packageId: data.packageId,
+        lessonPackageId: data.lessonPackageId || "",
+        lessonContentHash: data.lessonContentHash || "",
+        studentInfo: data.studentInfo ? {
+          studentId: data.studentInfo.studentId,
+          name: data.studentInfo.name,
+          className: data.studentInfo.className
+        } : null,
+        answerKeys: Object.keys(data.answers || {}).sort(),
+        answerContent: Object.entries(data.answers || {})
+          .map(([sid, a]) => ({
+            sampleId: sid,
+            minerals: a.minerals || "",
+            texture: a.texture || "",
+            observation: a.observation || "",
+            comment: a.comment || ""
+          }))
+          .sort((a, b) => a.sampleId.localeCompare(b.sampleId))
+      };
+      return computeNumericHash(stableStringify(payload)).toString(36);
+    }
+
     const payload = {
       format: data.format,
       tasks: data.tasks ? data.tasks.map(t => t.id).sort() : [],
@@ -110,20 +246,31 @@
       answers: data.answers ? Object.keys(data.answers).sort() : [],
       studentInfo: data.studentInfo ? data.studentInfo.studentId : ""
     };
-    const str = JSON.stringify(payload);
-    let hash = 0;
-    for (let i = 0; i < str.length; i++) {
-      const ch = str.charCodeAt(i);
-      hash = ((hash << 5) - hash) + ch;
-      hash |= 0;
-    }
-    return Math.abs(hash).toString(36);
+    return computeNumericHash(stableStringify(payload)).toString(36);
   }
 
   function verifyContentHash(data) {
     if (!data.contentHash) return true;
     const currentHash = computeContentHash(data);
     return currentHash === data.contentHash;
+  }
+
+  function verifyLessonContentMatch(answerPackage, lessonMeta) {
+    if (!lessonMeta || !lessonMeta.lessonContentHash) {
+      return { match: true, reason: "no-lesson-hash" };
+    }
+    if (!answerPackage.lessonContentHash) {
+      return { match: true, reason: "no-answer-hash" };
+    }
+    if (answerPackage.lessonContentHash === lessonMeta.lessonContentHash) {
+      return { match: true, reason: "match" };
+    }
+    return {
+      match: false,
+      reason: "hash-mismatch",
+      answerHash: answerPackage.lessonContentHash,
+      lessonHash: lessonMeta.lessonContentHash
+    };
   }
 
   function getCurrentProjectId() {
@@ -173,6 +320,13 @@
       if (!sub.lessonTitle) { sub.lessonTitle = ""; dirty = true; }
       if (!sub.taskProgress) { sub.taskProgress = {}; dirty = true; }
       if (!sub.importedAt) { sub.importedAt = new Date().toISOString(); dirty = true; }
+      if (!sub.lessonContentHash) { sub.lessonContentHash = ""; dirty = true; }
+      if (!sub.submissionHistory || !Array.isArray(sub.submissionHistory)) {
+        sub.submissionHistory = [];
+        dirty = true;
+      }
+      if (sub.isAbnormal === undefined) { sub.isAbnormal = false; dirty = true; }
+      if (!sub.mergeInfo) { sub.mergeInfo = null; dirty = true; }
     });
     return dirty;
   }
@@ -191,6 +345,10 @@
       }
       if (!meta.referenceAnswers || typeof meta.referenceAnswers !== "object") {
         meta.referenceAnswers = {};
+        dirty = true;
+      }
+      if (!meta.lessonContentHash) {
+        meta.lessonContentHash = "";
         dirty = true;
       }
     });
@@ -298,6 +456,7 @@
       sampleGroups
     };
 
+    lessonPackage.lessonContentHash = computeLessonContentHash(lessonPackage);
     lessonPackage.contentHash = computeContentHash(lessonPackage);
 
     return lessonPackage;
@@ -503,7 +662,8 @@
             description: data.description || "",
             rubrics: data.rubrics || buildDefaultRubrics(),
             referenceAnswers: migratedReferenceAnswers,
-            importedAt: new Date().toISOString()
+            importedAt: new Date().toISOString(),
+            lessonContentHash: data.lessonContentHash || computeLessonContentHash(data)
           };
           await saveState();
 
@@ -576,6 +736,17 @@
 
     const lessonMeta = lessonPackageId ? (state.lessonMetas[lessonPackageId] || null) : null;
 
+    const safeAnswers = {};
+    Object.entries(answers || {}).forEach(([sampleId, ans]) => {
+      if (!sampleIdSet.has(sampleId)) return;
+      safeAnswers[sampleId] = {
+        minerals: ans.minerals || "",
+        texture: ans.texture || "",
+        observation: ans.observation || "",
+        comment: ans.comment || ""
+      };
+    });
+
     const answerPackage = {
       format: ANSWER_PACKAGE_FORMAT,
       version: PACKAGE_FORMAT_VERSION,
@@ -595,10 +766,9 @@
         sampleIds: [...t.sampleIds],
         completedSamples: [...(t.completedSamples || [])]
       })),
-      answers: answers || {},
+      answers: safeAnswers,
       taskProgress,
-      rubrics: lessonMeta ? lessonMeta.rubrics : null,
-      referenceAnswers: lessonMeta ? lessonMeta.referenceAnswers : null
+      lessonContentHash: lessonMeta ? (lessonMeta.lessonContentHash || "") : ""
     };
 
     answerPackage.contentHash = computeContentHash(answerPackage);
@@ -649,8 +819,108 @@
     return { valid: true };
   }
 
+  function mergeSubmissionAnswers(existingAnswers, newAnswers, strategy = MERGE_STRATEGIES.MERGE_NON_EMPTY) {
+    if (strategy === MERGE_STRATEGIES.KEEP_LATEST) {
+      return { ...newAnswers };
+    }
+
+    const merged = { ...existingAnswers };
+    const allSampleIds = new Set([
+      ...Object.keys(existingAnswers || {}),
+      ...Object.keys(newAnswers || {})
+    ]);
+
+    const fieldMergeSummary = {};
+
+    allSampleIds.forEach(sid => {
+      const oldAns = existingAnswers?.[sid] || {};
+      const newAns = newAnswers?.[sid] || {};
+
+      if (!merged[sid]) {
+        merged[sid] = { ...newAns };
+        fieldMergeSummary[sid] = { action: "added" };
+        return;
+      }
+
+      const sampleSummary = { changedFields: [] };
+      ANSWER_MERGE_FIELDS.forEach(field => {
+        const oldVal = (oldAns[field] || "").toString().trim();
+        const newVal = (newAns[field] || "").toString().trim();
+
+        if (strategy === MERGE_STRATEGIES.MERGE_NON_EMPTY) {
+          if (newVal.length > 0 && newVal !== oldVal) {
+            merged[sid][field] = newAns[field];
+            sampleSummary.changedFields.push(field);
+          }
+        }
+      });
+
+      if (sampleSummary.changedFields.length > 0) {
+        fieldMergeSummary[sid] = sampleSummary;
+      }
+    });
+
+    return { answers: merged, summary: fieldMergeSummary };
+  }
+
+  function mergeTaskProgress(existingProgress, newProgress) {
+    const merged = { ...existingProgress };
+    Object.entries(newProgress || {}).forEach(([tid, prog]) => {
+      if (!merged[tid]) {
+        merged[tid] = { ...prog };
+      } else {
+        const oldCompleted = new Set(merged[tid].completedSamples || []);
+        (prog.completedSamples || []).forEach(sid => oldCompleted.add(sid));
+        merged[tid].completedSamples = [...oldCompleted];
+        if (prog.submittedAt) {
+          merged[tid].submittedAt = prog.submittedAt;
+        }
+      }
+    });
+    return merged;
+  }
+
+  function countAnswerContent(answers) {
+    let nonEmptySamples = 0;
+    let totalChars = 0;
+    Object.values(answers || {}).forEach(ans => {
+      let hasContent = false;
+      ANSWER_MERGE_FIELDS.forEach(field => {
+        const val = (ans[field] || "").toString().trim();
+        totalChars += val.length;
+        if (val.length > 0) hasContent = true;
+      });
+      if (hasContent) nonEmptySamples++;
+    });
+    return { nonEmptySamples, totalChars };
+  }
+
+  function shouldAbnormalOverwriteValid(abnormalSub, validSub) {
+    const abnStats = countAnswerContent(abnormalSub.answers);
+    const valStats = countAnswerContent(validSub.answers);
+
+    if (abnStats.nonEmptySamples === 0 && valStats.nonEmptySamples > 0) {
+      return false;
+    }
+
+    if (abnStats.totalChars === 0 && valStats.totalChars > 0) {
+      return false;
+    }
+
+    const abnHasId = abnormalSub.studentInfo?.studentId?.trim().length > 0;
+    const abnHasName = abnormalSub.studentInfo?.name?.trim().length > 0;
+    const valHasId = validSub.studentInfo?.studentId?.trim().length > 0;
+    const valHasName = validSub.studentInfo?.name?.trim().length > 0;
+
+    if ((!abnHasId || !abnHasName) && valHasId && valHasName) {
+      return false;
+    }
+
+    return true;
+  }
+
   async function importAnswerPackage(file, options = {}) {
-    const { onDuplicate = null } = options;
+    const { onDuplicate = null, mergeStrategy = MERGE_STRATEGIES.MERGE_NON_EMPTY } = options;
 
     return new Promise((resolve, reject) => {
       const reader = new FileReader();
@@ -666,28 +936,124 @@
 
           data = migrateAnswerPackage(data);
 
+          const isNewAbnormal = isSubmissionAbnormal({
+            studentInfo: data.studentInfo,
+            answers: data.answers || {},
+            scores: {},
+            lessonPackageId: data.lessonPackageId
+          });
+
+          const lessonMeta = data.lessonPackageId ? state.lessonMetas[data.lessonPackageId] : null;
+          const versionCheck = verifyLessonContentMatch(data, lessonMeta);
+
           const existingSubmission = state.submissions.find(s =>
             s.lessonPackageId === data.lessonPackageId &&
             s.studentInfo.studentId === data.studentInfo.studentId
           );
 
           if (existingSubmission) {
-            let shouldOverwrite = false;
-            if (onDuplicate) {
-              const choice = await onDuplicate(data.studentInfo, existingSubmission);
-              if (choice === null) {
-                throw new Error("用户取消导入");
+            const existingIsAbnormal = isSubmissionAbnormal(existingSubmission);
+
+            if (isNewAbnormal && !existingIsAbnormal) {
+              if (!shouldAbnormalOverwriteValid(data, existingSubmission)) {
+                resolve({
+                  success: true,
+                  skipped: true,
+                  submission: existingSubmission,
+                  warnings: [
+                    {
+                      type: "abnormal_protected",
+                      message: "新提交为异常包（缺少答案或学生信息不完整），已保留已有有效提交，未覆盖。"
+                    }
+                  ],
+                  versionCheck,
+                  isUpdate: false
+                });
+                return;
               }
-              shouldOverwrite = choice;
-            } else {
-              shouldOverwrite = true;
             }
 
-            if (shouldOverwrite) {
-              state.submissions = state.submissions.filter(s => s.id !== existingSubmission.id);
-            } else {
-              throw new Error("用户取消导入");
+            let userDecision = null;
+            if (onDuplicate) {
+              userDecision = await onDuplicate({
+                studentInfo: data.studentInfo,
+                existing: existingSubmission,
+                incoming: data,
+                existingAbnormal: existingIsAbnormal,
+                incomingAbnormal: isNewAbnormal,
+                versionCheck
+              });
+              if (userDecision === "cancel") {
+                throw new Error("用户取消导入");
+              }
             }
+
+            const effectiveStrategy = (userDecision === "overwrite") ? MERGE_STRATEGIES.KEEP_LATEST
+              : (userDecision === "merge") ? MERGE_STRATEGIES.MERGE_NON_EMPTY
+              : (userDecision === "keep") ? "keep_existing"
+              : mergeStrategy;
+
+            if (effectiveStrategy === "keep_existing") {
+              resolve({
+                success: true,
+                skipped: true,
+                submission: existingSubmission,
+                isUpdate: false
+              });
+              return;
+            }
+
+            const mergeResult = mergeSubmissionAnswers(
+              existingSubmission.answers,
+              data.answers,
+              effectiveStrategy
+            );
+
+            const mergedTaskProgress = mergeTaskProgress(
+              existingSubmission.taskProgress || {},
+              data.taskProgress || {}
+            );
+
+            const historyEntry = {
+              timestamp: new Date().toISOString(),
+              packageId: data.packageId,
+              answers: data.answers || {},
+              taskProgress: data.taskProgress || {},
+              strategy: effectiveStrategy,
+              sourceFile: file?.name || "unknown"
+            };
+
+            const newHistory = [...(existingSubmission.submissionHistory || []), historyEntry];
+
+            existingSubmission.answers = mergeResult.answers;
+            existingSubmission.taskProgress = mergedTaskProgress;
+            existingSubmission.tasks = data.tasks || existingSubmission.tasks;
+            existingSubmission.lessonContentHash = data.lessonContentHash || existingSubmission.lessonContentHash;
+            existingSubmission.importedAt = new Date().toISOString();
+            existingSubmission.submissionHistory = newHistory;
+            existingSubmission.mergeInfo = {
+              mergeCount: newHistory.length,
+              lastMergeAt: new Date().toISOString(),
+              strategy: effectiveStrategy,
+              fieldSummary: mergeResult.summary
+            };
+            existingSubmission.isAbnormal = isSubmissionAbnormal(existingSubmission);
+
+            await saveState();
+
+            resolve({
+              success: true,
+              submission: existingSubmission,
+              isUpdate: true,
+              merged: true,
+              mergeSummary: mergeResult.summary,
+              versionCheck,
+              warnings: !versionCheck.match ? [{
+                type: "version_mismatch",
+                message: "作答包内容版本与课堂包不一致，请确认使用的是最新版本。"
+              }] : []
+            });
+            return;
           }
 
           if (data.lessonPackageId) {
@@ -696,16 +1062,17 @@
                 packageId: data.lessonPackageId,
                 title: data.lessonTitle || "",
                 description: "",
-                rubrics: data.rubrics || buildDefaultRubrics(),
-                referenceAnswers: data.referenceAnswers || {},
-                importedAt: new Date().toISOString()
+                rubrics: buildDefaultRubrics(),
+                referenceAnswers: {},
+                importedAt: new Date().toISOString(),
+                lessonContentHash: data.lessonContentHash || ""
               };
             } else {
-              if (!state.lessonMetas[data.lessonPackageId].rubrics || state.lessonMetas[data.lessonPackageId].rubrics.length === 0) {
-                state.lessonMetas[data.lessonPackageId].rubrics = data.rubrics || buildDefaultRubrics();
+              if (!state.lessonMetas[data.lessonPackageId].lessonContentHash && data.lessonContentHash) {
+                state.lessonMetas[data.lessonPackageId].lessonContentHash = data.lessonContentHash;
               }
-              if (!state.lessonMetas[data.lessonPackageId].referenceAnswers || Object.keys(state.lessonMetas[data.lessonPackageId].referenceAnswers).length === 0) {
-                state.lessonMetas[data.lessonPackageId].referenceAnswers = data.referenceAnswers || {};
+              if (!state.lessonMetas[data.lessonPackageId].rubrics || state.lessonMetas[data.lessonPackageId].rubrics.length === 0) {
+                state.lessonMetas[data.lessonPackageId].rubrics = buildDefaultRubrics();
               }
               if (data.lessonTitle && !state.lessonMetas[data.lessonPackageId].title) {
                 state.lessonMetas[data.lessonPackageId].title = data.lessonTitle;
@@ -726,16 +1093,43 @@
             scores: {},
             finalScore: null,
             gradedAt: null,
-            gradedBy: ""
+            gradedBy: "",
+            lessonContentHash: data.lessonContentHash || "",
+            submissionHistory: [{
+              timestamp: new Date().toISOString(),
+              packageId: data.packageId,
+              answers: { ...(data.answers || {}) },
+              taskProgress: { ...(data.taskProgress || {}) },
+              strategy: "initial",
+              sourceFile: file?.name || "unknown"
+            }],
+            isAbnormal: isNewAbnormal,
+            mergeInfo: null
           };
 
           state.submissions.push(submission);
           await saveState();
 
+          const warnings = [];
+          if (!versionCheck.match) {
+            warnings.push({
+              type: "version_mismatch",
+              message: "作答包内容版本与课堂包不一致，请确认使用的是最新版本。"
+            });
+          }
+          if (isNewAbnormal) {
+            warnings.push({
+              type: "abnormal_submission",
+              message: "该提交标记为异常（缺少答案或学生信息不完整），请人工审核。"
+            });
+          }
+
           resolve({
             success: true,
             submission,
-            isUpdate: !!existingSubmission
+            isUpdate: false,
+            versionCheck,
+            warnings
           });
         } catch (err) {
           reject(err);
@@ -897,7 +1291,8 @@
           description: "",
           rubrics: normalized,
           referenceAnswers: {},
-          importedAt: new Date().toISOString()
+          importedAt: new Date().toISOString(),
+          lessonContentHash: ""
         };
       } else {
         state.lessonMetas[lessonPackageId].rubrics = normalized;
@@ -1238,6 +1633,8 @@
     ANSWER_PACKAGE_FORMAT,
     PACKAGE_FORMAT_VERSION,
     CONFLICT_STRATEGIES,
+    MERGE_STRATEGIES,
+    ANSWER_MERGE_FIELDS,
 
     init,
     getState,
@@ -1293,7 +1690,11 @@
     getGradingStatsByLesson,
 
     computeContentHash,
+    computeLessonContentHash,
     verifyContentHash,
+    verifyLessonContentMatch,
+    mergeSubmissionAnswers,
+    mergeTaskProgress,
     parsePackageFile,
     generateId
   };

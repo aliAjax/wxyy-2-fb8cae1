@@ -594,9 +594,11 @@
         </header>
         <div class="modal-body">
           <p class="duplicate-desc" id="duplicateDesc"></p>
+          <div id="duplicateDetails" class="duplicate-details hidden"></div>
         </div>
         <footer class="modal-footer">
-          <button type="button" class="ghost" id="duplicateSkipBtn">跳过不导入</button>
+          <button type="button" class="ghost" id="duplicateSkipBtn">保留原有</button>
+          <button type="button" id="duplicateMergeBtn">智能合并（推荐）</button>
           <button type="button" class="primary" id="duplicateOverwriteBtn">覆盖已有</button>
         </footer>
       </div>

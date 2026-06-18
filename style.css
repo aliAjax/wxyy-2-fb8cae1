@@ -3749,7 +3749,7 @@ textarea {
 
 .conflict-modal,
 .duplicate-modal {
-  max-width: 520px;
+  max-width: 560px;
 }
 
 .conflict-desc,
@@ -3758,6 +3758,56 @@ textarea {
   font-size: 14px;
   line-height: 1.6;
   color: var(--ink);
+}
+
+.duplicate-details {
+  margin-top: 12px;
+  padding: 12px;
+  background: var(--bg-soft);
+  border-radius: 6px;
+  font-size: 13px;
+  line-height: 1.7;
+  color: var(--ink-2);
+}
+
+.duplicate-details .detail-row {
+  display: flex;
+  gap: 12px;
+  margin-bottom: 6px;
+}
+
+.duplicate-details .detail-label {
+  flex-shrink: 0;
+  color: var(--ink-3);
+  min-width: 80px;
+}
+
+.duplicate-details .warn {
+  color: #c2410c;
+  font-weight: 500;
+}
+
+.duplicate-details .badge {
+  display: inline-block;
+  padding: 1px 8px;
+  border-radius: 10px;
+  font-size: 12px;
+  margin-left: 4px;
+}
+
+.duplicate-details .badge.abnormal {
+  background: #fee2e2;
+  color: #991b1b;
+}
+
+.duplicate-details .badge.ok {
+  background: #dcfce7;
+  color: #166534;
+}
+
+.duplicate-details .badge.warn {
+  background: #fef3c7;
+  color: #92400e;
 }
 
 .conflict-list {
@@ -3903,6 +3953,11 @@ textarea {
 .submission-card .badge.abnormal {
   background: var(--danger-bg);
   color: var(--danger);
+}
+
+.submission-card .badge.warn {
+  background: #fef3c7;
+  color: #92400e;
 }
 
 .grading-stats-mini {

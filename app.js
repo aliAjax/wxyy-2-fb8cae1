@@ -2894,11 +2894,39 @@ function initConflictModalEvents() {
   });
 }
 
-function showDuplicateModal(studentInfo, existingSubmission) {
+function showDuplicateModal(opts) {
   return new Promise((resolve) => {
+    const { studentInfo, existing, incoming, existingAbnormal, incomingAbnormal, versionCheck } = opts;
     const modal = $("#duplicateModal");
     const desc = $("#duplicateDesc");
-    desc.innerHTML = `学号 <strong>${escapeHtml(studentInfo.studentId)}</strong>（${escapeHtml(studentInfo.name)}）的作答已存在（提交于 ${formatDateTime(existingSubmission.importedAt)}），是否覆盖？`;
+    const details = $("#duplicateDetails");
+
+    desc.innerHTML = `学号 <strong>${escapeHtml(studentInfo.studentId)}</strong>（${escapeHtml(studentInfo.name)}）的作答已存在（提交于 ${formatDateTime(existing.importedAt)}）。请选择处理方式：`;
+
+    let detailsHtml = "";
+    if (existingAbnormal || incomingAbnormal || !versionCheck.match) {
+      detailsHtml += '<div style="margin-bottom:8px;font-weight:600;">检测结果：</div>';
+      if (existingAbnormal) {
+        detailsHtml += `<div class="detail-row"><span class="detail-label">已有提交</span><span><span class="badge abnormal">异常</span> 缺少答案或学生信息不完整</span></div>`;
+      } else {
+        detailsHtml += `<div class="detail-row"><span class="detail-label">已有提交</span><span><span class="badge ok">正常</span></span></div>`;
+      }
+      if (incomingAbnormal) {
+        detailsHtml += `<div class="detail-row"><span class="detail-label">新提交</span><span><span class="badge abnormal">异常</span> 缺少答案或学生信息不完整</span></div>`;
+      } else {
+        detailsHtml += `<div class="detail-row"><span class="detail-label">新提交</span><span><span class="badge ok">正常</span></span></div>`;
+      }
+      if (!versionCheck.match) {
+        detailsHtml += `<div class="detail-row"><span class="detail-label warn">版本</span><span class="warn">作答包内容版本与课堂包不一致，请确认使用的是最新版本</span></div>`;
+      } else {
+        detailsHtml += `<div class="detail-row"><span class="detail-label">版本</span><span><span class="badge ok">匹配</span></span></div>`;
+      }
+      details.innerHTML = detailsHtml;
+      details.classList.remove("hidden");
+    } else {
+      details.classList.add("hidden");
+    }
+
     modal.classList.remove("hidden");
     duplicateResolve = resolve;
   });
@@ -2907,20 +2935,24 @@ function showDuplicateModal(studentInfo, existingSubmission) {
 function initDuplicateModalEvents() {
   $("#duplicateModalClose")?.addEventListener("click", () => {
     $("#duplicateModal")?.classList.add("hidden");
-    if (duplicateResolve) { duplicateResolve(null); duplicateResolve = null; }
+    if (duplicateResolve) { duplicateResolve("cancel"); duplicateResolve = null; }
   });
   $("#duplicateSkipBtn")?.addEventListener("click", () => {
     $("#duplicateModal")?.classList.add("hidden");
-    if (duplicateResolve) { duplicateResolve(false); duplicateResolve = null; }
+    if (duplicateResolve) { duplicateResolve("keep"); duplicateResolve = null; }
+  });
+  $("#duplicateMergeBtn")?.addEventListener("click", () => {
+    $("#duplicateModal")?.classList.add("hidden");
+    if (duplicateResolve) { duplicateResolve("merge"); duplicateResolve = null; }
   });
   $("#duplicateOverwriteBtn")?.addEventListener("click", () => {
     $("#duplicateModal")?.classList.add("hidden");
-    if (duplicateResolve) { duplicateResolve(true); duplicateResolve = null; }
+    if (duplicateResolve) { duplicateResolve("overwrite"); duplicateResolve = null; }
   });
   $("#duplicateModal")?.addEventListener("click", (e) => {
     if (e.target.id === "duplicateModal") {
       $("#duplicateModal")?.classList.add("hidden");
-      if (duplicateResolve) { duplicateResolve(null); duplicateResolve = null; }
+      if (duplicateResolve) { duplicateResolve("cancel"); duplicateResolve = null; }
     }
   });
 }
@@ -2968,7 +3000,26 @@ function initLessonUI() {
       const result = await window.LessonPackage.importAnswerPackage(file, {
         onDuplicate: showDuplicateModal
       });
-      alert(result.isUpdate ? "作答包已更新！" : "作答包导入成功！");
+
+      if (result.skipped) {
+        const messages = [];
+        (result.warnings || []).forEach(w => messages.push(w.message));
+        alert(`已跳过，未覆盖。${messages.length > 0 ? "\n\n" + messages.join("\n") : ""}`);
+      } else {
+        let msg = result.isUpdate
+          ? (result.merged ? "作答包已智能合并！" : "作答包已更新！")
+          : "作答包导入成功！";
+        if (result.warnings && result.warnings.length > 0) {
+          msg += "\n\n⚠️ 注意事项：\n" + result.warnings.map(w => "• " + w.message).join("\n");
+        }
+        if (result.mergeSummary) {
+          const changedSamples = Object.keys(result.mergeSummary).filter(k => result.mergeSummary[k].changedFields?.length > 0);
+          if (changedSamples.length > 0) {
+            msg += `\n\n合并详情：共更新了 ${changedSamples.length} 个样本的答案`;
+          }
+        }
+        alert(msg);
+      }
       renderGradingPage();
     } catch (err) {
       if (err.message !== "用户取消导入") {
@@ -4013,6 +4064,11 @@ function renderSubmissionList() {
     const status = window.LessonPackage.getSubmissionStatus(sub);
     const statusLabel = window.LessonPackage.getSubmissionStatusLabel(status);
     const sampleCount = Object.keys(sub.answers || {}).length;
+    const lessonMeta = sub.lessonPackageId ? window.LessonPackage.getLessonMeta(sub.lessonPackageId) : null;
+    const versionCheck = window.LessonPackage.verifyLessonContentMatch
+      ? window.LessonPackage.verifyLessonContentMatch({ lessonContentHash: sub.lessonContentHash }, lessonMeta)
+      : { match: true };
+    const hasMergeHistory = sub.submissionHistory && sub.submissionHistory.length > 1;
     return `
       <div class="submission-card ${sub.id === gradingState.selectedSubmissionId ? "active" : ""} status-${status}" data-submission-id="${sub.id}">
         <div class="submission-header">
@@ -4029,6 +4085,8 @@ function renderSubmissionList() {
         </div>
         <div class="submission-date">
           提交：${formatDateTime(sub.importedAt)}
+          ${hasMergeHistory ? ` <span class="badge warn" style="margin-left:6px;">合并 ${sub.submissionHistory.length} 次</span>` : ""}
+          ${!versionCheck.match ? ` <span class="badge abnormal" style="margin-left:6px;">版本不匹配</span>` : ""}
         </div>
       </div>
     `;
