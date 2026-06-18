@@ -3048,7 +3048,7 @@ function initLessonUI() {
       }
       if (!$("#duplicateModal")?.classList.contains("hidden")) {
         $("#duplicateModal")?.classList.add("hidden");
-        if (duplicateResolve) { duplicateResolve(null); duplicateResolve = null; }
+        if (duplicateResolve) { duplicateResolve("cancel"); duplicateResolve = null; }
       }
       if (!document.getElementById("versionHistoryModal")?.classList.contains("hidden")) {
         closeVersionHistoryModal();
