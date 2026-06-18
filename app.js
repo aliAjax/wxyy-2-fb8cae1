@@ -167,79 +167,285 @@ function getTaskStatusClass(task) {
   return "not-started";
 }
 
-function filteredSamples() {
-  const mineral = mineralFilter?.value?.trim() || "";
-  const polarization = polarFilter?.value || "";
-  const reviewStatus = reviewFilter?.value || "";
-  return state.samples.filter((sample) => {
-    const mineralMatch = !mineral || sample.minerals.includes(mineral);
-    const polarMatch = !polarization || sample.polarization === polarization;
-    let reviewMatch = true;
-    if (reviewStatus && window.ReviewModule) {
-      reviewMatch = window.ReviewModule.getReviewStatus(sample) === reviewStatus;
-    }
-    return mineralMatch && polarMatch && reviewMatch;
-  });
-}
+window.SampleListModule = (function () {
+  const POLAR_ORDER = ["单偏光", "正交偏光", "反射光"];
+  const EMPTY_HTML = "<p style=\"grid-column:1/-1;text-align:center;padding:40px;color:var(--muted);\">还没有样本，先从左侧录入一张薄片照片。</p>";
 
-function sampleCardHTML(sample, showActions = true) {
-  const annSummary = window.AnnotationView ? window.AnnotationView.annotationSummaryHTML(sample) : "";
-  const reviewBadge = window.ReviewModule ? window.ReviewModule.reviewStatusBadgeHTML(sample) : "";
-  const completenessBar = window.ReviewModule ? window.ReviewModule.completenessBarHTML(sample) : "";
-  const group = sample.groupId ? (state.sampleGroups || []).find(g => g.id === sample.groupId) : null;
-  const groupBadge = group ? `<span class="badge group-badge">📋 ${group.name || sample.code}</span>` : "";
-  const polarBadge = sample.polarization ? `<span class="badge polar-badge">${sample.polarization}</span>` : "";
-  return `
-    <article class="sample-card ${window.ReviewModule ? "review-" + window.ReviewModule.getReviewStatusClass(sample) : ""}" ${group ? `data-group-id="${group.id}"` : ""}>
-      <div class="sample-card-badges">
-        ${reviewBadge}
-        ${groupBadge}
-        ${polarBadge}
-      </div>
-      ${sample.photo ? `<img src="${sample.photo}" alt="${sample.code}显微照片">` : '<div class="photo-placeholder">暂无照片</div>'}
-      <div class="sample-body">
-        <h3>${sample.code}</h3>
-        <p>${sample.location || "未记录地点"} · ${sample.magnification || "未记录倍数"} · ${sample.polarization}</p>
-        <p>矿物：${sample.minerals || "未记录"}</p>
-        <p>结构：${sample.texture || "未记录"}</p>
-        <p>${sample.comment || "未填写批注"}</p>
-        ${sample.reviewComment ? `<p class="card-review-note">复核：${sample.reviewComment}</p>` : ""}
-        ${completenessBar}
-        ${annSummary}
-        ${showActions ? `
+  function _getState() { return state; }
+  function _getMineralFilter() { return mineralFilter?.value?.trim() || ""; }
+  function _getPolarFilter() { return polarFilter?.value || ""; }
+  function _getReviewFilter() { return reviewFilter?.value || ""; }
+  function _getGroupsAsArrays() {
+    return window.DataManager
+      ? window.DataManager.getGroupsAsSampleArrays()
+      : { groups: [], groupedIds: new Set() };
+  }
+  function _getGroupById(groupId) {
+    return (_getState().sampleGroups || []).find(g => g.id === groupId);
+  }
+  function _refreshAll() {
+    state = window.DataManager.getState();
+    renderAll();
+    refreshGroupSelector();
+  }
+
+  const Filter = {
+    getCriteria() {
+      return {
+        mineral: _getMineralFilter(),
+        polarization: _getPolarFilter(),
+        reviewStatus: _getReviewFilter()
+      };
+    },
+
+    matchSample(sample, criteria) {
+      const mineralMatch = !criteria.mineral || sample.minerals.includes(criteria.mineral);
+      const polarMatch = !criteria.polarization || sample.polarization === criteria.polarization;
+      let reviewMatch = true;
+      if (criteria.reviewStatus && window.ReviewModule) {
+        reviewMatch = window.ReviewModule.getReviewStatus(sample) === criteria.reviewStatus;
+      }
+      return mineralMatch && polarMatch && reviewMatch;
+    },
+
+    apply(samples) {
+      const criteria = Filter.getCriteria();
+      return samples.filter(s => Filter.matchSample(s, criteria));
+    },
+
+    getAll() {
+      return Filter.apply(_getState().samples);
+    }
+  };
+
+  const CardRenderer = {
+    buildBadges(sample, group) {
+      const reviewBadge = window.ReviewModule ? window.ReviewModule.reviewStatusBadgeHTML(sample) : "";
+      const groupBadge = group ? `<span class="badge group-badge">📋 ${group.name || sample.code}</span>` : "";
+      const polarBadge = sample.polarization ? `<span class="badge polar-badge">${sample.polarization}</span>` : "";
+      return `${reviewBadge}${groupBadge}${polarBadge}`;
+    },
+
+    buildInfo(sample) {
+      const annSummary = window.AnnotationView ? window.AnnotationView.annotationSummaryHTML(sample) : "";
+      const completenessBar = window.ReviewModule ? window.ReviewModule.completenessBarHTML(sample) : "";
+      return [
+        `<h3>${sample.code}</h3>`,
+        `<p>${sample.location || "未记录地点"} · ${sample.magnification || "未记录倍数"} · ${sample.polarization}</p>`,
+        `<p>矿物：${sample.minerals || "未记录"}</p>`,
+        `<p>结构：${sample.texture || "未记录"}</p>`,
+        `<p>${sample.comment || "未填写批注"}</p>`,
+        sample.reviewComment ? `<p class="card-review-note">复核：${sample.reviewComment}</p>` : "",
+        completenessBar,
+        annSummary
+      ].join("");
+    },
+
+    buildActions(sample, group) {
+      const groupBtn = group
+        ? `<button type="button" data-view-group="${group.id}" class="view-btn">🔬组对比</button>`
+        : "";
+      const checked = _getState().compare.includes(sample.id) ? "checked" : "";
+      return `
         <div class="card-actions">
-          <label><input type="checkbox" data-compare="${sample.id}" ${state.compare.includes(sample.id) ? "checked" : ""}>对比</label>
+          <label><input type="checkbox" data-compare="${sample.id}" ${checked}>对比</label>
           <div class="card-action-btns">
             <button type="button" data-view="${sample.id}" class="view-btn">🔬查看</button>
-            ${group ? `<button type="button" data-view-group="${group.id}" class="view-btn">🔬组对比</button>` : ""}
+            ${groupBtn}
             <button type="button" data-annotate="${sample.id}">标注</button>
             <button type="button" data-review-card="${sample.id}">审核</button>
             <button type="button" data-history="${sample.id}">历史</button>
             <button type="button" data-delete="${sample.id}">删除</button>
           </div>
-        </div>` : ""}
-      </div>
-    </article>
-  `;
+        </div>`;
+    },
+
+    render(sample, showActions = true) {
+      const group = sample.groupId ? _getGroupById(sample.groupId) : null;
+      const reviewClass = window.ReviewModule
+        ? "review-" + window.ReviewModule.getReviewStatusClass(sample)
+        : "";
+      const groupAttr = group ? `data-group-id="${group.id}"` : "";
+      const photoHTML = sample.photo
+        ? `<img src="${sample.photo}" alt="${sample.code}显微照片">`
+        : '<div class="photo-placeholder">暂无照片</div>';
+
+      return `
+        <article class="sample-card ${reviewClass}" ${groupAttr}>
+          <div class="sample-card-badges">
+            ${CardRenderer.buildBadges(sample, group)}
+          </div>
+          ${photoHTML}
+          <div class="sample-body">
+            ${CardRenderer.buildInfo(sample)}
+            ${showActions ? CardRenderer.buildActions(sample, group) : ""}
+          </div>
+        </article>
+      `;
+    }
+  };
+
+  const GroupRenderer = {
+    sortSamples(samples) {
+      return [...samples].sort((a, b) => POLAR_ORDER.indexOf(a.polarization) - POLAR_ORDER.indexOf(b.polarization));
+    },
+
+    getGroupName(group, samples) {
+      return group.name || samples[0]?.code || "未命名组";
+    },
+
+    render(group, samples) {
+      const sorted = GroupRenderer.sortSamples(samples);
+      const groupName = GroupRenderer.getGroupName(group, sorted);
+      return `
+        <div class="sample-group-section" data-group-section="${group.id}">
+          <div class="sample-group-header">
+            <h3 class="sample-group-title">📋 样本组：${escapeHtml(groupName)}</h3>
+            <span class="sample-group-count">${sorted.length} 张照片</span>
+            <button type="button" data-view-group="${group.id}" class="ghost small">🔬 组内对比查看</button>
+            <button type="button" data-ungroup="${group.id}" class="ghost small">取消分组</button>
+          </div>
+          <div class="sample-group-grid">
+            ${sorted.map(s => CardRenderer.render(s, true)).join("")}
+          </div>
+        </div>
+      `;
+    }
+  };
+
+  const ListRenderer = {
+    buildHTML(filteredRows) {
+      const { groups, groupedIds } = _getGroupsAsArrays();
+      const ungroupedRows = filteredRows.filter(s => !groupedIds.has(s.id));
+      let html = "";
+
+      groups.forEach(({ group, samples: groupSamples }) => {
+        const filteredGroupSamples = groupSamples.filter(s => filteredRows.some(r => r.id === s.id));
+        if (filteredGroupSamples.length > 0) {
+          html += GroupRenderer.render(group, filteredGroupSamples);
+        }
+      });
+
+      html += ungroupedRows.map(s => CardRenderer.render(s, true)).join("");
+      return html || EMPTY_HTML;
+    },
+
+    render() {
+      const rows = Filter.getAll();
+
+      if (sampleGrid) {
+        const recent = _getState().samples.slice(0, 12);
+        sampleGrid.innerHTML = recent.length
+          ? recent.map(s => CardRenderer.render(s, true)).join("")
+          : EMPTY_HTML;
+      }
+
+      if (sampleGridFull) {
+        sampleGridFull.innerHTML = ListRenderer.buildHTML(rows);
+      }
+    }
+  };
+
+  const EventHandlers = {
+    async handleClick(gridEl, event) {
+      const { delete: deleteId, annotate: annotateId, reviewCard: reviewId, view: viewId, viewGroup: viewGroupId, ungroup: ungroupId, history: historyId } = event.target.dataset;
+
+      if (viewGroupId) {
+        if (window.ImageViewerModule) window.ImageViewerModule.openGroupViewer(viewGroupId);
+        return;
+      }
+      if (ungroupId) {
+        const group = _getGroupById(ungroupId);
+        if (!group) return;
+        if (!confirm(`确定取消样本组「${group.name || "未命名"}」的分组？样本将变为独立样本。`)) return;
+        for (const sid of group.sampleIds) {
+          await window.DataManager.updateSample(sid, { groupId: "" });
+        }
+        await window.DataManager.deleteSampleGroup(ungroupId);
+        _refreshAll();
+        return;
+      }
+      if (viewId) {
+        if (window.ImageViewerModule) window.ImageViewerModule.openSingleViewer(viewId);
+        return;
+      }
+      if (annotateId) {
+        if (window.AnnotationView) window.AnnotationView.openAnnotation(annotateId);
+        return;
+      }
+      if (reviewId) {
+        if (window.ReviewModule) window.ReviewModule.openReviewModal(reviewId);
+        return;
+      }
+      if (historyId) {
+        openVersionHistoryModal(historyId);
+        return;
+      }
+      if (deleteId) {
+        if (!confirm("确定删除该样本？删除后可在回收站中恢复。")) return;
+        await window.DataManager.deleteSample(deleteId);
+        _refreshAll();
+      }
+    },
+
+    handleChange(gridEl, event) {
+      const id = event.target.dataset.compare;
+      if (!id) return;
+      window.DataManager.toggleCompare(id);
+      ListRenderer.render();
+      renderCompare();
+    },
+
+    bindGridEvents() {
+      sampleGrid?.addEventListener("click", (e) => EventHandlers.handleClick(sampleGrid, e));
+      sampleGridFull?.addEventListener("click", (e) => EventHandlers.handleClick(sampleGridFull, e));
+      sampleGrid?.addEventListener("change", (e) => EventHandlers.handleChange(sampleGrid, e));
+      sampleGridFull?.addEventListener("change", (e) => EventHandlers.handleChange(sampleGridFull, e));
+    },
+
+    bindFilterEvents() {
+      [mineralFilter, polarFilter, reviewFilter].forEach((field) => field?.addEventListener("input", () => {
+        ListRenderer.render();
+        updateFilterViewSelection();
+      }));
+      [reviewFilter].forEach((field) => field?.addEventListener("change", () => {
+        ListRenderer.render();
+        updateFilterViewSelection();
+      }));
+    }
+  };
+
+  function init() {
+    EventHandlers.bindGridEvents();
+    EventHandlers.bindFilterEvents();
+  }
+
+  return {
+    init,
+    Filter,
+    CardRenderer,
+    GroupRenderer,
+    ListRenderer,
+    EventHandlers,
+    filteredSamples: () => Filter.getAll(),
+    sampleCardHTML: (sample, showActions) => CardRenderer.render(sample, showActions),
+    renderGroupSection: (group, samples) => GroupRenderer.render(group, samples),
+    renderSamples: () => ListRenderer.render(),
+    handleSampleGridClick: (gridEl, e) => EventHandlers.handleClick(gridEl, e),
+    handleSampleGridChange: (gridEl, e) => EventHandlers.handleChange(gridEl, e)
+  };
+})();
+
+function filteredSamples() {
+  return window.SampleListModule.filteredSamples();
+}
+
+function sampleCardHTML(sample, showActions = true) {
+  return window.SampleListModule.sampleCardHTML(sample, showActions);
 }
 
 function renderGroupSection(group, samples) {
-  const polarOrder = ["单偏光", "正交偏光", "反射光"];
-  const sorted = [...samples].sort((a, b) => polarOrder.indexOf(a.polarization) - polarOrder.indexOf(b.polarization));
-  const groupName = group.name || sorted[0]?.code || "未命名组";
-  return `
-    <div class="sample-group-section" data-group-section="${group.id}">
-      <div class="sample-group-header">
-        <h3 class="sample-group-title">📋 样本组：${escapeHtml(groupName)}</h3>
-        <span class="sample-group-count">${sorted.length} 张照片</span>
-        <button type="button" data-view-group="${group.id}" class="ghost small">🔬 组内对比查看</button>
-        <button type="button" data-ungroup="${group.id}" class="ghost small">取消分组</button>
-      </div>
-      <div class="sample-group-grid">
-        ${sorted.map(s => sampleCardHTML(s, true)).join("")}
-      </div>
-    </div>
-  `;
+  return window.SampleListModule.renderGroupSection(group, samples);
 }
 
 async function renderOverview() {
@@ -369,32 +575,7 @@ async function renderOverview() {
 }
 
 function renderSamples() {
-  const rows = filteredSamples();
-  const emptyHTML = "<p style=\"grid-column:1/-1;text-align:center;padding:40px;color:var(--muted);\">还没有样本，先从左侧录入一张薄片照片。</p>";
-
-  const { groups, groupedIds } = window.DataManager ? window.DataManager.getGroupsAsSampleArrays() : { groups: [], groupedIds: new Set() };
-  const ungroupedRows = rows.filter(s => !groupedIds.has(s.id));
-
-  function buildHTML(samples) {
-    let html = "";
-    groups.forEach(({ group, samples: groupSamples }) => {
-      const filteredGroupSamples = groupSamples.filter(s => rows.some(r => r.id === s.id));
-      if (filteredGroupSamples.length > 0) {
-        html += renderGroupSection(group, filteredGroupSamples);
-      }
-    });
-    html += ungroupedRows.map(s => sampleCardHTML(s, true)).join("");
-    return html || emptyHTML;
-  }
-
-  if (sampleGrid) {
-    const recent = state.samples.slice(0, 12);
-    sampleGrid.innerHTML = recent.length ? recent.map((s) => sampleCardHTML(s, true)).join("") : emptyHTML;
-  }
-
-  if (sampleGridFull) {
-    sampleGridFull.innerHTML = buildHTML(rows);
-  }
+  window.SampleListModule.renderSamples();
 }
 
 function renderCompare() {
@@ -1005,77 +1186,12 @@ function refreshGroupSelector() {
 }
 
 async function handleSampleGridClick(gridEl, event) {
-  const deleteId = event.target.dataset.delete;
-  const annotateId = event.target.dataset.annotate;
-  const reviewId = event.target.dataset.reviewCard;
-  const viewId = event.target.dataset.view;
-  const viewGroupId = event.target.dataset.viewGroup;
-  const ungroupId = event.target.dataset.ungroup;
-  if (viewGroupId) {
-    if (window.ImageViewerModule) window.ImageViewerModule.openGroupViewer(viewGroupId);
-    return;
-  }
-  if (ungroupId) {
-    const group = (state.sampleGroups || []).find(g => g.id === ungroupId);
-    if (!group) return;
-    if (!confirm(`确定取消样本组「${group.name || "未命名"}」的分组？样本将变为独立样本。`)) return;
-    for (const sid of group.sampleIds) {
-      await window.DataManager.updateSample(sid, { groupId: "" });
-    }
-    await window.DataManager.deleteSampleGroup(ungroupId);
-    state = window.DataManager.getState();
-    renderAll();
-    refreshGroupSelector();
-    return;
-  }
-  if (viewId) {
-    if (window.ImageViewerModule) window.ImageViewerModule.openSingleViewer(viewId);
-    return;
-  }
-  if (annotateId) {
-    if (window.AnnotationView) window.AnnotationView.openAnnotation(annotateId);
-    return;
-  }
-  if (reviewId) {
-    if (window.ReviewModule) window.ReviewModule.openReviewModal(reviewId);
-    return;
-  }
-  const historyId = event.target.dataset.history;
-  if (historyId) {
-    openVersionHistoryModal(historyId);
-    return;
-  }
-  if (deleteId) {
-    if (!confirm("确定删除该样本？删除后可在回收站中恢复。")) return;
-    await window.DataManager.deleteSample(deleteId);
-    state = window.DataManager.getState();
-    renderAll();
-    refreshGroupSelector();
-  }
+  return window.SampleListModule.handleSampleGridClick(gridEl, event);
 }
-
-sampleGrid?.addEventListener("click", (e) => handleSampleGridClick(sampleGrid, e));
-sampleGridFull?.addEventListener("click", (e) => handleSampleGridClick(sampleGridFull, e));
 
 function handleSampleGridChange(gridEl, event) {
-  const id = event.target.dataset.compare;
-  if (!id) return;
-  window.DataManager.toggleCompare(id);
-  renderSamples();
-  renderCompare();
+  return window.SampleListModule.handleSampleGridChange(gridEl, event);
 }
-
-sampleGrid?.addEventListener("change", (e) => handleSampleGridChange(sampleGrid, e));
-sampleGridFull?.addEventListener("change", (e) => handleSampleGridChange(sampleGridFull, e));
-
-[mineralFilter, polarFilter, reviewFilter].forEach((field) => field?.addEventListener("input", () => {
-  renderSamples();
-  updateFilterViewSelection();
-}));
-[reviewFilter].forEach((field) => field?.addEventListener("change", () => {
-  renderSamples();
-  updateFilterViewSelection();
-}));
 
 let currentFilterViewId = null;
 
@@ -4673,6 +4789,10 @@ async function loadProjectDataAndUI() {
     initRestoreCheckModalEvents();
     initLessonUI();
     initEntryAssistant();
+
+    if (window.SampleListModule) {
+      window.SampleListModule.init();
+    }
 
     document.getElementById("vhModalClose")?.addEventListener("click", closeVersionHistoryModal);
     document.getElementById("versionHistoryModal")?.addEventListener("click", (e) => {
