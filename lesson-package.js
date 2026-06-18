@@ -79,6 +79,7 @@
         data.lessonContentHash = computeLessonContentHash(data);
       }
       data.version = 4;
+      data.contentHash = computeContentHash(data);
     }
     return data;
   }
@@ -119,6 +120,7 @@
         data.submissionHistory = [];
       }
       data.version = 4;
+      data.contentHash = computeContentHash(data);
     }
     return data;
   }
@@ -501,7 +503,7 @@
       return { valid: false, error: "课堂包缺少任务数据" };
     }
 
-    if (data.contentHash && !verifyContentHash(data)) {
+    if (data.version >= PACKAGE_FORMAT_VERSION && data.contentHash && !verifyContentHash(data)) {
       return { valid: false, error: "课堂包数据校验失败，文件可能已损坏或被篡改" };
     }
 
@@ -812,7 +814,7 @@
       return { valid: false, error: "作答包缺少学生信息" };
     }
 
-    if (data.contentHash && !verifyContentHash(data)) {
+    if (data.version >= PACKAGE_FORMAT_VERSION && data.contentHash && !verifyContentHash(data)) {
       return { valid: false, error: "作答包数据校验失败，文件可能已损坏或被篡改" };
     }
 
@@ -821,7 +823,11 @@
 
   function mergeSubmissionAnswers(existingAnswers, newAnswers, strategy = MERGE_STRATEGIES.MERGE_NON_EMPTY) {
     if (strategy === MERGE_STRATEGIES.KEEP_LATEST) {
-      return { ...newAnswers };
+      const summary = {};
+      Object.keys(newAnswers || {}).forEach(sid => {
+        summary[sid] = { action: "replaced", changedFields: [...ANSWER_MERGE_FIELDS] };
+      });
+      return { answers: { ...newAnswers }, summary };
     }
 
     const merged = { ...existingAnswers };
@@ -983,25 +989,23 @@
                 incomingAbnormal: isNewAbnormal,
                 versionCheck
               });
-              if (userDecision === "cancel") {
-                throw new Error("用户取消导入");
-              }
+            }
+
+            if (userDecision === "cancel" || userDecision === "keep") {
+              resolve({
+                success: true,
+                skipped: true,
+                cancelled: userDecision === "cancel",
+                submission: existingSubmission,
+                isUpdate: false,
+                versionCheck
+              });
+              return;
             }
 
             const effectiveStrategy = (userDecision === "overwrite") ? MERGE_STRATEGIES.KEEP_LATEST
               : (userDecision === "merge") ? MERGE_STRATEGIES.MERGE_NON_EMPTY
-              : (userDecision === "keep") ? "keep_existing"
               : mergeStrategy;
-
-            if (effectiveStrategy === "keep_existing") {
-              resolve({
-                success: true,
-                skipped: true,
-                submission: existingSubmission,
-                isUpdate: false
-              });
-              return;
-            }
 
             const mergeResult = mergeSubmissionAnswers(
               existingSubmission.answers,
@@ -1376,11 +1380,7 @@
         const result = await importAnswerPackage(file, options);
         results.push({ file: file.name, success: true, ...result });
       } catch (err) {
-        if (err.message === "用户取消导入") {
-          errors.push({ file: file.name, cancelled: true });
-        } else {
-          errors.push({ file: file.name, error: err.message });
-        }
+        errors.push({ file: file.name, error: err.message });
       }
     }
 

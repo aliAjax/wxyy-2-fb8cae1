@@ -3001,11 +3001,11 @@ function initLessonUI() {
         onDuplicate: showDuplicateModal
       });
 
-      if (result.skipped) {
+      if (result.skipped && !result.cancelled) {
         const messages = [];
         (result.warnings || []).forEach(w => messages.push(w.message));
         alert(`已跳过，未覆盖。${messages.length > 0 ? "\n\n" + messages.join("\n") : ""}`);
-      } else {
+      } else if (!result.skipped) {
         let msg = result.isUpdate
           ? (result.merged ? "作答包已智能合并！" : "作答包已更新！")
           : "作答包导入成功！";
@@ -3022,9 +3022,7 @@ function initLessonUI() {
       }
       renderGradingPage();
     } catch (err) {
-      if (err.message !== "用户取消导入") {
-        alert("导入失败：" + err.message);
-      }
+      alert("导入失败：" + err.message);
     } finally {
       answerFileInput.value = "";
     }
