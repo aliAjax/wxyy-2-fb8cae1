@@ -170,6 +170,7 @@ function getTaskStatusClass(task) {
 window.SampleListModule = (function () {
   const POLAR_ORDER = ["单偏光", "正交偏光", "反射光"];
   const EMPTY_HTML = "<p style=\"grid-column:1/-1;text-align:center;padding:40px;color:var(--muted);\">还没有样本，先从左侧录入一张薄片照片。</p>";
+  let eventsBound = false;
 
   function _getState() { return state; }
   function _getMineralFilter() { return mineralFilter?.value?.trim() || ""; }
@@ -416,8 +417,10 @@ window.SampleListModule = (function () {
   };
 
   function init() {
+    if (eventsBound) return;
     EventHandlers.bindGridEvents();
     EventHandlers.bindFilterEvents();
+    eventsBound = true;
   }
 
   return {
