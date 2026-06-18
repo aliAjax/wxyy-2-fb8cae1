@@ -1,0 +1,210 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>工程化测试控制台 · 岩芯薄片索引台</title>
+  <style>
+    :root{--bg:#0f172a;--panel:#1e293b;--panel2:#334155;--accent:#3b82f6;--green:#10b981;--yellow:#f59e0b;--red:#ef4444;--text:#f1f5f9;--muted:#94a3b8;--border:#475569}
+    *{margin:0;padding:0;box-sizing:border-box}
+    body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"PingFang SC",sans-serif;background:var(--bg);color:var(--text);min-height:100vh;padding:32px 24px;line-height:1.6}
+    .wrap{max-width:1100px;margin:0 auto}
+    header{display:flex;align-items:center;justify-content:space-between;margin-bottom:32px;padding-bottom:20px;border-bottom:1px solid var(--border)}
+    h1{font-size:26px;font-weight:700}h1 span{color:var(--accent)}
+    .badge{background:linear-gradient(135deg,var(--accent),#6366f1);padding:6px 16px;border-radius:999px;font-size:13px;font-weight:600}
+    .grid{display:grid;gap:20px;grid-template-columns:repeat(auto-fit,minmax(320px,1fr));margin-bottom:32px}
+    .card{background:var(--panel);border:1px solid var(--border);border-radius:14px;padding:20px;transition:all .2s}
+    .card:hover{border-color:var(--accent);transform:translateY(-2px)}
+    .card h2{font-size:16px;font-weight:600;margin-bottom:14px;display:flex;align-items:center;gap:10px}
+    .icon{width:32px;height:32px;border-radius:9px;display:flex;align-items:center;justify-content:center;font-size:16px}
+    .icon.blue{background:rgba(59,130,246,.15)}.icon.green{background:rgba(16,185,129,.15)}.icon.yellow{background:rgba(245,158,11,.15)}.icon.purple{background:rgba(139,92,246,.15)}
+    .card li{list-style:none;display:flex;justify-content:space-between;align-items:center;padding:9px 0;border-bottom:1px dashed rgba(71,85,105,.4)}
+    .card li:last-child{border-bottom:none}
+    .lbl{font-size:13.5px}.desc{font-size:12px;color:var(--muted);margin-top:2px}
+    code.cmd{background:var(--panel2);padding:4px 10px;border-radius:6px;font-family:"SF Mono",Consolas,monospace;font-size:12px;color:#93c5fd;user-select:all}
+    code.cmd:hover{background:var(--accent);color:#fff}
+    .risk{font-size:11px;padding:2px 8px;border-radius:4px;background:rgba(239,68,68,.15);color:#fca5a5;font-weight:600}
+    h3.sec{font-size:19px;font-weight:700;margin:32px 0 18px;display:flex;align-items:center;gap:10px}
+    .pipe{background:var(--panel);border:1px solid var(--border);border-radius:14px;overflow:hidden;margin-bottom:32px}
+    .pr{display:grid;grid-template-columns:36px 1fr 90px 90px 130px;gap:14px;padding:12px 20px;align-items:center;font-size:13.5px}
+    .pr.head{color:var(--muted);font-size:11px;font-weight:600;border-bottom:1px solid var(--border);text-transform:uppercase;letter-spacing:.5px}
+    .pr:not(.head):hover{background:rgba(255,255,255,.03)}
+    .pn{width:26px;height:26px;border-radius:50%;background:var(--panel2);display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;color:var(--muted)}
+    .pc{color:#93c5fd;font-family:"SF Mono",Consolas,monospace;font-size:12px}
+    .ps{font-size:11px;padding:3px 9px;border-radius:999px;text-align:center;background:rgba(16,185,129,.12);color:#6ee7b7;font-weight:600}
+    .ps.warn{background:rgba(245,158,11,.12);color:#fcd34d}.ps.fatal{background:rgba(239,68,68,.12);color:#fca5a5}
+    .prs{font-size:11px;color:var(--muted);text-align:right}
+    .note{background:rgba(59,130,246,.08);border:1px solid rgba(59,130,246,.3);border-radius:12px;padding:18px 22px;margin-bottom:32px}
+    .note h4{color:#93c5fd;font-size:14px;margin-bottom:8px}
+    .note p{color:var(--muted);font-size:13px;margin:5px 0}
+    .note code{background:#1e3a5f;padding:2px 8px;border-radius:4px}
+    .row{display:flex;gap:10px;margin:14px 0;flex-wrap:wrap}
+    .btn{padding:9px 18px;border-radius:8px;border:none;font-size:13px;font-weight:600;cursor:pointer;text-decoration:none;display:inline-flex;align-items:center;gap:6px}
+    .btn.blue{background:var(--accent);color:#fff}.btn.green{background:var(--green);color:#fff}.btn.ghost{background:transparent;border:1px solid var(--border);color:var(--text)}
+    .btn:hover{opacity:.9}
+    footer{text-align:center;color:var(--muted);font-size:12px;padding-top:20px;border-top:1px solid var(--border);margin-top:40px}
+    table{width:100%;border-collapse:collapse;margin-top:14px;font-size:13px}
+    th,td{padding:10px 14px;text-align:left;border-bottom:1px solid var(--border)}
+    th{color:var(--muted);font-weight:600;font-size:11px;text-transform:uppercase;letter-spacing:.5px}
+    tr:hover td{background:rgba(255,255,255,.02)}
+    .t-pass{color:#6ee7b7;font-weight:600}.t-fail{color:#fca5a5;font-weight:600}.muted{color:var(--muted)}
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <header>
+      <div>
+        <h1>🧪 工程化测试 <span>控制台</span></h1>
+        <p style="color:var(--muted);font-size:13px;margin-top:4px;">岩芯薄片显微照片索引台 · 原生 HTML/CSS/JS · 零依赖工具链</p>
+      </div>
+      <div class="badge">v2.0 · 零依赖</div>
+    </header>
+
+    <div class="note">
+      <h4>💡 快速三步法</h4>
+      <p>① 进入项目根：<code>cd "/Users/hutu/Desktop/wxyy   solo  code/wxyy-2"</code></p>
+      <p>② 一键完整回归：<code>node scripts/regression.js</code> 或 <code>npm run regression</code></p>
+      <p>③ 本地调试服务：<code>npm start</code> → <code>http://localhost:8080/</code></p>
+      <div class="row">
+        <a class="btn blue" href="../test.html">🧪 打开原审核模块测试页面</a>
+        <a class="btn green" href="../index.html">📂 打开主应用</a>
+      </div>
+    </div>
+
+    <h3 class="sec">🔧 开发工具链</h3>
+    <div class="grid">
+      <div class="card">
+        <h2><span class="icon blue">🌐</span> 静态服务启动</h2>
+        <ul>
+          <li><div><div class="lbl">启动服务</div><div class="desc">默认端口 8080，路径安全防护</div></div><code class="cmd">npm start</code></li>
+          <li><div><div class="lbl">自定义端口</div><div class="desc">PORT 环境变量控制</div></div><code class="cmd">PORT=9000 npm start</code></li>
+        </ul>
+      </div>
+      <div class="card">
+        <h2><span class="icon yellow">🔍</span> 语法与规范检查</h2>
+        <ul>
+          <li><div><div class="lbl">零依赖 8 项检查</div><div class="desc">VM.parse / IIFE / 挂载 / 大括号 / strict</div></div><code class="cmd">npm run lint:js</code></li>
+          <li><div><div class="lbl">三态输出</div><div class="desc">Pass / Warn / Err · exit(0|1) CI友好</div></div><code class="cmd">scripts/lint.js</code></li>
+        </ul>
+      </div>
+    </div>
+
+    <h3 class="sec">🧩 5 条高风险链路测试</h3>
+    <div class="grid">
+      <div class="card">
+        <h2><span class="icon green">💼</span> 课堂包 <span class="risk">高风险</span></h2>
+        <ul>
+          <li><div><div class="lbl">格式+迁移+哈希 · 13用例</div><div class="desc">v0→v4 幂等迁移</div></div><code class="cmd">npm run test:lesson</code></li>
+          <li><div><div class="lbl">冲突策略三态</div><div class="desc">SKIP / OVERWRITE / MERGE</div></div><code class="cmd">lesson-package.js</code></li>
+        </ul>
+      </div>
+      <div class="card">
+        <h2><span class="icon green">📦</span> 备份恢复 <span class="risk">高风险</span></h2>
+        <ul>
+          <li><div><div class="lbl">格式+ID重映射 · 20用例</div><div class="desc">导入ID必变，关联同步</div></div><code class="cmd">npm run test:backup</code></li>
+          <li><div><div class="lbl">三格式兼容</div><div class="desc">standard / full / legacy</div></div><code class="cmd">normalizeBackupData</code></li>
+        </ul>
+      </div>
+      <div class="card">
+        <h2><span class="icon green">📁</span> 项目管理 <span class="risk">高风险</span></h2>
+        <ul>
+          <li><div><div class="lbl">CRUD+默认保护 · 16用例</div><div class="desc">归档/复制/切换</div></div><code class="cmd">npm run test:project</code></li>
+          <li><div><div class="lbl">默认项目保护</div><div class="desc">不可删除/归档</div></div><code class="cmd">project-manager.js</code></li>
+        </ul>
+      </div>
+      <div class="card">
+        <h2><span class="icon green">📜</span> 版本历史 <span class="risk">高风险</span></h2>
+        <ul>
+          <li><div><div class="lbl">快照+Diff+递增 · 13用例</div><div class="desc">10 字段跟踪，无变更不记录</div></div><code class="cmd">npm run test:version</code></li>
+          <li><div><div class="lbl">5 种变更类型</div><div class="desc">create/update/review/rollback/restore</div></div><code class="cmd">CHANGE_TYPE_LABELS</code></li>
+        </ul>
+      </div>
+      <div class="card">
+        <h2><span class="icon green">🖼️</span> 图片资源迁移 <span class="risk">高风险</span></h2>
+        <ul>
+          <li><div><div class="lbl">checksum+去重 · 10用例</div><div class="desc">PhotoResourceStore 全链路</div></div><code class="cmd">npm run test:migration</code></li>
+          <li><div><div class="lbl">哈希策略</div><div class="desc">SHA-1 优先，降级 djb2</div></div><code class="cmd">computeChecksum</code></li>
+        </ul>
+      </div>
+      <div class="card">
+        <h2><span class="icon purple">🧮</span> 存储层 + 审核模块</h2>
+        <ul>
+          <li><div><div class="lbl">StorageLayer · 20用例</div><div class="desc">14 个 stores CRUD 覆盖</div></div><code class="cmd">npm run test:storage</code></li>
+          <li><div><div class="lbl">审核模块 · 27用例</div><div class="desc">原 test-runner.js 保留</div></div><code class="cmd">npm run test:review</code></li>
+        </ul>
+      </div>
+    </div>
+
+    <h3 class="sec">⚡ 一键回归流水线（13 阶段，3.5s · 100%通过率）</h3>
+    <div class="pipe">
+      <div class="pr head"><div>#</div><div>阶段 / 命令</div><div>类型</div><div>等级</div><div>关联链路</div></div>
+      <div class="pr"><div class="pn">1</div><div class="pc">lint:js → scripts/lint.js</div><div class="ps">语法</div><div class="ps fatal">Fatal</div><div class="prs">所有模块</div></div>
+      <div class="pr"><div class="pn">2</div><div class="pc">fixtures → generate-sample-data.js</div><div class="ps">数据</div><div class="ps fatal">Fatal</div><div class="prs">备份/课堂包</div></div>
+      <div class="pr"><div class="pn">3</div><div class="pc">validate sample-backup.json</div><div class="ps">校验</div><div class="ps fatal">Fatal</div><div class="prs">备份恢复</div></div>
+      <div class="pr"><div class="pn">4</div><div class="pc">validate sample-backup-minimal.json</div><div class="ps">校验</div><div class="ps warn">Warn</div><div class="prs">备份恢复</div></div>
+      <div class="pr"><div class="pn">5</div><div class="pc">validate sample-backup-legacy.json</div><div class="ps">校验</div><div class="ps warn">兼容</div><div class="prs">备份恢复</div></div>
+      <div class="pr"><div class="pn">6</div><div class="pc">validate sample-lesson-package.json</div><div class="ps">校验</div><div class="ps fatal">Fatal</div><div class="prs">课堂包</div></div>
+      <div class="pr"><div class="pn">7</div><div class="pc">test:review · 审核模块 (27)</div><div class="ps">测试</div><div class="ps fatal">Fatal</div><div class="prs">审核评分</div></div>
+      <div class="pr"><div class="pn">8</div><div class="pc">test:storage · 存储层 (20)</div><div class="ps">测试</div><div class="ps fatal">Fatal</div><div class="prs">基础底座</div></div>
+      <div class="pr"><div class="pn">9</div><div class="pc">test:backup · 备份恢复 (20)</div><div class="ps">测试</div><div class="ps fatal">Fatal</div><div class="prs">备份恢复</div></div>
+      <div class="pr"><div class="pn">10</div><div class="pc">test:project · 项目管理 (16)</div><div class="ps">测试</div><div class="ps fatal">Fatal</div><div class="prs">项目管理</div></div>
+      <div class="pr"><div class="pn">11</div><div class="pc">test:lesson · 课堂包 (13)</div><div class="ps">测试</div><div class="ps fatal">Fatal</div><div class="prs">课堂包</div></div>
+      <div class="pr"><div class="pn">12</div><div class="pc">test:version · 版本历史 (13)</div><div class="ps">测试</div><div class="ps fatal">Fatal</div><div class="prs">版本历史</div></div>
+      <div class="pr"><div class="pn">13</div><div class="pc">test:migration · 资源迁移 (10)</div><div class="ps">测试</div><div class="ps fatal">Fatal</div><div class="prs">图片迁移</div></div>
+    </div>
+
+    <h3 class="sec">📊 全部测试用例汇总（119 个 · 100% 通过）</h3>
+    <table>
+      <tr><th>模块</th><th>命令</th><th>用例数</th><th>覆盖的高风险链路</th><th>测试文件</th></tr>
+      <tr><td><strong>review</strong> 审核模块</td><td><code class="cmd">npm run test:review</code></td><td class="t-pass">27 ✓</td><td class="muted">审核评分（基础保留）</td><td class="muted">test-runner.js</td></tr>
+      <tr><td><strong>storage</strong> 存储层</td><td><code class="cmd">npm run test:storage</code></td><td class="t-pass">20 ✓</td><td class="muted">所有链路底座 · 14 stores</td><td class="muted">tests/storage.test.js</td></tr>
+      <tr><td><strong>backup</strong> 备份恢复</td><td><code class="cmd">npm run test:backup</code></td><td class="t-pass">20 ✓</td><td class="muted">📦 备份恢复 · ID重映射·冲突</td><td class="muted">tests/backup.test.js</td></tr>
+      <tr><td><strong>project</strong> 项目管理</td><td><code class="cmd">npm run test:project</code></td><td class="t-pass">16 ✓</td><td class="muted">📁 项目管理 · 默认保护·归档</td><td class="muted">tests/project.test.js</td></tr>
+      <tr><td><strong>lesson</strong> 课堂包</td><td><code class="cmd">npm run test:lesson</code></td><td class="t-pass">13 ✓</td><td class="muted">💼 课堂包 · 迁移·评分rubrics</td><td class="muted">tests/lesson.test.js</td></tr>
+      <tr><td><strong>version</strong> 版本历史</td><td><code class="cmd">npm run test:version</code></td><td class="t-pass">13 ✓</td><td class="muted">📜 版本历史 · 快照·Diff·回滚</td><td class="muted">tests/version.test.js</td></tr>
+      <tr><td><strong>migration</strong> 资源迁移</td><td><code class="cmd">npm run test:migration</code></td><td class="t-pass">10 ✓</td><td class="muted">🖼️ 图片迁移 · checksum·去重</td><td class="muted">tests/migration.test.js</td></tr>
+    </table>
+
+    <h3 class="sec">🏗️ 关键工程化设计（供后续维护参考）</h3>
+    <div class="grid">
+      <div class="card">
+        <h2><span class="icon blue">📦</span> IndexedDB 内存 Mock</h2>
+        <ul>
+          <li><div><div class="lbl">DOMStringList.contains()</div><div class="desc">makeStringList 封装数组提供 contains</div></div><code class="cmd">tests/idb-mock.js</code></li>
+          <li><div><div class="lbl">完整异步语义</div><div class="desc">process.nextTick 触发 onsuccess/onerror</div></div><code class="cmd">promisifyRequest</code></li>
+          <li><div><div class="lbl">浏览器环境注入</div><div class="desc">window / crypto / FileReader / Blob / atob</div></div><code class="cmd">setupBrowserGlobals</code></li>
+        </ul>
+      </div>
+      <div class="card">
+        <h2><span class="icon yellow">🔄</span> IIFE 缓存隔离机制</h2>
+        <ul>
+          <li><div><div class="lbl">resetDB 重建闭包</div><div class="desc">标记 {reload:true} 的脚本重新 eval</div></div><code class="cmd">test-framework.js</code></li>
+          <li><div><div class="lbl">动态引用模式</div><div class="desc">用 function SL(){return global.X}</div></div><code class="cmd">禁用 const X=global.X</code></li>
+          <li><div><div class="lbl">beforeEach 覆盖</div><div class="desc">Suite级 beforeEach 可覆盖顶层</div></div><code class="cmd">测试生命周期</code></li>
+        </ul>
+      </div>
+      <div class="card">
+        <h2><span class="icon green">🗂️</span> 备份格式校验</h2>
+        <ul>
+          <li><div><div class="lbl">5 种有效格式</div><div class="desc">standard/full/backup/lesson/answer</div></div><code class="cmd">scripts/validate-backup.js</code></li>
+          <li><div><div class="lbl">Legacy 纯数组兼容</div><div class="desc">Array.isArray() 前置检测，规范化</div></div><code class="cmd">isLegacyArray</code></li>
+          <li><div><div class="lbl">Info / Warn / Error 三态</div><div class="desc">只有 Error 退出码=1</div></div><code class="cmd">check(cond,msg,level)</code></li>
+        </ul>
+      </div>
+      <div class="card">
+        <h2><span class="icon purple">📚</span> Fixtures 示例数据</h2>
+        <ul>
+          <li><div><div class="lbl">9 个文件</div><div class="desc">标准/最小/Legacy/全量/课堂包/3个无效</div></div><code class="cmd">tests/fixtures/*.json</code></li>
+          <li><div><div class="lbl">一键生成</div><div class="desc">包含 15 个样本+照片资源+评分</div></div><code class="cmd">npm run backup:gen-sample</code></li>
+          <li><div><div class="lbl">无效 fixture 校验</div><div class="desc">验证校验器能发现错误</div></div><code class="cmd">invalid-*.json</code></li>
+        </ul>
+      </div>
+    </div>
+
+    <footer>
+      <p>岩芯薄片显微照片索引台 · 工程化轻量工具链 · 零 npm 运行时依赖</p>
+      <p style="margin-top:6px;">返回控制台：<code style="background:#1e3a5f;padding:2px 8px;border-radius:4px;">node scripts/regression.js</code></p>
+    </footer>
+  </div>
+</body>
+</html>

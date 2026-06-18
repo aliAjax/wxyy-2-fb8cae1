@@ -1,0 +1,30 @@
+{
+  "name": "wxyy-thin-section-indexer",
+  "version": "2.0.0",
+  "private": true,
+  "description": "岩芯薄片显微照片索引台 - 原生HTML/CSS/JS工程化配置",
+  "scripts": {
+    "start": "node scripts/serve.js",
+    "dev": "node scripts/serve.js",
+    "lint": "npx eslint \"*.js\" --ignore-pattern node_modules/ --ignore-pattern tests/ 2>/dev/null || node scripts/lint.js",
+    "lint:js": "node scripts/lint.js",
+    "test": "node scripts/run-tests.js",
+    "test:review": "node test-runner.js",
+    "test:core": "node scripts/run-tests.js --modules=storage,backup,project,lesson,version",
+    "test:storage": "node scripts/run-tests.js --modules=storage",
+    "test:backup": "node scripts/run-tests.js --modules=backup",
+    "test:project": "node scripts/run-tests.js --modules=project",
+    "test:lesson": "node scripts/run-tests.js --modules=lesson",
+    "test:version": "node scripts/run-tests.js --modules=version",
+    "test:migration": "node scripts/run-tests.js --modules=migration",
+    "backup:validate": "node scripts/validate-backup.js",
+    "backup:gen-sample": "node scripts/generate-sample-data.js",
+    "backup:check-sample": "node scripts/validate-backup.js ./tests/fixtures/sample-backup.json",
+    "regression": "node scripts/regression.js",
+    "ci": "npm run lint:js && npm run regression"
+  },
+  "devDependencies": {},
+  "engines": {
+    "node": ">=16.0.0"
+  }
+}

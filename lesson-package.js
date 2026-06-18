@@ -1696,7 +1696,15 @@
     mergeSubmissionAnswers,
     mergeTaskProgress,
     parsePackageFile,
-    generateId
+    generateId,
+
+    migrateLessonPackage,
+    migrateAnswerPackage,
+    stableStringify,
+    computeNumericHash,
+    computeSha1Hash,
+    buildDefaultRubrics,
+    mapSampleIds
   };
 
 })(window);

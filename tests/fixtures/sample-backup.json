@@ -1,0 +1,1012 @@
+{
+  "format": "wxyy-thin-section-project-backup",
+  "version": 2,
+  "exportDate": "2026-06-18T13:43:28.915Z",
+  "project": {
+    "id": "5ac4cbe5-7d6f-4195-8018-7cf55c773f22",
+    "name": "2025春季·沉积岩实习（示例数据）",
+    "description": "这是用于校验备份恢复链路的示例数据。包含 15 个样本、3 个任务、版本历史和学生作答。",
+    "createdAt": "2026-05-19T13:43:28.915Z",
+    "meta": {
+      "isSampleBackup": true,
+      "generatedAt": "2026-06-18T13:43:28.915Z",
+      "generator": "scripts/generate-sample-data.js",
+      "datasetSize": "15 samples · 3 tasks"
+    }
+  },
+  "samples": [
+    {
+      "id": "sample-0001",
+      "projectId": "5ac4cbe5-7d6f-4195-8018-7cf55c773f22",
+      "code": "GR-001",
+      "location": "剖面西侧第二层",
+      "magnification": "100x",
+      "polarization": "正交偏光",
+      "minerals": "方解石、白云石",
+      "texture": "它形粒状结构",
+      "comment": "样本 1 老师批注：典型结构特征清晰，注意观察矿物的消光位。",
+      "reviewStatus": "pending",
+      "reviewComment": "",
+      "observationFeatures": [
+        "波状消光"
+      ],
+      "photo": "data:image/png;base64,bW9jay1waG90by1zYW1wbGUtMS0xNzgxNzkwMjA4OTE1",
+      "photoResourceId": null,
+      "annotationResourceId": null,
+      "groupId": null,
+      "createdAt": "2026-06-17T13:43:28.915Z",
+      "updatedAt": "2026-06-18T01:43:28.915Z"
+    },
+    {
+      "id": "sample-0002",
+      "projectId": "5ac4cbe5-7d6f-4195-8018-7cf55c773f22",
+      "code": "MT-002",
+      "location": "剖面北端第三层",
+      "magnification": "200x",
+      "polarization": "反射光",
+      "minerals": "钾长石、石英",
+      "texture": "斑状结构",
+      "comment": "样本 2 老师批注：典型结构特征清晰，注意观察矿物的消光位。",
+      "reviewStatus": "pending",
+      "reviewComment": "",
+      "observationFeatures": [
+        "具有解理缝",
+        "可见双晶"
+      ],
+      "photo": "data:image/png;base64,bW9jay1waG90by1zYW1wbGUtMi0xNzgxNzkwMjA4OTE1",
+      "photoResourceId": "photo-res-2",
+      "annotationResourceId": null,
+      "groupId": null,
+      "createdAt": "2026-06-16T13:43:28.915Z",
+      "updatedAt": "2026-06-17T13:43:28.915Z"
+    },
+    {
+      "id": "sample-0003",
+      "projectId": "5ac4cbe5-7d6f-4195-8018-7cf55c773f22",
+      "code": "SL-003",
+      "location": "剖面南端第五层",
+      "magnification": "400x",
+      "polarization": "单偏光",
+      "minerals": "黑云母、角闪石",
+      "texture": "碎裂结构",
+      "comment": "样本 3 老师批注：典型结构特征清晰，注意观察矿物的消光位。",
+      "reviewStatus": "incomplete",
+      "reviewComment": "",
+      "observationFeatures": [
+        "波状消光"
+      ],
+      "photo": "data:image/png;base64,bW9jay1waG90by1zYW1wbGUtMy0xNzgxNzkwMjA4OTE1",
+      "photoResourceId": null,
+      "annotationResourceId": null,
+      "groupId": null,
+      "createdAt": "2026-06-15T13:43:28.915Z",
+      "updatedAt": "2026-06-17T01:43:28.915Z"
+    },
+    {
+      "id": "sample-0004",
+      "projectId": "5ac4cbe5-7d6f-4195-8018-7cf55c773f22",
+      "code": "DY-004",
+      "location": "主剖面第八层",
+      "magnification": "40x",
+      "polarization": "正交偏光",
+      "minerals": "辉石、橄榄石",
+      "texture": "花岗变晶结构",
+      "comment": "样本 4 老师批注：典型结构特征清晰，注意观察矿物的消光位。",
+      "reviewStatus": "pending",
+      "reviewComment": "",
+      "observationFeatures": [
+        "具有解理缝",
+        "可见双晶"
+      ],
+      "photo": "data:image/png;base64,bW9jay1waG90by1zYW1wbGUtNC0xNzgxNzkwMjA4OTE1",
+      "photoResourceId": "photo-res-4",
+      "annotationResourceId": null,
+      "groupId": "group-1",
+      "createdAt": "2026-06-14T13:43:28.915Z",
+      "updatedAt": "2026-06-16T13:43:28.915Z"
+    },
+    {
+      "id": "sample-0005",
+      "projectId": "5ac4cbe5-7d6f-4195-8018-7cf55c773f22",
+      "code": "BX-005",
+      "location": "剖面东侧第一层",
+      "magnification": "100x",
+      "polarization": "反射光",
+      "minerals": "石英、斜长石",
+      "texture": "半自形粒状结构",
+      "comment": "样本 5 老师批注：典型结构特征清晰，注意观察矿物的消光位。",
+      "reviewStatus": "confirmed",
+      "reviewComment": "鉴定准确，确认通过",
+      "observationFeatures": [
+        "波状消光"
+      ],
+      "photo": "data:image/png;base64,bW9jay1waG90by1zYW1wbGUtNS0xNzgxNzkwMjA4OTE1",
+      "photoResourceId": null,
+      "annotationResourceId": null,
+      "groupId": null,
+      "createdAt": "2026-06-13T13:43:28.915Z",
+      "updatedAt": "2026-06-16T01:43:28.915Z"
+    },
+    {
+      "id": "sample-0006",
+      "projectId": "5ac4cbe5-7d6f-4195-8018-7cf55c773f22",
+      "code": "GR-006",
+      "location": "剖面西侧第二层",
+      "magnification": "200x",
+      "polarization": "单偏光",
+      "minerals": "方解石、白云石",
+      "texture": "它形粒状结构",
+      "comment": "样本 6 老师批注：典型结构特征清晰，注意观察矿物的消光位。",
+      "reviewStatus": "incomplete",
+      "reviewComment": "",
+      "observationFeatures": [
+        "具有解理缝",
+        "可见双晶"
+      ],
+      "photo": "data:image/png;base64,bW9jay1waG90by1zYW1wbGUtNi0xNzgxNzkwMjA4OTE1",
+      "photoResourceId": "photo-res-6",
+      "annotationResourceId": null,
+      "groupId": null,
+      "createdAt": "2026-06-12T13:43:28.915Z",
+      "updatedAt": "2026-06-15T13:43:28.915Z"
+    },
+    {
+      "id": "sample-0007",
+      "projectId": "5ac4cbe5-7d6f-4195-8018-7cf55c773f22",
+      "code": "MT-007",
+      "location": "剖面北端第三层",
+      "magnification": "400x",
+      "polarization": "正交偏光",
+      "minerals": "钾长石、石英",
+      "texture": "斑状结构",
+      "comment": "样本 7 老师批注：典型结构特征清晰，注意观察矿物的消光位。",
+      "reviewStatus": "pending",
+      "reviewComment": "",
+      "observationFeatures": [
+        "波状消光"
+      ],
+      "photo": "data:image/png;base64,bW9jay1waG90by1zYW1wbGUtNy0xNzgxNzkwMjA4OTE1",
+      "photoResourceId": null,
+      "annotationResourceId": null,
+      "groupId": null,
+      "createdAt": "2026-06-11T13:43:28.915Z",
+      "updatedAt": "2026-06-15T01:43:28.915Z"
+    },
+    {
+      "id": "sample-0008",
+      "projectId": "5ac4cbe5-7d6f-4195-8018-7cf55c773f22",
+      "code": "SL-008",
+      "location": "剖面南端第五层",
+      "magnification": "40x",
+      "polarization": "反射光",
+      "minerals": "黑云母、角闪石",
+      "texture": "碎裂结构",
+      "comment": "样本 8 老师批注：典型结构特征清晰，注意观察矿物的消光位。",
+      "reviewStatus": "pending",
+      "reviewComment": "",
+      "observationFeatures": [
+        "具有解理缝",
+        "可见双晶"
+      ],
+      "photo": "data:image/png;base64,bW9jay1waG90by1zYW1wbGUtOC0xNzgxNzkwMjA4OTE1",
+      "photoResourceId": "photo-res-8",
+      "annotationResourceId": null,
+      "groupId": "group-2",
+      "createdAt": "2026-06-10T13:43:28.915Z",
+      "updatedAt": "2026-06-14T13:43:28.915Z"
+    },
+    {
+      "id": "sample-0009",
+      "projectId": "5ac4cbe5-7d6f-4195-8018-7cf55c773f22",
+      "code": "DY-009",
+      "location": "主剖面第八层",
+      "magnification": "100x",
+      "polarization": "单偏光",
+      "minerals": "辉石、橄榄石",
+      "texture": "花岗变晶结构",
+      "comment": "样本 9 老师批注：典型结构特征清晰，注意观察矿物的消光位。",
+      "reviewStatus": "incomplete",
+      "reviewComment": "",
+      "observationFeatures": [
+        "波状消光"
+      ],
+      "photo": "data:image/png;base64,bW9jay1waG90by1zYW1wbGUtOS0xNzgxNzkwMjA4OTE1",
+      "photoResourceId": null,
+      "annotationResourceId": null,
+      "groupId": null,
+      "createdAt": "2026-06-09T13:43:28.915Z",
+      "updatedAt": "2026-06-14T01:43:28.915Z"
+    },
+    {
+      "id": "sample-0010",
+      "projectId": "5ac4cbe5-7d6f-4195-8018-7cf55c773f22",
+      "code": "BX-010",
+      "location": "剖面东侧第一层",
+      "magnification": "200x",
+      "polarization": "正交偏光",
+      "minerals": "石英、斜长石",
+      "texture": "半自形粒状结构",
+      "comment": "样本 10 老师批注：典型结构特征清晰，注意观察矿物的消光位。",
+      "reviewStatus": "confirmed",
+      "reviewComment": "鉴定准确，确认通过",
+      "observationFeatures": [
+        "具有解理缝",
+        "可见双晶"
+      ],
+      "photo": "data:image/png;base64,bW9jay1waG90by1zYW1wbGUtMTAtMTc4MTc5MDIwODkxNQ==",
+      "photoResourceId": "photo-res-10",
+      "annotationResourceId": null,
+      "groupId": null,
+      "createdAt": "2026-06-08T13:43:28.915Z",
+      "updatedAt": "2026-06-13T13:43:28.915Z"
+    },
+    {
+      "id": "sample-0011",
+      "projectId": "5ac4cbe5-7d6f-4195-8018-7cf55c773f22",
+      "code": "GR-011",
+      "location": "剖面西侧第二层",
+      "magnification": "400x",
+      "polarization": "反射光",
+      "minerals": "方解石、白云石",
+      "texture": "它形粒状结构",
+      "comment": "样本 11 老师批注：典型结构特征清晰，注意观察矿物的消光位。",
+      "reviewStatus": "pending",
+      "reviewComment": "",
+      "observationFeatures": [
+        "波状消光"
+      ],
+      "photo": "data:image/png;base64,bW9jay1waG90by1zYW1wbGUtMTEtMTc4MTc5MDIwODkxNQ==",
+      "photoResourceId": null,
+      "annotationResourceId": null,
+      "groupId": null,
+      "createdAt": "2026-06-07T13:43:28.915Z",
+      "updatedAt": "2026-06-13T01:43:28.915Z"
+    },
+    {
+      "id": "sample-0012",
+      "projectId": "5ac4cbe5-7d6f-4195-8018-7cf55c773f22",
+      "code": "MT-012",
+      "location": "剖面北端第三层",
+      "magnification": "40x",
+      "polarization": "单偏光",
+      "minerals": "钾长石、石英",
+      "texture": "斑状结构",
+      "comment": "样本 12 老师批注：典型结构特征清晰，注意观察矿物的消光位。",
+      "reviewStatus": "incomplete",
+      "reviewComment": "",
+      "observationFeatures": [
+        "具有解理缝",
+        "可见双晶"
+      ],
+      "photo": "data:image/png;base64,bW9jay1waG90by1zYW1wbGUtMTItMTc4MTc5MDIwODkxNQ==",
+      "photoResourceId": "photo-res-12",
+      "annotationResourceId": null,
+      "groupId": "group-3",
+      "createdAt": "2026-06-06T13:43:28.915Z",
+      "updatedAt": "2026-06-12T13:43:28.915Z"
+    },
+    {
+      "id": "sample-0013",
+      "projectId": "5ac4cbe5-7d6f-4195-8018-7cf55c773f22",
+      "code": "SL-013",
+      "location": "剖面南端第五层",
+      "magnification": "100x",
+      "polarization": "正交偏光",
+      "minerals": "黑云母、角闪石",
+      "texture": "碎裂结构",
+      "comment": "样本 13 老师批注：典型结构特征清晰，注意观察矿物的消光位。",
+      "reviewStatus": "pending",
+      "reviewComment": "",
+      "observationFeatures": [
+        "波状消光"
+      ],
+      "photo": "data:image/png;base64,bW9jay1waG90by1zYW1wbGUtMTMtMTc4MTc5MDIwODkxNQ==",
+      "photoResourceId": null,
+      "annotationResourceId": null,
+      "groupId": null,
+      "createdAt": "2026-06-05T13:43:28.915Z",
+      "updatedAt": "2026-06-12T01:43:28.915Z"
+    },
+    {
+      "id": "sample-0014",
+      "projectId": "5ac4cbe5-7d6f-4195-8018-7cf55c773f22",
+      "code": "DY-014",
+      "location": "主剖面第八层",
+      "magnification": "200x",
+      "polarization": "反射光",
+      "minerals": "辉石、橄榄石",
+      "texture": "花岗变晶结构",
+      "comment": "样本 14 老师批注：典型结构特征清晰，注意观察矿物的消光位。",
+      "reviewStatus": "pending",
+      "reviewComment": "",
+      "observationFeatures": [
+        "具有解理缝",
+        "可见双晶"
+      ],
+      "photo": "data:image/png;base64,bW9jay1waG90by1zYW1wbGUtMTQtMTc4MTc5MDIwODkxNQ==",
+      "photoResourceId": "photo-res-14",
+      "annotationResourceId": null,
+      "groupId": null,
+      "createdAt": "2026-06-04T13:43:28.915Z",
+      "updatedAt": "2026-06-11T13:43:28.915Z"
+    },
+    {
+      "id": "sample-0015",
+      "projectId": "5ac4cbe5-7d6f-4195-8018-7cf55c773f22",
+      "code": "BX-015",
+      "location": "剖面东侧第一层",
+      "magnification": "400x",
+      "polarization": "单偏光",
+      "minerals": "石英、斜长石",
+      "texture": "半自形粒状结构",
+      "comment": "样本 15 老师批注：典型结构特征清晰，注意观察矿物的消光位。",
+      "reviewStatus": "confirmed",
+      "reviewComment": "鉴定准确，确认通过",
+      "observationFeatures": [
+        "波状消光"
+      ],
+      "photo": "data:image/png;base64,bW9jay1waG90by1zYW1wbGUtMTUtMTc4MTc5MDIwODkxNQ==",
+      "photoResourceId": null,
+      "annotationResourceId": null,
+      "groupId": null,
+      "createdAt": "2026-06-03T13:43:28.915Z",
+      "updatedAt": "2026-06-11T01:43:28.915Z"
+    }
+  ],
+  "tasks": [
+    {
+      "id": "task-1",
+      "projectId": "5ac4cbe5-7d6f-4195-8018-7cf55c773f22",
+      "title": "观察任务 1：沉积岩识别",
+      "objective": "本次任务要求学生系统观察任务样本的矿物组成、结构特征，并结合沉积学原理进行成因分析。请标注关键矿物的光学特征。",
+      "deadline": null,
+      "sampleIds": [
+        "sample-0001",
+        "sample-0004",
+        "sample-0007",
+        "sample-0010",
+        "sample-0013"
+      ],
+      "completedSamples": [
+        "sample-0001",
+        "sample-0004"
+      ],
+      "lessonPackageId": "lesson-pack-demo-001",
+      "createdAt": "2026-06-16T13:43:28.915Z",
+      "updatedAt": "2026-06-17T13:43:28.915Z"
+    },
+    {
+      "id": "task-2",
+      "projectId": "5ac4cbe5-7d6f-4195-8018-7cf55c773f22",
+      "title": "观察任务 2：火成岩手标本描述",
+      "objective": "本次任务要求学生系统观察任务样本的矿物组成、结构特征，并结合沉积学原理进行成因分析。请标注关键矿物的光学特征。",
+      "deadline": "2026-06-25T13:43:28.915Z",
+      "sampleIds": [
+        "sample-0002",
+        "sample-0005",
+        "sample-0008",
+        "sample-0011",
+        "sample-0014"
+      ],
+      "completedSamples": [
+        "sample-0002",
+        "sample-0005"
+      ],
+      "lessonPackageId": null,
+      "createdAt": "2026-06-14T13:43:28.915Z",
+      "updatedAt": "2026-06-16T13:43:28.915Z"
+    },
+    {
+      "id": "task-3",
+      "projectId": "5ac4cbe5-7d6f-4195-8018-7cf55c773f22",
+      "title": "观察任务 3：变质岩结构分析",
+      "objective": "本次任务要求学生系统观察任务样本的矿物组成、结构特征，并结合沉积学原理进行成因分析。请标注关键矿物的光学特征。",
+      "deadline": null,
+      "sampleIds": [
+        "sample-0003",
+        "sample-0006",
+        "sample-0009",
+        "sample-0012",
+        "sample-0015"
+      ],
+      "completedSamples": [
+        "sample-0003",
+        "sample-0006"
+      ],
+      "lessonPackageId": null,
+      "createdAt": "2026-06-12T13:43:28.915Z",
+      "updatedAt": "2026-06-15T13:43:28.915Z"
+    }
+  ],
+  "sampleGroups": [
+    {
+      "id": "group-1",
+      "name": "A 组样本",
+      "sampleIds": [
+        "sample-0004"
+      ]
+    }
+  ],
+  "appState": {
+    "compareList": [
+      "sample-0001",
+      "sample-0002"
+    ],
+    "filterViews": [
+      {
+        "id": "fv-1",
+        "name": "待复核视图",
+        "reviewStatus": "pending",
+        "createdAt": "2026-06-18T13:43:28.915Z"
+      },
+      {
+        "id": "fv-2",
+        "name": "正交偏光视图",
+        "polarization": "正交偏光",
+        "createdAt": "2026-06-18T13:43:28.915Z"
+      }
+    ]
+  },
+  "versionHistory": [
+    {
+      "id": "vh-0-1",
+      "sampleId": "sample-0001",
+      "version": 1,
+      "timestamp": "2026-06-18T12:43:28.915Z",
+      "changeType": "create",
+      "changedFields": [
+        "*"
+      ],
+      "summary": "创建样本",
+      "snapshot": {
+        "code": "GR-001",
+        "minerals": "",
+        "texture": "",
+        "comment": "样本 1 老师批注：典型结构特征清晰，注意观察矿物的消光位。",
+        "hasPhoto": false,
+        "annotationCount": 0
+      }
+    },
+    {
+      "id": "vh-0-2",
+      "sampleId": "sample-0001",
+      "version": 2,
+      "timestamp": "2026-06-18T11:43:28.915Z",
+      "changeType": "update",
+      "changedFields": [
+        "minerals",
+        "texture"
+      ],
+      "summary": "修改：主要矿物、颗粒结构",
+      "snapshot": {
+        "code": "GR-001",
+        "minerals": "方解石、白云石",
+        "texture": "它形粒状结构",
+        "comment": "样本 1 老师批注：典型结构特征清晰，注意观察矿物的消光位。",
+        "hasPhoto": true,
+        "annotationCount": 3
+      }
+    },
+    {
+      "id": "vh-1-1",
+      "sampleId": "sample-0002",
+      "version": 1,
+      "timestamp": "2026-06-18T07:43:28.915Z",
+      "changeType": "create",
+      "changedFields": [
+        "*"
+      ],
+      "summary": "创建样本",
+      "snapshot": {
+        "code": "MT-002",
+        "minerals": "",
+        "texture": "",
+        "comment": "样本 2 老师批注：典型结构特征清晰，注意观察矿物的消光位。",
+        "hasPhoto": false,
+        "annotationCount": 0
+      }
+    },
+    {
+      "id": "vh-1-2",
+      "sampleId": "sample-0002",
+      "version": 2,
+      "timestamp": "2026-06-18T06:43:28.915Z",
+      "changeType": "update",
+      "changedFields": [
+        "minerals",
+        "texture"
+      ],
+      "summary": "修改：主要矿物、颗粒结构",
+      "snapshot": {
+        "code": "MT-002",
+        "minerals": "钾长石、石英",
+        "texture": "斑状结构",
+        "comment": "样本 2 老师批注：典型结构特征清晰，注意观察矿物的消光位。",
+        "hasPhoto": true,
+        "annotationCount": 3
+      }
+    },
+    {
+      "id": "vh-1-3",
+      "sampleId": "sample-0002",
+      "version": 3,
+      "timestamp": "2026-06-18T05:43:28.915Z",
+      "changeType": "update",
+      "changedFields": [
+        "comment"
+      ],
+      "summary": "修改：主要矿物、颗粒结构",
+      "snapshot": {
+        "code": "MT-002",
+        "minerals": "钾长石、石英",
+        "texture": "斑状结构",
+        "comment": "样本 2 老师批注：典型结构特征清晰，注意观察矿物的消光位。",
+        "hasPhoto": true,
+        "annotationCount": 3
+      }
+    },
+    {
+      "id": "vh-2-1",
+      "sampleId": "sample-0003",
+      "version": 1,
+      "timestamp": "2026-06-18T02:43:28.915Z",
+      "changeType": "create",
+      "changedFields": [
+        "*"
+      ],
+      "summary": "创建样本",
+      "snapshot": {
+        "code": "SL-003",
+        "minerals": "",
+        "texture": "",
+        "comment": "样本 3 老师批注：典型结构特征清晰，注意观察矿物的消光位。",
+        "hasPhoto": false,
+        "annotationCount": 0
+      }
+    },
+    {
+      "id": "vh-2-2",
+      "sampleId": "sample-0003",
+      "version": 2,
+      "timestamp": "2026-06-18T01:43:28.915Z",
+      "changeType": "update",
+      "changedFields": [
+        "minerals",
+        "texture"
+      ],
+      "summary": "修改：主要矿物、颗粒结构",
+      "snapshot": {
+        "code": "SL-003",
+        "minerals": "黑云母、角闪石",
+        "texture": "碎裂结构",
+        "comment": "样本 3 老师批注：典型结构特征清晰，注意观察矿物的消光位。",
+        "hasPhoto": true,
+        "annotationCount": 3
+      }
+    },
+    {
+      "id": "vh-2-3",
+      "sampleId": "sample-0003",
+      "version": 3,
+      "timestamp": "2026-06-18T00:43:28.915Z",
+      "changeType": "update",
+      "changedFields": [
+        "comment"
+      ],
+      "summary": "修改：主要矿物、颗粒结构",
+      "snapshot": {
+        "code": "SL-003",
+        "minerals": "黑云母、角闪石",
+        "texture": "碎裂结构",
+        "comment": "样本 3 老师批注：典型结构特征清晰，注意观察矿物的消光位。",
+        "hasPhoto": true,
+        "annotationCount": 3
+      }
+    },
+    {
+      "id": "vh-2-4",
+      "sampleId": "sample-0003",
+      "version": 4,
+      "timestamp": "2026-06-17T23:43:28.915Z",
+      "changeType": "update",
+      "changedFields": [
+        "comment"
+      ],
+      "summary": "修改：主要矿物、颗粒结构",
+      "snapshot": {
+        "code": "SL-003",
+        "minerals": "黑云母、角闪石",
+        "texture": "碎裂结构",
+        "comment": "样本 3 老师批注：典型结构特征清晰，注意观察矿物的消光位。",
+        "hasPhoto": true,
+        "annotationCount": 3
+      }
+    },
+    {
+      "id": "vh-3-1",
+      "sampleId": "sample-0004",
+      "version": 1,
+      "timestamp": "2026-06-17T21:43:28.915Z",
+      "changeType": "create",
+      "changedFields": [
+        "*"
+      ],
+      "summary": "创建样本",
+      "snapshot": {
+        "code": "DY-004",
+        "minerals": "",
+        "texture": "",
+        "comment": "样本 4 老师批注：典型结构特征清晰，注意观察矿物的消光位。",
+        "hasPhoto": false,
+        "annotationCount": 0
+      }
+    },
+    {
+      "id": "vh-3-2",
+      "sampleId": "sample-0004",
+      "version": 2,
+      "timestamp": "2026-06-17T20:43:28.915Z",
+      "changeType": "update",
+      "changedFields": [
+        "minerals",
+        "texture"
+      ],
+      "summary": "修改：主要矿物、颗粒结构",
+      "snapshot": {
+        "code": "DY-004",
+        "minerals": "辉石、橄榄石",
+        "texture": "花岗变晶结构",
+        "comment": "样本 4 老师批注：典型结构特征清晰，注意观察矿物的消光位。",
+        "hasPhoto": true,
+        "annotationCount": 3
+      }
+    },
+    {
+      "id": "vh-4-1",
+      "sampleId": "sample-0005",
+      "version": 1,
+      "timestamp": "2026-06-17T16:43:28.915Z",
+      "changeType": "create",
+      "changedFields": [
+        "*"
+      ],
+      "summary": "创建样本",
+      "snapshot": {
+        "code": "BX-005",
+        "minerals": "",
+        "texture": "",
+        "comment": "样本 5 老师批注：典型结构特征清晰，注意观察矿物的消光位。",
+        "hasPhoto": false,
+        "annotationCount": 0
+      }
+    },
+    {
+      "id": "vh-4-2",
+      "sampleId": "sample-0005",
+      "version": 2,
+      "timestamp": "2026-06-17T15:43:28.915Z",
+      "changeType": "update",
+      "changedFields": [
+        "minerals",
+        "texture"
+      ],
+      "summary": "修改：主要矿物、颗粒结构",
+      "snapshot": {
+        "code": "BX-005",
+        "minerals": "石英、斜长石",
+        "texture": "半自形粒状结构",
+        "comment": "样本 5 老师批注：典型结构特征清晰，注意观察矿物的消光位。",
+        "hasPhoto": true,
+        "annotationCount": 3
+      }
+    },
+    {
+      "id": "vh-4-3",
+      "sampleId": "sample-0005",
+      "version": 3,
+      "timestamp": "2026-06-17T14:43:28.915Z",
+      "changeType": "update",
+      "changedFields": [
+        "comment"
+      ],
+      "summary": "修改：主要矿物、颗粒结构",
+      "snapshot": {
+        "code": "BX-005",
+        "minerals": "石英、斜长石",
+        "texture": "半自形粒状结构",
+        "comment": "样本 5 老师批注：典型结构特征清晰，注意观察矿物的消光位。",
+        "hasPhoto": true,
+        "annotationCount": 3
+      }
+    },
+    {
+      "id": "vh-5-1",
+      "sampleId": "sample-0006",
+      "version": 1,
+      "timestamp": "2026-06-17T11:43:28.915Z",
+      "changeType": "create",
+      "changedFields": [
+        "*"
+      ],
+      "summary": "创建样本",
+      "snapshot": {
+        "code": "GR-006",
+        "minerals": "",
+        "texture": "",
+        "comment": "样本 6 老师批注：典型结构特征清晰，注意观察矿物的消光位。",
+        "hasPhoto": false,
+        "annotationCount": 0
+      }
+    },
+    {
+      "id": "vh-5-2",
+      "sampleId": "sample-0006",
+      "version": 2,
+      "timestamp": "2026-06-17T10:43:28.915Z",
+      "changeType": "update",
+      "changedFields": [
+        "minerals",
+        "texture"
+      ],
+      "summary": "修改：主要矿物、颗粒结构",
+      "snapshot": {
+        "code": "GR-006",
+        "minerals": "方解石、白云石",
+        "texture": "它形粒状结构",
+        "comment": "样本 6 老师批注：典型结构特征清晰，注意观察矿物的消光位。",
+        "hasPhoto": true,
+        "annotationCount": 3
+      }
+    },
+    {
+      "id": "vh-5-3",
+      "sampleId": "sample-0006",
+      "version": 3,
+      "timestamp": "2026-06-17T09:43:28.915Z",
+      "changeType": "update",
+      "changedFields": [
+        "comment"
+      ],
+      "summary": "修改：主要矿物、颗粒结构",
+      "snapshot": {
+        "code": "GR-006",
+        "minerals": "方解石、白云石",
+        "texture": "它形粒状结构",
+        "comment": "样本 6 老师批注：典型结构特征清晰，注意观察矿物的消光位。",
+        "hasPhoto": true,
+        "annotationCount": 3
+      }
+    },
+    {
+      "id": "vh-5-4",
+      "sampleId": "sample-0006",
+      "version": 4,
+      "timestamp": "2026-06-17T08:43:28.915Z",
+      "changeType": "update",
+      "changedFields": [
+        "comment"
+      ],
+      "summary": "修改：主要矿物、颗粒结构",
+      "snapshot": {
+        "code": "GR-006",
+        "minerals": "方解石、白云石",
+        "texture": "它形粒状结构",
+        "comment": "样本 6 老师批注：典型结构特征清晰，注意观察矿物的消光位。",
+        "hasPhoto": true,
+        "annotationCount": 3
+      }
+    },
+    {
+      "id": "vh-6-1",
+      "sampleId": "sample-0007",
+      "version": 1,
+      "timestamp": "2026-06-17T06:43:28.915Z",
+      "changeType": "create",
+      "changedFields": [
+        "*"
+      ],
+      "summary": "创建样本",
+      "snapshot": {
+        "code": "MT-007",
+        "minerals": "",
+        "texture": "",
+        "comment": "样本 7 老师批注：典型结构特征清晰，注意观察矿物的消光位。",
+        "hasPhoto": false,
+        "annotationCount": 0
+      }
+    },
+    {
+      "id": "vh-6-2",
+      "sampleId": "sample-0007",
+      "version": 2,
+      "timestamp": "2026-06-17T05:43:28.915Z",
+      "changeType": "update",
+      "changedFields": [
+        "minerals",
+        "texture"
+      ],
+      "summary": "修改：主要矿物、颗粒结构",
+      "snapshot": {
+        "code": "MT-007",
+        "minerals": "钾长石、石英",
+        "texture": "斑状结构",
+        "comment": "样本 7 老师批注：典型结构特征清晰，注意观察矿物的消光位。",
+        "hasPhoto": true,
+        "annotationCount": 3
+      }
+    },
+    {
+      "id": "vh-7-1",
+      "sampleId": "sample-0008",
+      "version": 1,
+      "timestamp": "2026-06-17T01:43:28.915Z",
+      "changeType": "create",
+      "changedFields": [
+        "*"
+      ],
+      "summary": "创建样本",
+      "snapshot": {
+        "code": "SL-008",
+        "minerals": "",
+        "texture": "",
+        "comment": "样本 8 老师批注：典型结构特征清晰，注意观察矿物的消光位。",
+        "hasPhoto": false,
+        "annotationCount": 0
+      }
+    },
+    {
+      "id": "vh-7-2",
+      "sampleId": "sample-0008",
+      "version": 2,
+      "timestamp": "2026-06-17T00:43:28.915Z",
+      "changeType": "update",
+      "changedFields": [
+        "minerals",
+        "texture"
+      ],
+      "summary": "修改：主要矿物、颗粒结构",
+      "snapshot": {
+        "code": "SL-008",
+        "minerals": "黑云母、角闪石",
+        "texture": "碎裂结构",
+        "comment": "样本 8 老师批注：典型结构特征清晰，注意观察矿物的消光位。",
+        "hasPhoto": true,
+        "annotationCount": 3
+      }
+    },
+    {
+      "id": "vh-7-3",
+      "sampleId": "sample-0008",
+      "version": 3,
+      "timestamp": "2026-06-16T23:43:28.915Z",
+      "changeType": "update",
+      "changedFields": [
+        "comment"
+      ],
+      "summary": "修改：主要矿物、颗粒结构",
+      "snapshot": {
+        "code": "SL-008",
+        "minerals": "黑云母、角闪石",
+        "texture": "碎裂结构",
+        "comment": "样本 8 老师批注：典型结构特征清晰，注意观察矿物的消光位。",
+        "hasPhoto": true,
+        "annotationCount": 3
+      }
+    }
+  ],
+  "recycleBin": [
+    {
+      "id": "rb-1",
+      "projectId": "5ac4cbe5-7d6f-4195-8018-7cf55c773f22",
+      "sampleId": "recycled-1",
+      "deletedAt": "2026-06-17T13:43:28.915Z",
+      "sampleData": {
+        "id": "recycled-1",
+        "projectId": "5ac4cbe5-7d6f-4195-8018-7cf55c773f22",
+        "code": "BX-DEL-001",
+        "minerals": "已删除矿物",
+        "photo": "data:image/png;base64,bW9jay1waG90by1kZWxldGVkLTEtMTc4MTc5MDIwODkxNQ=="
+      }
+    },
+    {
+      "id": "rb-2",
+      "projectId": "5ac4cbe5-7d6f-4195-8018-7cf55c773f22",
+      "sampleId": "recycled-2",
+      "deletedAt": "2026-06-15T13:43:28.915Z",
+      "sampleData": {
+        "id": "recycled-2",
+        "projectId": "5ac4cbe5-7d6f-4195-8018-7cf55c773f22",
+        "code": "BX-DEL-002"
+      }
+    }
+  ],
+  "studentAnswers": [
+    {
+      "id": "ans-1",
+      "projectId": "5ac4cbe5-7d6f-4195-8018-7cf55c773f22",
+      "lessonPackageId": "lesson-pack-demo-001",
+      "taskId": "task-1",
+      "sampleId": "sample-0001",
+      "studentName": "张三",
+      "studentId": "2024001",
+      "minerals": "石英，斜长石，钾长石",
+      "texture": "半自形粒状结构",
+      "observation": "颗粒边界清晰，石英具有波状消光",
+      "comment": "这是一块典型的花岗岩薄片",
+      "score": null,
+      "gradedAt": null,
+      "submittedAt": "2026-06-18T13:41:48.915Z"
+    },
+    {
+      "id": "ans-2",
+      "projectId": "5ac4cbe5-7d6f-4195-8018-7cf55c773f22",
+      "lessonPackageId": "lesson-pack-demo-001",
+      "taskId": "task-1",
+      "sampleId": "sample-0002",
+      "studentName": "李四",
+      "studentId": "2024002",
+      "minerals": "方解石",
+      "texture": "泥晶结构",
+      "observation": "方解石颗粒较小",
+      "comment": "石灰岩薄片，颗粒偏细",
+      "score": 85,
+      "gradedAt": "2026-06-18T13:43:28.915Z",
+      "submittedAt": "2026-06-18T13:40:08.915Z"
+    }
+  ],
+  "lessonGrading": {
+    "submissions": [
+      {
+        "id": "sub-1",
+        "lessonPackageId": "lesson-pack-demo-001",
+        "studentName": "张三",
+        "studentId": "2024001",
+        "submittedAt": "2026-06-18T13:41:48.915Z",
+        "scores": {},
+        "answers": {
+          "sample-0001": {
+            "minerals": "学生填写的矿物",
+            "comment": ""
+          },
+          "sample-0002": {
+            "minerals": "学生填写的矿物",
+            "comment": ""
+          },
+          "sample-0003": {
+            "minerals": "学生填写的矿物",
+            "comment": ""
+          },
+          "sample-0004": {
+            "minerals": "学生填写的矿物",
+            "comment": ""
+          },
+          "sample-0005": {
+            "minerals": "学生填写的矿物",
+            "comment": ""
+          }
+        }
+      }
+    ],
+    "rubrics": [
+      {
+        "id": "rub-1",
+        "name": "矿物识别",
+        "maxScore": 40,
+        "description": "准确识别薄片中主要矿物成分"
+      },
+      {
+        "id": "rub-2",
+        "name": "结构描述",
+        "maxScore": 30,
+        "description": "准确描述岩石结构特征"
+      },
+      {
+        "id": "rub-3",
+        "name": "综合分析",
+        "maxScore": 30,
+        "description": "合理的地质解释与分析"
+      }
+    ],
+    "lessonMetas": {}
+  }
+}

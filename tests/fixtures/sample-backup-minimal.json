@@ -1,0 +1,242 @@
+{
+  "format": "wxyy-thin-section-project-backup",
+  "version": 2,
+  "exportDate": "2026-06-18T13:43:28.916Z",
+  "project": {
+    "id": "minimal-proj",
+    "name": "最小化示例项目",
+    "description": "这是用于校验备份恢复链路的示例数据。包含 15 个样本、3 个任务、版本历史和学生作答。",
+    "createdAt": "2026-05-19T13:43:28.916Z",
+    "meta": {
+      "isSampleBackup": true,
+      "generatedAt": "2026-06-18T13:43:28.916Z",
+      "generator": "scripts/generate-sample-data.js",
+      "datasetSize": "3 samples · 1 tasks"
+    }
+  },
+  "samples": [
+    {
+      "id": "sample-0001",
+      "projectId": "minimal-proj",
+      "code": "GR-001",
+      "location": "剖面西侧第二层",
+      "magnification": "100x",
+      "polarization": "正交偏光",
+      "minerals": "方解石、白云石",
+      "texture": "它形粒状结构",
+      "comment": "样本 1 老师批注：典型结构特征清晰，注意观察矿物的消光位。",
+      "reviewStatus": "pending",
+      "reviewComment": "",
+      "observationFeatures": [
+        "波状消光"
+      ],
+      "photo": "data:image/png;base64,bW9jay1waG90by1zYW1wbGUtMS0xNzgxNzkwMjA4OTE2",
+      "photoResourceId": null,
+      "annotationResourceId": null,
+      "groupId": null,
+      "createdAt": "2026-06-17T13:43:28.916Z",
+      "updatedAt": "2026-06-18T01:43:28.916Z"
+    },
+    {
+      "id": "sample-0002",
+      "projectId": "minimal-proj",
+      "code": "MT-002",
+      "location": "剖面北端第三层",
+      "magnification": "200x",
+      "polarization": "反射光",
+      "minerals": "钾长石、石英",
+      "texture": "斑状结构",
+      "comment": "样本 2 老师批注：典型结构特征清晰，注意观察矿物的消光位。",
+      "reviewStatus": "pending",
+      "reviewComment": "",
+      "observationFeatures": [
+        "具有解理缝",
+        "可见双晶"
+      ],
+      "photo": "data:image/png;base64,bW9jay1waG90by1zYW1wbGUtMi0xNzgxNzkwMjA4OTE2",
+      "photoResourceId": "photo-res-2",
+      "annotationResourceId": null,
+      "groupId": null,
+      "createdAt": "2026-06-16T13:43:28.916Z",
+      "updatedAt": "2026-06-17T13:43:28.916Z"
+    },
+    {
+      "id": "sample-0003",
+      "projectId": "minimal-proj",
+      "code": "SL-003",
+      "location": "剖面南端第五层",
+      "magnification": "400x",
+      "polarization": "单偏光",
+      "minerals": "黑云母、角闪石",
+      "texture": "碎裂结构",
+      "comment": "样本 3 老师批注：典型结构特征清晰，注意观察矿物的消光位。",
+      "reviewStatus": "incomplete",
+      "reviewComment": "",
+      "observationFeatures": [
+        "波状消光"
+      ],
+      "photo": "data:image/png;base64,bW9jay1waG90by1zYW1wbGUtMy0xNzgxNzkwMjA4OTE2",
+      "photoResourceId": null,
+      "annotationResourceId": null,
+      "groupId": null,
+      "createdAt": "2026-06-15T13:43:28.916Z",
+      "updatedAt": "2026-06-17T01:43:28.916Z"
+    }
+  ],
+  "tasks": [
+    {
+      "id": "task-1",
+      "projectId": "minimal-proj",
+      "title": "观察任务 1：沉积岩识别",
+      "objective": "本次任务要求学生系统观察任务样本的矿物组成、结构特征，并结合沉积学原理进行成因分析。请标注关键矿物的光学特征。",
+      "deadline": null,
+      "sampleIds": [
+        "sample-0001",
+        "sample-0002",
+        "sample-0003"
+      ],
+      "completedSamples": [
+        "sample-0001"
+      ],
+      "lessonPackageId": "lesson-pack-demo-001",
+      "createdAt": "2026-06-16T13:43:28.916Z",
+      "updatedAt": "2026-06-17T13:43:28.916Z"
+    }
+  ],
+  "sampleGroups": [
+    {
+      "id": "group-1",
+      "name": "A 组样本",
+      "sampleIds": []
+    }
+  ],
+  "appState": {
+    "compareList": [
+      "sample-0001",
+      "sample-0002"
+    ],
+    "filterViews": [
+      {
+        "id": "fv-1",
+        "name": "待复核视图",
+        "reviewStatus": "pending",
+        "createdAt": "2026-06-18T13:43:28.916Z"
+      },
+      {
+        "id": "fv-2",
+        "name": "正交偏光视图",
+        "polarization": "正交偏光",
+        "createdAt": "2026-06-18T13:43:28.916Z"
+      }
+    ]
+  },
+  "versionHistory": [
+    {
+      "id": "vh-0-1",
+      "sampleId": "sample-0001",
+      "version": 1,
+      "timestamp": "2026-06-18T12:43:28.916Z",
+      "changeType": "create",
+      "changedFields": [
+        "*"
+      ],
+      "summary": "创建样本",
+      "snapshot": {
+        "code": "GR-001",
+        "minerals": "",
+        "texture": "",
+        "comment": "样本 1 老师批注：典型结构特征清晰，注意观察矿物的消光位。",
+        "hasPhoto": false,
+        "annotationCount": 0
+      }
+    },
+    {
+      "id": "vh-0-2",
+      "sampleId": "sample-0001",
+      "version": 2,
+      "timestamp": "2026-06-18T11:43:28.916Z",
+      "changeType": "update",
+      "changedFields": [
+        "minerals",
+        "texture"
+      ],
+      "summary": "修改：主要矿物、颗粒结构",
+      "snapshot": {
+        "code": "GR-001",
+        "minerals": "方解石、白云石",
+        "texture": "它形粒状结构",
+        "comment": "样本 1 老师批注：典型结构特征清晰，注意观察矿物的消光位。",
+        "hasPhoto": true,
+        "annotationCount": 3
+      }
+    },
+    {
+      "id": "vh-1-1",
+      "sampleId": "sample-0002",
+      "version": 1,
+      "timestamp": "2026-06-18T07:43:28.916Z",
+      "changeType": "create",
+      "changedFields": [
+        "*"
+      ],
+      "summary": "创建样本",
+      "snapshot": {
+        "code": "MT-002",
+        "minerals": "",
+        "texture": "",
+        "comment": "样本 2 老师批注：典型结构特征清晰，注意观察矿物的消光位。",
+        "hasPhoto": false,
+        "annotationCount": 0
+      }
+    }
+  ],
+  "recycleBin": [],
+  "studentAnswers": [],
+  "lessonGrading": {
+    "submissions": [
+      {
+        "id": "sub-1",
+        "lessonPackageId": "lesson-pack-demo-001",
+        "studentName": "张三",
+        "studentId": "2024001",
+        "submittedAt": "2026-06-18T13:41:48.916Z",
+        "scores": {},
+        "answers": {
+          "sample-0001": {
+            "minerals": "学生填写的矿物",
+            "comment": ""
+          },
+          "sample-0002": {
+            "minerals": "学生填写的矿物",
+            "comment": ""
+          },
+          "sample-0003": {
+            "minerals": "学生填写的矿物",
+            "comment": ""
+          }
+        }
+      }
+    ],
+    "rubrics": [
+      {
+        "id": "rub-1",
+        "name": "矿物识别",
+        "maxScore": 40,
+        "description": "准确识别薄片中主要矿物成分"
+      },
+      {
+        "id": "rub-2",
+        "name": "结构描述",
+        "maxScore": 30,
+        "description": "准确描述岩石结构特征"
+      },
+      {
+        "id": "rub-3",
+        "name": "综合分析",
+        "maxScore": 30,
+        "description": "合理的地质解释与分析"
+      }
+    ],
+    "lessonMetas": {}
+  }
+}
