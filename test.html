@@ -1,0 +1,375 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>审核模块自动化测试 · review.js</title>
+  <style>
+    :root {
+      --bg: #0f172a;
+      --surface: #1e293b;
+      --surface-2: #334155;
+      --text: #f1f5f9;
+      --muted: #94a3b8;
+      --success: #22c55e;
+      --success-bg: rgba(34, 197, 94, 0.12);
+      --danger: #ef4444;
+      --danger-bg: rgba(239, 68, 68, 0.12);
+      --warning: #f59e0b;
+      --border: #475569;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC",
+        "Hiragino Sans GB", "Microsoft YaHei", sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      line-height: 1.6;
+    }
+    header {
+      padding: 24px 32px;
+      border-bottom: 1px solid var(--border);
+      background: var(--surface);
+    }
+    header h1 { margin: 0; font-size: 22px; }
+    header p { margin: 6px 0 0; color: var(--muted); font-size: 14px; }
+    main { padding: 24px 32px; max-width: 960px; margin: 0 auto; }
+    .summary {
+      display: flex;
+      gap: 16px;
+      margin-bottom: 24px;
+      flex-wrap: wrap;
+    }
+    .summary-card {
+      flex: 1;
+      min-width: 140px;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 16px 20px;
+    }
+    .summary-card .num {
+      font-size: 32px;
+      font-weight: 700;
+    }
+    .summary-card .label {
+      color: var(--muted);
+      font-size: 13px;
+      margin-top: 4px;
+    }
+    .summary-card.pass .num { color: var(--success); }
+    .summary-card.fail .num { color: var(--danger); }
+    .summary-card.rate .num { color: var(--warning); }
+    .status-banner {
+      padding: 16px 20px;
+      border-radius: 12px;
+      font-size: 16px;
+      font-weight: 600;
+      margin-bottom: 20px;
+    }
+    .status-banner.all-pass {
+      background: var(--success-bg);
+      color: var(--success);
+      border: 1px solid var(--success);
+    }
+    .status-banner.has-fail {
+      background: var(--danger-bg);
+      color: var(--danger);
+      border: 1px solid var(--danger);
+    }
+    .test-list {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      overflow: hidden;
+    }
+    .test-item {
+      padding: 12px 20px;
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      align-items: flex-start;
+      gap: 12px;
+      transition: background 0.15s;
+    }
+    .test-item:last-child { border-bottom: none; }
+    .test-item:hover { background: rgba(255,255,255,0.03); }
+    .test-icon {
+      width: 22px;
+      height: 22px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 13px;
+      flex-shrink: 0;
+      margin-top: 1px;
+      font-weight: 700;
+    }
+    .test-icon.pass { background: var(--success-bg); color: var(--success); }
+    .test-icon.fail { background: var(--danger-bg); color: var(--danger); }
+    .test-name {
+      flex: 1;
+      font-size: 14px;
+      word-break: break-all;
+    }
+    .test-name .idx { color: var(--muted); margin-right: 8px; font-size: 13px; }
+    .test-item.fail .test-name { color: #fecaca; }
+    .test-error {
+      margin-top: 8px;
+      padding: 10px 14px;
+      background: #1a0f0f;
+      border: 1px solid #7f1d1d;
+      border-radius: 8px;
+      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+      font-size: 12.5px;
+      color: #fca5a5;
+      white-space: pre-wrap;
+      word-break: break-word;
+    }
+    .filters {
+      display: flex;
+      gap: 8px;
+      margin-bottom: 16px;
+    }
+    .filter-btn {
+      background: var(--surface);
+      color: var(--text);
+      border: 1px solid var(--border);
+      border-radius: 999px;
+      padding: 6px 16px;
+      font-size: 13px;
+      cursor: pointer;
+      transition: all 0.15s;
+    }
+    .filter-btn:hover { background: var(--surface-2); }
+    .filter-btn.active {
+      background: var(--warning);
+      color: #0f172a;
+      border-color: var(--warning);
+      font-weight: 600;
+    }
+    .actions {
+      margin-top: 20px;
+      display: flex;
+      gap: 12px;
+      flex-wrap: wrap;
+    }
+    .primary-btn, .ghost-btn {
+      padding: 10px 20px;
+      border-radius: 8px;
+      font-size: 14px;
+      font-weight: 600;
+      cursor: pointer;
+      border: none;
+    }
+    .primary-btn {
+      background: var(--warning);
+      color: #0f172a;
+    }
+    .primary-btn:hover { filter: brightness(1.08); }
+    .ghost-btn {
+      background: transparent;
+      color: var(--text);
+      border: 1px solid var(--border);
+    }
+    .ghost-btn:hover { background: var(--surface-2); }
+    .meta-bar {
+      margin-top: 24px;
+      padding-top: 16px;
+      border-top: 1px solid var(--border);
+      color: var(--muted);
+      font-size: 12.5px;
+      display: flex;
+      justify-content: space-between;
+      flex-wrap: wrap;
+      gap: 12px;
+    }
+    .how-to {
+      margin-top: 28px;
+      padding: 18px 22px;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      color: var(--muted);
+      font-size: 13px;
+    }
+    .how-to h3 { margin: 0 0 10px; color: var(--text); font-size: 15px; }
+    .how-to code {
+      background: #0a0f1c;
+      padding: 2px 6px;
+      border-radius: 4px;
+      color: #fbbf24;
+      font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+      font-size: 12.5px;
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>🧪 审核模块自动化测试</h1>
+    <p>review.js · 样本完整度评分 &amp; 审核状态推导</p>
+  </header>
+  <main>
+    <div class="summary" id="summaryCards"></div>
+    <div id="statusBanner"></div>
+
+    <div class="filters">
+      <button class="filter-btn active" data-filter="all">全部</button>
+      <button class="filter-btn" data-filter="fail">仅失败</button>
+      <button class="filter-btn" data-filter="pass">仅通过</button>
+    </div>
+
+    <div class="test-list" id="testList"></div>
+
+    <div class="actions">
+      <button class="primary-btn" id="reloadBtn">🔁 重新运行测试</button>
+      <button class="ghost-btn" id="backBtn">← 返回主应用</button>
+    </div>
+
+    <div class="meta-bar">
+      <span id="runAt"></span>
+      <span>测试入口：<code>test.html</code>（浏览器） / <code>node test-runner.js</code>（命令行）</span>
+    </div>
+
+    <div class="how-to">
+      <h3>📌 运行方式</h3>
+      <p>
+        <strong>浏览器：</strong>直接打开本页面，或在主应用点击相应入口。<br>
+        <strong>命令行：</strong>在项目根目录执行 <code>node test-runner.js</code>，会以彩色输出显示通过/失败，失败用例返回非 0 退出码。<br>
+        <strong>测试文件：</strong>所有用例定义在 <code>tests.js</code>，两端共享同一组测试代码，保证一致性。
+      </p>
+    </div>
+  </main>
+
+  <script src="./review.js"></script>
+  <script src="./tests.js"></script>
+  <script>
+    (function () {
+      const summaryCards = document.getElementById("summaryCards");
+      const statusBanner = document.getElementById("statusBanner");
+      const testList = document.getElementById("testList");
+      const runAt = document.getElementById("runAt");
+      const reloadBtn = document.getElementById("reloadBtn");
+      const backBtn = document.getElementById("backBtn");
+      const filterBtns = document.querySelectorAll(".filter-btn");
+      let currentFilter = "all";
+      let currentSummary = null;
+
+      function render(summary) {
+        currentSummary = summary;
+        const passRate = summary.total > 0
+          ? Math.round((summary.passed / summary.total) * 100)
+          : 0;
+
+        summaryCards.innerHTML = `
+          <div class="summary-card">
+            <div class="num">${summary.total}</div>
+            <div class="label">总用例数</div>
+          </div>
+          <div class="summary-card pass">
+            <div class="num">${summary.passed}</div>
+            <div class="label">通过</div>
+          </div>
+          <div class="summary-card fail">
+            <div class="num">${summary.failed}</div>
+            <div class="label">失败</div>
+          </div>
+          <div class="summary-card rate">
+            <div class="num">${passRate}%</div>
+            <div class="label">通过率</div>
+          </div>
+        `;
+
+        if (summary.allPassed) {
+          statusBanner.className = "status-banner all-pass";
+          statusBanner.textContent = `✅ 所有测试通过！（${summary.passed}/${summary.total}，${passRate}%）`;
+        } else {
+          statusBanner.className = "status-banner has-fail";
+          statusBanner.textContent = `❌ 存在失败用例（${summary.failed}/${summary.total}），请检查下方标红项`;
+        }
+
+        renderList();
+        runAt.textContent = `运行时间：${new Date().toLocaleString("zh-CN")}`;
+      }
+
+      function renderList() {
+        const s = currentSummary;
+        if (!s) return;
+        const items = s.results
+          .map((t, i) => ({ ...t, _idx: i + 1 }))
+          .filter((t) => {
+            if (currentFilter === "all") return true;
+            if (currentFilter === "pass") return t.passed;
+            if (currentFilter === "fail") return !t.passed;
+            return true;
+          });
+
+        if (items.length === 0) {
+          testList.innerHTML = `
+            <div class="test-item" style="justify-content:center;color:var(--muted);padding:32px;">
+              没有匹配的测试项
+            </div>`;
+          return;
+        }
+
+        testList.innerHTML = items.map((t) => {
+          const iconCls = t.passed ? "pass" : "fail";
+          const iconText = t.passed ? "✓" : "✗";
+          const nameHTML = `<span class="idx">[${String(t._idx).padStart(2,"0")}]</span>${escapeHTML(t.name)}`;
+          const errHTML = t.error
+            ? `<div class="test-error">${escapeHTML(t.error)}</div>`
+            : "";
+          const failCls = t.passed ? "" : " fail";
+          return `
+            <div class="test-item${failCls}">
+              <div class="test-icon ${iconCls}">${iconText}</div>
+              <div class="test-name">
+                ${nameHTML}
+                ${errHTML}
+              </div>
+            </div>`;
+        }).join("");
+      }
+
+      function escapeHTML(s) {
+        return String(s)
+          .replace(/&/g, "&amp;")
+          .replace(/</g, "&lt;")
+          .replace(/>/g, "&gt;");
+      }
+
+      function runAll() {
+        if (!window.ReviewModule) {
+          testList.innerHTML = `<div class="test-item" style="color:var(--danger);">
+            ❌ 未加载到 ReviewModule，请检查 review.js 是否正确引入</div>`;
+          return;
+        }
+        if (typeof window.ReviewTests !== "function") {
+          testList.innerHTML = `<div class="test-item" style="color:var(--danger);">
+            ❌ 未加载到测试工厂函数，请检查 tests.js 是否正确引入</div>`;
+          return;
+        }
+        const summary = window.ReviewTests(window.ReviewModule);
+        render(summary);
+      }
+
+      filterBtns.forEach((btn) => {
+        btn.addEventListener("click", () => {
+          filterBtns.forEach((b) => b.classList.remove("active"));
+          btn.classList.add("active");
+          currentFilter = btn.dataset.filter;
+          renderList();
+        });
+      });
+
+      reloadBtn.addEventListener("click", runAll);
+      backBtn.addEventListener("click", () => {
+        window.location.href = "./index.html";
+      });
+
+      runAll();
+    })();
+  </script>
+</body>
+</html>
