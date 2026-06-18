@@ -12,16 +12,37 @@ const CYAN = "\x1b[36m";
 const BOLD = "\x1b[1m";
 const GRAY = "\x1b[90m";
 
+const FS_FIXED_NOW = 1735689600000;
+const FS_FIXED_SEED = 20250101;
+
+function seededRandom(seed) {
+  let s = seed;
+  return function () {
+    s = (s * 9301 + 49297) % 233280;
+    return s / 233280;
+  };
+}
+const _rand = seededRandom(FS_FIXED_SEED);
+
 function uuid() {
-  return "xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx".replace(/[xy]/g, (c) => {
-    const r = (Math.random() * 16) | 0;
-    return (c === "x" ? r : (r & 0x3) | 0x8).toString(16);
-  });
+  const hex = "0123456789abcdef";
+  let out = "";
+  for (let i = 0; i < 36; i++) {
+    if (i === 8 || i === 13 || i === 18 || i === 23) { out += "-"; continue; }
+    if (i === 14) { out += "4"; continue; }
+    if (i === 19) { out += hex[8 + Math.floor(_rand() * 4)]; continue; }
+    out += hex[Math.floor(_rand() * 16)];
+  }
+  return out;
+}
+
+function fixedDate(offsetMs = 0) {
+  return new Date(FS_FIXED_NOW + offsetMs).toISOString();
 }
 
 function makePhotoBase64(label) {
   const header = "data:image/png;base64,";
-  const body = Buffer.from(`mock-photo-${label}-${Date.now()}`).toString("base64");
+  const body = Buffer.from(`mock-photo-${label}-fixed-sample`).toString("base64");
   return header + body;
 }
 
@@ -56,8 +77,8 @@ function generateProjectBackup(opts = {}) {
       photoResourceId: i % 2 === 0 ? `photo-res-${i}` : null,
       annotationResourceId: null,
       groupId: i % 4 === 0 ? `group-${Math.ceil(i / 4)}` : null,
-      createdAt: new Date(Date.now() - i * 86400000).toISOString(),
-      updatedAt: new Date(Date.now() - i * 43200000).toISOString()
+      createdAt: fixedDate(-i * 86400000),
+      updatedAt: fixedDate(-i * 43200000)
     });
   }
 
@@ -71,12 +92,12 @@ function generateProjectBackup(opts = {}) {
       projectId,
       title: `观察任务 ${i}：${["沉积岩识别", "火成岩手标本描述", "变质岩结构分析"][i - 1] || `综合观察 ${i}`}`,
       objective: `本次任务要求学生系统观察任务样本的矿物组成、结构特征，并结合沉积学原理进行成因分析。请标注关键矿物的光学特征。`,
-      deadline: i % 2 === 0 ? new Date(Date.now() + 7 * 86400000).toISOString() : null,
+      deadline: i % 2 === 0 ? fixedDate(7 * 86400000) : null,
       sampleIds: taskSamples,
       completedSamples: taskSamples.slice(0, Math.floor(taskSamples.length / 2)),
       lessonPackageId: i === 1 ? "lesson-pack-demo-001" : null,
-      createdAt: new Date(Date.now() - i * 2 * 86400000).toISOString(),
-      updatedAt: new Date(Date.now() - i * 86400000).toISOString()
+      createdAt: fixedDate(-i * 2 * 86400000),
+      updatedAt: fixedDate(-i * 86400000)
     });
   }
 
@@ -88,7 +109,7 @@ function generateProjectBackup(opts = {}) {
         id: `vh-${si}-${v}`,
         sampleId: s.id,
         version: v,
-        timestamp: new Date(Date.now() - (si * 5 + v) * 3600000).toISOString(),
+        timestamp: fixedDate(-(si * 5 + v) * 3600000),
         changeType: v === 1 ? "create" : "update",
         changedFields: v === 1 ? ["*"] : (v === 2 ? ["minerals", "texture"] : ["comment"]),
         summary: v === 1 ? "创建样本" : "修改：主要矿物、颗粒结构",
@@ -109,7 +130,7 @@ function generateProjectBackup(opts = {}) {
       id: "rb-1",
       projectId,
       sampleId: "recycled-1",
-      deletedAt: new Date(Date.now() - 86400000).toISOString(),
+      deletedAt: fixedDate(-86400000),
       sampleData: {
         id: "recycled-1",
         projectId,
@@ -122,7 +143,7 @@ function generateProjectBackup(opts = {}) {
       id: "rb-2",
       projectId,
       sampleId: "recycled-2",
-      deletedAt: new Date(Date.now() - 3 * 86400000).toISOString(),
+      deletedAt: fixedDate(-3 * 86400000),
       sampleData: {
         id: "recycled-2",
         projectId,
@@ -145,7 +166,7 @@ function generateProjectBackup(opts = {}) {
       comment: "这是一块典型的花岗岩薄片",
       score: null,
       gradedAt: null,
-      submittedAt: new Date(Date.now() - 100000).toISOString()
+      submittedAt: fixedDate(-100000)
     },
     {
       id: "ans-2", projectId,
@@ -159,8 +180,8 @@ function generateProjectBackup(opts = {}) {
       observation: "方解石颗粒较小",
       comment: "石灰岩薄片，颗粒偏细",
       score: 85,
-      gradedAt: new Date().toISOString(),
-      submittedAt: new Date(Date.now() - 200000).toISOString()
+      gradedAt: fixedDate(0),
+      submittedAt: fixedDate(-200000)
     }
   ];
 
@@ -170,7 +191,7 @@ function generateProjectBackup(opts = {}) {
       lessonPackageId: "lesson-pack-demo-001",
       studentName: "张三",
       studentId: "2024001",
-      submittedAt: new Date(Date.now() - 100000).toISOString(),
+      submittedAt: fixedDate(-100000),
       scores: {},
       answers: Object.fromEntries(
         samples.slice(0, 5).map(s => [s.id, { minerals: "学生填写的矿物", comment: "" }])
@@ -187,15 +208,15 @@ function generateProjectBackup(opts = {}) {
   return {
     format: "wxyy-thin-section-project-backup",
     version: 2,
-    exportDate: new Date().toISOString(),
+    exportDate: fixedDate(0),
     project: {
       id: projectId,
       name: opts.projectName || "2025春季·沉积岩实习（示例数据）",
       description: "这是用于校验备份恢复链路的示例数据。包含 15 个样本、3 个任务、版本历史和学生作答。",
-      createdAt: new Date(Date.now() - 30 * 86400000).toISOString(),
+      createdAt: fixedDate(-30 * 86400000),
       meta: {
         isSampleBackup: true,
-        generatedAt: new Date().toISOString(),
+        generatedAt: fixedDate(0),
         generator: "scripts/generate-sample-data.js",
         datasetSize: `${sampleCount} samples · ${taskCount} tasks`
       }
@@ -208,8 +229,8 @@ function generateProjectBackup(opts = {}) {
     appState: {
       compareList: [samples[0].id, samples[1].id],
       filterViews: [
-        { id: "fv-1", name: "待复核视图", reviewStatus: "pending", createdAt: new Date().toISOString() },
-        { id: "fv-2", name: "正交偏光视图", polarization: "正交偏光", createdAt: new Date().toISOString() }
+        { id: "fv-1", name: "待复核视图", reviewStatus: "pending", createdAt: fixedDate(0) },
+        { id: "fv-2", name: "正交偏光视图", polarization: "正交偏光", createdAt: fixedDate(0) }
       ]
     },
     versionHistory,
@@ -229,7 +250,7 @@ function generateFullBackup() {
   return {
     format: "wxyy-thin-section-full-backup",
     version: 1,
-    exportDate: new Date().toISOString(),
+    exportDate: fixedDate(0),
     projects: projects.map(p => ({
       ...generateProjectBackup({
         projectId: p.projectId,
@@ -253,7 +274,7 @@ function generateLessonPackage() {
     lessonContentHash: Math.abs(
       [...JSON.stringify(backup.samples)].reduce((h, c) => ((h << 5) - h + c.charCodeAt(0)) | 0, 0)
     ).toString(36),
-    contentHash: Math.random().toString(36).slice(2, 18),
+    contentHash: "fixed-lesson-content-hash-v4",
     samples: backup.samples.map(s => ({
       id: s.id, code: s.code, minerals: s.minerals, texture: s.texture,
       location: s.location, magnification: s.magnification,
@@ -273,7 +294,7 @@ function generateLessonPackage() {
         comment: `参考结论：${s.minerals} 特征明显，${s.texture}表明沉积环境稳定。`
       }])
     ),
-    createdAt: new Date().toISOString()
+    createdAt: fixedDate(0)
   };
 }
 

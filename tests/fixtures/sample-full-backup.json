@@ -1,20 +1,20 @@
 {
   "format": "wxyy-thin-section-full-backup",
   "version": 1,
-  "exportDate": "2026-06-18T13:43:28.916Z",
+  "exportDate": "2025-01-01T00:00:00.000Z",
   "projects": [
     {
       "format": "wxyy-thin-section-project-backup",
       "version": 2,
-      "exportDate": "2026-06-18T13:43:28.916Z",
+      "exportDate": "2025-01-01T00:00:00.000Z",
       "project": {
         "id": "demo-proj-1",
         "name": "2025春·沉积岩实习",
         "description": "这是用于校验备份恢复链路的示例数据。包含 15 个样本、3 个任务、版本历史和学生作答。",
-        "createdAt": "2026-05-19T13:43:28.916Z",
+        "createdAt": "2024-12-02T00:00:00.000Z",
         "meta": {
           "isSampleBackup": true,
-          "generatedAt": "2026-06-18T13:43:28.916Z",
+          "generatedAt": "2025-01-01T00:00:00.000Z",
           "generator": "scripts/generate-sample-data.js",
           "datasetSize": "8 samples · 3 tasks"
         }
@@ -35,12 +35,12 @@
           "observationFeatures": [
             "波状消光"
           ],
-          "photo": "data:image/png;base64,bW9jay1waG90by1zYW1wbGUtMS0xNzgxNzkwMjA4OTE2",
+          "photo": "data:image/png;base64,bW9jay1waG90by1zYW1wbGUtMS1maXhlZC1zYW1wbGU=",
           "photoResourceId": null,
           "annotationResourceId": null,
           "groupId": null,
-          "createdAt": "2026-06-17T13:43:28.916Z",
-          "updatedAt": "2026-06-18T01:43:28.916Z"
+          "createdAt": "2024-12-31T00:00:00.000Z",
+          "updatedAt": "2024-12-31T12:00:00.000Z"
         },
         {
           "id": "sample-0002",
@@ -58,12 +58,12 @@
             "具有解理缝",
             "可见双晶"
           ],
-          "photo": "data:image/png;base64,bW9jay1waG90by1zYW1wbGUtMi0xNzgxNzkwMjA4OTE2",
+          "photo": "data:image/png;base64,bW9jay1waG90by1zYW1wbGUtMi1maXhlZC1zYW1wbGU=",
           "photoResourceId": "photo-res-2",
           "annotationResourceId": null,
           "groupId": null,
-          "createdAt": "2026-06-16T13:43:28.916Z",
-          "updatedAt": "2026-06-17T13:43:28.916Z"
+          "createdAt": "2024-12-30T00:00:00.000Z",
+          "updatedAt": "2024-12-31T00:00:00.000Z"
         },
         {
           "id": "sample-0003",
@@ -80,12 +80,12 @@
           "observationFeatures": [
             "波状消光"
           ],
-          "photo": "data:image/png;base64,bW9jay1waG90by1zYW1wbGUtMy0xNzgxNzkwMjA4OTE2",
+          "photo": "data:image/png;base64,bW9jay1waG90by1zYW1wbGUtMy1maXhlZC1zYW1wbGU=",
           "photoResourceId": null,
           "annotationResourceId": null,
           "groupId": null,
-          "createdAt": "2026-06-15T13:43:28.916Z",
-          "updatedAt": "2026-06-17T01:43:28.916Z"
+          "createdAt": "2024-12-29T00:00:00.000Z",
+          "updatedAt": "2024-12-30T12:00:00.000Z"
         },
         {
           "id": "sample-0004",
@@ -103,12 +103,12 @@
             "具有解理缝",
             "可见双晶"
           ],
-          "photo": "data:image/png;base64,bW9jay1waG90by1zYW1wbGUtNC0xNzgxNzkwMjA4OTE2",
+          "photo": "data:image/png;base64,bW9jay1waG90by1zYW1wbGUtNC1maXhlZC1zYW1wbGU=",
           "photoResourceId": "photo-res-4",
           "annotationResourceId": null,
           "groupId": "group-1",
-          "createdAt": "2026-06-14T13:43:28.916Z",
-          "updatedAt": "2026-06-16T13:43:28.916Z"
+          "createdAt": "2024-12-28T00:00:00.000Z",
+          "updatedAt": "2024-12-30T00:00:00.000Z"
         },
         {
           "id": "sample-0005",
@@ -125,12 +125,12 @@
           "observationFeatures": [
             "波状消光"
           ],
-          "photo": "data:image/png;base64,bW9jay1waG90by1zYW1wbGUtNS0xNzgxNzkwMjA4OTE2",
+          "photo": "data:image/png;base64,bW9jay1waG90by1zYW1wbGUtNS1maXhlZC1zYW1wbGU=",
           "photoResourceId": null,
           "annotationResourceId": null,
           "groupId": null,
-          "createdAt": "2026-06-13T13:43:28.916Z",
-          "updatedAt": "2026-06-16T01:43:28.916Z"
+          "createdAt": "2024-12-27T00:00:00.000Z",
+          "updatedAt": "2024-12-29T12:00:00.000Z"
         },
         {
           "id": "sample-0006",
@@ -148,12 +148,12 @@
             "具有解理缝",
             "可见双晶"
           ],
-          "photo": "data:image/png;base64,bW9jay1waG90by1zYW1wbGUtNi0xNzgxNzkwMjA4OTE2",
+          "photo": "data:image/png;base64,bW9jay1waG90by1zYW1wbGUtNi1maXhlZC1zYW1wbGU=",
           "photoResourceId": "photo-res-6",
           "annotationResourceId": null,
           "groupId": null,
-          "createdAt": "2026-06-12T13:43:28.916Z",
-          "updatedAt": "2026-06-15T13:43:28.916Z"
+          "createdAt": "2024-12-26T00:00:00.000Z",
+          "updatedAt": "2024-12-29T00:00:00.000Z"
         },
         {
           "id": "sample-0007",
@@ -170,12 +170,12 @@
           "observationFeatures": [
             "波状消光"
           ],
-          "photo": "data:image/png;base64,bW9jay1waG90by1zYW1wbGUtNy0xNzgxNzkwMjA4OTE2",
+          "photo": "data:image/png;base64,bW9jay1waG90by1zYW1wbGUtNy1maXhlZC1zYW1wbGU=",
           "photoResourceId": null,
           "annotationResourceId": null,
           "groupId": null,
-          "createdAt": "2026-06-11T13:43:28.916Z",
-          "updatedAt": "2026-06-15T01:43:28.916Z"
+          "createdAt": "2024-12-25T00:00:00.000Z",
+          "updatedAt": "2024-12-28T12:00:00.000Z"
         },
         {
           "id": "sample-0008",
@@ -193,12 +193,12 @@
             "具有解理缝",
             "可见双晶"
           ],
-          "photo": "data:image/png;base64,bW9jay1waG90by1zYW1wbGUtOC0xNzgxNzkwMjA4OTE2",
+          "photo": "data:image/png;base64,bW9jay1waG90by1zYW1wbGUtOC1maXhlZC1zYW1wbGU=",
           "photoResourceId": "photo-res-8",
           "annotationResourceId": null,
           "groupId": "group-2",
-          "createdAt": "2026-06-10T13:43:28.916Z",
-          "updatedAt": "2026-06-14T13:43:28.916Z"
+          "createdAt": "2024-12-24T00:00:00.000Z",
+          "updatedAt": "2024-12-28T00:00:00.000Z"
         }
       ],
       "tasks": [
@@ -217,15 +217,15 @@
             "sample-0001"
           ],
           "lessonPackageId": "lesson-pack-demo-001",
-          "createdAt": "2026-06-16T13:43:28.916Z",
-          "updatedAt": "2026-06-17T13:43:28.916Z"
+          "createdAt": "2024-12-30T00:00:00.000Z",
+          "updatedAt": "2024-12-31T00:00:00.000Z"
         },
         {
           "id": "task-2",
           "projectId": "demo-proj-1",
           "title": "观察任务 2：火成岩手标本描述",
           "objective": "本次任务要求学生系统观察任务样本的矿物组成、结构特征，并结合沉积学原理进行成因分析。请标注关键矿物的光学特征。",
-          "deadline": "2026-06-25T13:43:28.916Z",
+          "deadline": "2025-01-08T00:00:00.000Z",
           "sampleIds": [
             "sample-0002",
             "sample-0005",
@@ -235,8 +235,8 @@
             "sample-0002"
           ],
           "lessonPackageId": null,
-          "createdAt": "2026-06-14T13:43:28.916Z",
-          "updatedAt": "2026-06-16T13:43:28.916Z"
+          "createdAt": "2024-12-28T00:00:00.000Z",
+          "updatedAt": "2024-12-30T00:00:00.000Z"
         },
         {
           "id": "task-3",
@@ -252,8 +252,8 @@
             "sample-0003"
           ],
           "lessonPackageId": null,
-          "createdAt": "2026-06-12T13:43:28.916Z",
-          "updatedAt": "2026-06-15T13:43:28.916Z"
+          "createdAt": "2024-12-26T00:00:00.000Z",
+          "updatedAt": "2024-12-29T00:00:00.000Z"
         }
       ],
       "sampleGroups": [
@@ -275,13 +275,13 @@
             "id": "fv-1",
             "name": "待复核视图",
             "reviewStatus": "pending",
-            "createdAt": "2026-06-18T13:43:28.916Z"
+            "createdAt": "2025-01-01T00:00:00.000Z"
           },
           {
             "id": "fv-2",
             "name": "正交偏光视图",
             "polarization": "正交偏光",
-            "createdAt": "2026-06-18T13:43:28.916Z"
+            "createdAt": "2025-01-01T00:00:00.000Z"
           }
         ]
       },
@@ -290,7 +290,7 @@
           "id": "vh-0-1",
           "sampleId": "sample-0001",
           "version": 1,
-          "timestamp": "2026-06-18T12:43:28.916Z",
+          "timestamp": "2024-12-31T23:00:00.000Z",
           "changeType": "create",
           "changedFields": [
             "*"
@@ -309,7 +309,7 @@
           "id": "vh-0-2",
           "sampleId": "sample-0001",
           "version": 2,
-          "timestamp": "2026-06-18T11:43:28.916Z",
+          "timestamp": "2024-12-31T22:00:00.000Z",
           "changeType": "update",
           "changedFields": [
             "minerals",
@@ -329,7 +329,7 @@
           "id": "vh-1-1",
           "sampleId": "sample-0002",
           "version": 1,
-          "timestamp": "2026-06-18T07:43:28.916Z",
+          "timestamp": "2024-12-31T18:00:00.000Z",
           "changeType": "create",
           "changedFields": [
             "*"
@@ -348,7 +348,7 @@
           "id": "vh-1-2",
           "sampleId": "sample-0002",
           "version": 2,
-          "timestamp": "2026-06-18T06:43:28.916Z",
+          "timestamp": "2024-12-31T17:00:00.000Z",
           "changeType": "update",
           "changedFields": [
             "minerals",
@@ -368,7 +368,7 @@
           "id": "vh-1-3",
           "sampleId": "sample-0002",
           "version": 3,
-          "timestamp": "2026-06-18T05:43:28.916Z",
+          "timestamp": "2024-12-31T16:00:00.000Z",
           "changeType": "update",
           "changedFields": [
             "comment"
@@ -387,7 +387,7 @@
           "id": "vh-2-1",
           "sampleId": "sample-0003",
           "version": 1,
-          "timestamp": "2026-06-18T02:43:28.916Z",
+          "timestamp": "2024-12-31T13:00:00.000Z",
           "changeType": "create",
           "changedFields": [
             "*"
@@ -406,7 +406,7 @@
           "id": "vh-2-2",
           "sampleId": "sample-0003",
           "version": 2,
-          "timestamp": "2026-06-18T01:43:28.916Z",
+          "timestamp": "2024-12-31T12:00:00.000Z",
           "changeType": "update",
           "changedFields": [
             "minerals",
@@ -426,7 +426,7 @@
           "id": "vh-2-3",
           "sampleId": "sample-0003",
           "version": 3,
-          "timestamp": "2026-06-18T00:43:28.916Z",
+          "timestamp": "2024-12-31T11:00:00.000Z",
           "changeType": "update",
           "changedFields": [
             "comment"
@@ -445,7 +445,7 @@
           "id": "vh-2-4",
           "sampleId": "sample-0003",
           "version": 4,
-          "timestamp": "2026-06-17T23:43:28.916Z",
+          "timestamp": "2024-12-31T10:00:00.000Z",
           "changeType": "update",
           "changedFields": [
             "comment"
@@ -464,7 +464,7 @@
           "id": "vh-3-1",
           "sampleId": "sample-0004",
           "version": 1,
-          "timestamp": "2026-06-17T21:43:28.916Z",
+          "timestamp": "2024-12-31T08:00:00.000Z",
           "changeType": "create",
           "changedFields": [
             "*"
@@ -483,7 +483,7 @@
           "id": "vh-3-2",
           "sampleId": "sample-0004",
           "version": 2,
-          "timestamp": "2026-06-17T20:43:28.916Z",
+          "timestamp": "2024-12-31T07:00:00.000Z",
           "changeType": "update",
           "changedFields": [
             "minerals",
@@ -503,7 +503,7 @@
           "id": "vh-4-1",
           "sampleId": "sample-0005",
           "version": 1,
-          "timestamp": "2026-06-17T16:43:28.916Z",
+          "timestamp": "2024-12-31T03:00:00.000Z",
           "changeType": "create",
           "changedFields": [
             "*"
@@ -522,7 +522,7 @@
           "id": "vh-4-2",
           "sampleId": "sample-0005",
           "version": 2,
-          "timestamp": "2026-06-17T15:43:28.916Z",
+          "timestamp": "2024-12-31T02:00:00.000Z",
           "changeType": "update",
           "changedFields": [
             "minerals",
@@ -542,7 +542,7 @@
           "id": "vh-4-3",
           "sampleId": "sample-0005",
           "version": 3,
-          "timestamp": "2026-06-17T14:43:28.916Z",
+          "timestamp": "2024-12-31T01:00:00.000Z",
           "changeType": "update",
           "changedFields": [
             "comment"
@@ -561,7 +561,7 @@
           "id": "vh-5-1",
           "sampleId": "sample-0006",
           "version": 1,
-          "timestamp": "2026-06-17T11:43:28.916Z",
+          "timestamp": "2024-12-30T22:00:00.000Z",
           "changeType": "create",
           "changedFields": [
             "*"
@@ -580,7 +580,7 @@
           "id": "vh-5-2",
           "sampleId": "sample-0006",
           "version": 2,
-          "timestamp": "2026-06-17T10:43:28.916Z",
+          "timestamp": "2024-12-30T21:00:00.000Z",
           "changeType": "update",
           "changedFields": [
             "minerals",
@@ -600,7 +600,7 @@
           "id": "vh-5-3",
           "sampleId": "sample-0006",
           "version": 3,
-          "timestamp": "2026-06-17T09:43:28.916Z",
+          "timestamp": "2024-12-30T20:00:00.000Z",
           "changeType": "update",
           "changedFields": [
             "comment"
@@ -619,7 +619,7 @@
           "id": "vh-5-4",
           "sampleId": "sample-0006",
           "version": 4,
-          "timestamp": "2026-06-17T08:43:28.916Z",
+          "timestamp": "2024-12-30T19:00:00.000Z",
           "changeType": "update",
           "changedFields": [
             "comment"
@@ -638,7 +638,7 @@
           "id": "vh-6-1",
           "sampleId": "sample-0007",
           "version": 1,
-          "timestamp": "2026-06-17T06:43:28.916Z",
+          "timestamp": "2024-12-30T17:00:00.000Z",
           "changeType": "create",
           "changedFields": [
             "*"
@@ -657,7 +657,7 @@
           "id": "vh-6-2",
           "sampleId": "sample-0007",
           "version": 2,
-          "timestamp": "2026-06-17T05:43:28.916Z",
+          "timestamp": "2024-12-30T16:00:00.000Z",
           "changeType": "update",
           "changedFields": [
             "minerals",
@@ -677,7 +677,7 @@
           "id": "vh-7-1",
           "sampleId": "sample-0008",
           "version": 1,
-          "timestamp": "2026-06-17T01:43:28.916Z",
+          "timestamp": "2024-12-30T12:00:00.000Z",
           "changeType": "create",
           "changedFields": [
             "*"
@@ -696,7 +696,7 @@
           "id": "vh-7-2",
           "sampleId": "sample-0008",
           "version": 2,
-          "timestamp": "2026-06-17T00:43:28.916Z",
+          "timestamp": "2024-12-30T11:00:00.000Z",
           "changeType": "update",
           "changedFields": [
             "minerals",
@@ -716,7 +716,7 @@
           "id": "vh-7-3",
           "sampleId": "sample-0008",
           "version": 3,
-          "timestamp": "2026-06-16T23:43:28.916Z",
+          "timestamp": "2024-12-30T10:00:00.000Z",
           "changeType": "update",
           "changedFields": [
             "comment"
@@ -737,20 +737,20 @@
           "id": "rb-1",
           "projectId": "demo-proj-1",
           "sampleId": "recycled-1",
-          "deletedAt": "2026-06-17T13:43:28.916Z",
+          "deletedAt": "2024-12-31T00:00:00.000Z",
           "sampleData": {
             "id": "recycled-1",
             "projectId": "demo-proj-1",
             "code": "BX-DEL-001",
             "minerals": "已删除矿物",
-            "photo": "data:image/png;base64,bW9jay1waG90by1kZWxldGVkLTEtMTc4MTc5MDIwODkxNg=="
+            "photo": "data:image/png;base64,bW9jay1waG90by1kZWxldGVkLTEtZml4ZWQtc2FtcGxl"
           }
         },
         {
           "id": "rb-2",
           "projectId": "demo-proj-1",
           "sampleId": "recycled-2",
-          "deletedAt": "2026-06-15T13:43:28.916Z",
+          "deletedAt": "2024-12-29T00:00:00.000Z",
           "sampleData": {
             "id": "recycled-2",
             "projectId": "demo-proj-1",
@@ -773,7 +773,7 @@
           "comment": "这是一块典型的花岗岩薄片",
           "score": null,
           "gradedAt": null,
-          "submittedAt": "2026-06-18T13:41:48.916Z"
+          "submittedAt": "2024-12-31T23:58:20.000Z"
         },
         {
           "id": "ans-2",
@@ -788,8 +788,8 @@
           "observation": "方解石颗粒较小",
           "comment": "石灰岩薄片，颗粒偏细",
           "score": 85,
-          "gradedAt": "2026-06-18T13:43:28.916Z",
-          "submittedAt": "2026-06-18T13:40:08.916Z"
+          "gradedAt": "2025-01-01T00:00:00.000Z",
+          "submittedAt": "2024-12-31T23:56:40.000Z"
         }
       ],
       "lessonGrading": {
@@ -799,7 +799,7 @@
             "lessonPackageId": "lesson-pack-demo-001",
             "studentName": "张三",
             "studentId": "2024001",
-            "submittedAt": "2026-06-18T13:41:48.916Z",
+            "submittedAt": "2024-12-31T23:58:20.000Z",
             "scores": {},
             "answers": {
               "sample-0001": {
@@ -851,15 +851,15 @@
     {
       "format": "wxyy-thin-section-project-backup",
       "version": 2,
-      "exportDate": "2026-06-18T13:43:28.916Z",
+      "exportDate": "2025-01-01T00:00:00.000Z",
       "project": {
         "id": "demo-proj-2",
         "name": "2025秋·火成岩手标本",
         "description": "这是用于校验备份恢复链路的示例数据。包含 15 个样本、3 个任务、版本历史和学生作答。",
-        "createdAt": "2026-05-19T13:43:28.916Z",
+        "createdAt": "2024-12-02T00:00:00.000Z",
         "meta": {
           "isSampleBackup": true,
-          "generatedAt": "2026-06-18T13:43:28.916Z",
+          "generatedAt": "2025-01-01T00:00:00.000Z",
           "generator": "scripts/generate-sample-data.js",
           "datasetSize": "8 samples · 3 tasks"
         }
@@ -880,12 +880,12 @@
           "observationFeatures": [
             "波状消光"
           ],
-          "photo": "data:image/png;base64,bW9jay1waG90by1zYW1wbGUtMS0xNzgxNzkwMjA4OTE2",
+          "photo": "data:image/png;base64,bW9jay1waG90by1zYW1wbGUtMS1maXhlZC1zYW1wbGU=",
           "photoResourceId": null,
           "annotationResourceId": null,
           "groupId": null,
-          "createdAt": "2026-06-17T13:43:28.916Z",
-          "updatedAt": "2026-06-18T01:43:28.916Z"
+          "createdAt": "2024-12-31T00:00:00.000Z",
+          "updatedAt": "2024-12-31T12:00:00.000Z"
         },
         {
           "id": "sample-0002",
@@ -903,12 +903,12 @@
             "具有解理缝",
             "可见双晶"
           ],
-          "photo": "data:image/png;base64,bW9jay1waG90by1zYW1wbGUtMi0xNzgxNzkwMjA4OTE2",
+          "photo": "data:image/png;base64,bW9jay1waG90by1zYW1wbGUtMi1maXhlZC1zYW1wbGU=",
           "photoResourceId": "photo-res-2",
           "annotationResourceId": null,
           "groupId": null,
-          "createdAt": "2026-06-16T13:43:28.916Z",
-          "updatedAt": "2026-06-17T13:43:28.916Z"
+          "createdAt": "2024-12-30T00:00:00.000Z",
+          "updatedAt": "2024-12-31T00:00:00.000Z"
         },
         {
           "id": "sample-0003",
@@ -925,12 +925,12 @@
           "observationFeatures": [
             "波状消光"
           ],
-          "photo": "data:image/png;base64,bW9jay1waG90by1zYW1wbGUtMy0xNzgxNzkwMjA4OTE2",
+          "photo": "data:image/png;base64,bW9jay1waG90by1zYW1wbGUtMy1maXhlZC1zYW1wbGU=",
           "photoResourceId": null,
           "annotationResourceId": null,
           "groupId": null,
-          "createdAt": "2026-06-15T13:43:28.916Z",
-          "updatedAt": "2026-06-17T01:43:28.916Z"
+          "createdAt": "2024-12-29T00:00:00.000Z",
+          "updatedAt": "2024-12-30T12:00:00.000Z"
         },
         {
           "id": "sample-0004",
@@ -948,12 +948,12 @@
             "具有解理缝",
             "可见双晶"
           ],
-          "photo": "data:image/png;base64,bW9jay1waG90by1zYW1wbGUtNC0xNzgxNzkwMjA4OTE2",
+          "photo": "data:image/png;base64,bW9jay1waG90by1zYW1wbGUtNC1maXhlZC1zYW1wbGU=",
           "photoResourceId": "photo-res-4",
           "annotationResourceId": null,
           "groupId": "group-1",
-          "createdAt": "2026-06-14T13:43:28.916Z",
-          "updatedAt": "2026-06-16T13:43:28.916Z"
+          "createdAt": "2024-12-28T00:00:00.000Z",
+          "updatedAt": "2024-12-30T00:00:00.000Z"
         },
         {
           "id": "sample-0005",
@@ -970,12 +970,12 @@
           "observationFeatures": [
             "波状消光"
           ],
-          "photo": "data:image/png;base64,bW9jay1waG90by1zYW1wbGUtNS0xNzgxNzkwMjA4OTE2",
+          "photo": "data:image/png;base64,bW9jay1waG90by1zYW1wbGUtNS1maXhlZC1zYW1wbGU=",
           "photoResourceId": null,
           "annotationResourceId": null,
           "groupId": null,
-          "createdAt": "2026-06-13T13:43:28.916Z",
-          "updatedAt": "2026-06-16T01:43:28.916Z"
+          "createdAt": "2024-12-27T00:00:00.000Z",
+          "updatedAt": "2024-12-29T12:00:00.000Z"
         },
         {
           "id": "sample-0006",
@@ -993,12 +993,12 @@
             "具有解理缝",
             "可见双晶"
           ],
-          "photo": "data:image/png;base64,bW9jay1waG90by1zYW1wbGUtNi0xNzgxNzkwMjA4OTE2",
+          "photo": "data:image/png;base64,bW9jay1waG90by1zYW1wbGUtNi1maXhlZC1zYW1wbGU=",
           "photoResourceId": "photo-res-6",
           "annotationResourceId": null,
           "groupId": null,
-          "createdAt": "2026-06-12T13:43:28.916Z",
-          "updatedAt": "2026-06-15T13:43:28.916Z"
+          "createdAt": "2024-12-26T00:00:00.000Z",
+          "updatedAt": "2024-12-29T00:00:00.000Z"
         },
         {
           "id": "sample-0007",
@@ -1015,12 +1015,12 @@
           "observationFeatures": [
             "波状消光"
           ],
-          "photo": "data:image/png;base64,bW9jay1waG90by1zYW1wbGUtNy0xNzgxNzkwMjA4OTE2",
+          "photo": "data:image/png;base64,bW9jay1waG90by1zYW1wbGUtNy1maXhlZC1zYW1wbGU=",
           "photoResourceId": null,
           "annotationResourceId": null,
           "groupId": null,
-          "createdAt": "2026-06-11T13:43:28.916Z",
-          "updatedAt": "2026-06-15T01:43:28.916Z"
+          "createdAt": "2024-12-25T00:00:00.000Z",
+          "updatedAt": "2024-12-28T12:00:00.000Z"
         },
         {
           "id": "sample-0008",
@@ -1038,12 +1038,12 @@
             "具有解理缝",
             "可见双晶"
           ],
-          "photo": "data:image/png;base64,bW9jay1waG90by1zYW1wbGUtOC0xNzgxNzkwMjA4OTE2",
+          "photo": "data:image/png;base64,bW9jay1waG90by1zYW1wbGUtOC1maXhlZC1zYW1wbGU=",
           "photoResourceId": "photo-res-8",
           "annotationResourceId": null,
           "groupId": "group-2",
-          "createdAt": "2026-06-10T13:43:28.916Z",
-          "updatedAt": "2026-06-14T13:43:28.916Z"
+          "createdAt": "2024-12-24T00:00:00.000Z",
+          "updatedAt": "2024-12-28T00:00:00.000Z"
         }
       ],
       "tasks": [
@@ -1062,15 +1062,15 @@
             "sample-0001"
           ],
           "lessonPackageId": "lesson-pack-demo-001",
-          "createdAt": "2026-06-16T13:43:28.916Z",
-          "updatedAt": "2026-06-17T13:43:28.916Z"
+          "createdAt": "2024-12-30T00:00:00.000Z",
+          "updatedAt": "2024-12-31T00:00:00.000Z"
         },
         {
           "id": "task-2",
           "projectId": "demo-proj-2",
           "title": "观察任务 2：火成岩手标本描述",
           "objective": "本次任务要求学生系统观察任务样本的矿物组成、结构特征，并结合沉积学原理进行成因分析。请标注关键矿物的光学特征。",
-          "deadline": "2026-06-25T13:43:28.916Z",
+          "deadline": "2025-01-08T00:00:00.000Z",
           "sampleIds": [
             "sample-0002",
             "sample-0005",
@@ -1080,8 +1080,8 @@
             "sample-0002"
           ],
           "lessonPackageId": null,
-          "createdAt": "2026-06-14T13:43:28.916Z",
-          "updatedAt": "2026-06-16T13:43:28.916Z"
+          "createdAt": "2024-12-28T00:00:00.000Z",
+          "updatedAt": "2024-12-30T00:00:00.000Z"
         },
         {
           "id": "task-3",
@@ -1097,8 +1097,8 @@
             "sample-0003"
           ],
           "lessonPackageId": null,
-          "createdAt": "2026-06-12T13:43:28.916Z",
-          "updatedAt": "2026-06-15T13:43:28.916Z"
+          "createdAt": "2024-12-26T00:00:00.000Z",
+          "updatedAt": "2024-12-29T00:00:00.000Z"
         }
       ],
       "sampleGroups": [
@@ -1120,13 +1120,13 @@
             "id": "fv-1",
             "name": "待复核视图",
             "reviewStatus": "pending",
-            "createdAt": "2026-06-18T13:43:28.916Z"
+            "createdAt": "2025-01-01T00:00:00.000Z"
           },
           {
             "id": "fv-2",
             "name": "正交偏光视图",
             "polarization": "正交偏光",
-            "createdAt": "2026-06-18T13:43:28.916Z"
+            "createdAt": "2025-01-01T00:00:00.000Z"
           }
         ]
       },
@@ -1135,7 +1135,7 @@
           "id": "vh-0-1",
           "sampleId": "sample-0001",
           "version": 1,
-          "timestamp": "2026-06-18T12:43:28.916Z",
+          "timestamp": "2024-12-31T23:00:00.000Z",
           "changeType": "create",
           "changedFields": [
             "*"
@@ -1154,7 +1154,7 @@
           "id": "vh-0-2",
           "sampleId": "sample-0001",
           "version": 2,
-          "timestamp": "2026-06-18T11:43:28.916Z",
+          "timestamp": "2024-12-31T22:00:00.000Z",
           "changeType": "update",
           "changedFields": [
             "minerals",
@@ -1174,7 +1174,7 @@
           "id": "vh-1-1",
           "sampleId": "sample-0002",
           "version": 1,
-          "timestamp": "2026-06-18T07:43:28.916Z",
+          "timestamp": "2024-12-31T18:00:00.000Z",
           "changeType": "create",
           "changedFields": [
             "*"
@@ -1193,7 +1193,7 @@
           "id": "vh-1-2",
           "sampleId": "sample-0002",
           "version": 2,
-          "timestamp": "2026-06-18T06:43:28.916Z",
+          "timestamp": "2024-12-31T17:00:00.000Z",
           "changeType": "update",
           "changedFields": [
             "minerals",
@@ -1213,7 +1213,7 @@
           "id": "vh-1-3",
           "sampleId": "sample-0002",
           "version": 3,
-          "timestamp": "2026-06-18T05:43:28.916Z",
+          "timestamp": "2024-12-31T16:00:00.000Z",
           "changeType": "update",
           "changedFields": [
             "comment"
@@ -1232,7 +1232,7 @@
           "id": "vh-2-1",
           "sampleId": "sample-0003",
           "version": 1,
-          "timestamp": "2026-06-18T02:43:28.916Z",
+          "timestamp": "2024-12-31T13:00:00.000Z",
           "changeType": "create",
           "changedFields": [
             "*"
@@ -1251,7 +1251,7 @@
           "id": "vh-2-2",
           "sampleId": "sample-0003",
           "version": 2,
-          "timestamp": "2026-06-18T01:43:28.916Z",
+          "timestamp": "2024-12-31T12:00:00.000Z",
           "changeType": "update",
           "changedFields": [
             "minerals",
@@ -1271,7 +1271,7 @@
           "id": "vh-2-3",
           "sampleId": "sample-0003",
           "version": 3,
-          "timestamp": "2026-06-18T00:43:28.916Z",
+          "timestamp": "2024-12-31T11:00:00.000Z",
           "changeType": "update",
           "changedFields": [
             "comment"
@@ -1290,7 +1290,7 @@
           "id": "vh-2-4",
           "sampleId": "sample-0003",
           "version": 4,
-          "timestamp": "2026-06-17T23:43:28.916Z",
+          "timestamp": "2024-12-31T10:00:00.000Z",
           "changeType": "update",
           "changedFields": [
             "comment"
@@ -1309,7 +1309,7 @@
           "id": "vh-3-1",
           "sampleId": "sample-0004",
           "version": 1,
-          "timestamp": "2026-06-17T21:43:28.916Z",
+          "timestamp": "2024-12-31T08:00:00.000Z",
           "changeType": "create",
           "changedFields": [
             "*"
@@ -1328,7 +1328,7 @@
           "id": "vh-3-2",
           "sampleId": "sample-0004",
           "version": 2,
-          "timestamp": "2026-06-17T20:43:28.916Z",
+          "timestamp": "2024-12-31T07:00:00.000Z",
           "changeType": "update",
           "changedFields": [
             "minerals",
@@ -1348,7 +1348,7 @@
           "id": "vh-4-1",
           "sampleId": "sample-0005",
           "version": 1,
-          "timestamp": "2026-06-17T16:43:28.916Z",
+          "timestamp": "2024-12-31T03:00:00.000Z",
           "changeType": "create",
           "changedFields": [
             "*"
@@ -1367,7 +1367,7 @@
           "id": "vh-4-2",
           "sampleId": "sample-0005",
           "version": 2,
-          "timestamp": "2026-06-17T15:43:28.916Z",
+          "timestamp": "2024-12-31T02:00:00.000Z",
           "changeType": "update",
           "changedFields": [
             "minerals",
@@ -1387,7 +1387,7 @@
           "id": "vh-4-3",
           "sampleId": "sample-0005",
           "version": 3,
-          "timestamp": "2026-06-17T14:43:28.916Z",
+          "timestamp": "2024-12-31T01:00:00.000Z",
           "changeType": "update",
           "changedFields": [
             "comment"
@@ -1406,7 +1406,7 @@
           "id": "vh-5-1",
           "sampleId": "sample-0006",
           "version": 1,
-          "timestamp": "2026-06-17T11:43:28.916Z",
+          "timestamp": "2024-12-30T22:00:00.000Z",
           "changeType": "create",
           "changedFields": [
             "*"
@@ -1425,7 +1425,7 @@
           "id": "vh-5-2",
           "sampleId": "sample-0006",
           "version": 2,
-          "timestamp": "2026-06-17T10:43:28.916Z",
+          "timestamp": "2024-12-30T21:00:00.000Z",
           "changeType": "update",
           "changedFields": [
             "minerals",
@@ -1445,7 +1445,7 @@
           "id": "vh-5-3",
           "sampleId": "sample-0006",
           "version": 3,
-          "timestamp": "2026-06-17T09:43:28.916Z",
+          "timestamp": "2024-12-30T20:00:00.000Z",
           "changeType": "update",
           "changedFields": [
             "comment"
@@ -1464,7 +1464,7 @@
           "id": "vh-5-4",
           "sampleId": "sample-0006",
           "version": 4,
-          "timestamp": "2026-06-17T08:43:28.916Z",
+          "timestamp": "2024-12-30T19:00:00.000Z",
           "changeType": "update",
           "changedFields": [
             "comment"
@@ -1483,7 +1483,7 @@
           "id": "vh-6-1",
           "sampleId": "sample-0007",
           "version": 1,
-          "timestamp": "2026-06-17T06:43:28.916Z",
+          "timestamp": "2024-12-30T17:00:00.000Z",
           "changeType": "create",
           "changedFields": [
             "*"
@@ -1502,7 +1502,7 @@
           "id": "vh-6-2",
           "sampleId": "sample-0007",
           "version": 2,
-          "timestamp": "2026-06-17T05:43:28.916Z",
+          "timestamp": "2024-12-30T16:00:00.000Z",
           "changeType": "update",
           "changedFields": [
             "minerals",
@@ -1522,7 +1522,7 @@
           "id": "vh-7-1",
           "sampleId": "sample-0008",
           "version": 1,
-          "timestamp": "2026-06-17T01:43:28.916Z",
+          "timestamp": "2024-12-30T12:00:00.000Z",
           "changeType": "create",
           "changedFields": [
             "*"
@@ -1541,7 +1541,7 @@
           "id": "vh-7-2",
           "sampleId": "sample-0008",
           "version": 2,
-          "timestamp": "2026-06-17T00:43:28.916Z",
+          "timestamp": "2024-12-30T11:00:00.000Z",
           "changeType": "update",
           "changedFields": [
             "minerals",
@@ -1561,7 +1561,7 @@
           "id": "vh-7-3",
           "sampleId": "sample-0008",
           "version": 3,
-          "timestamp": "2026-06-16T23:43:28.916Z",
+          "timestamp": "2024-12-30T10:00:00.000Z",
           "changeType": "update",
           "changedFields": [
             "comment"
@@ -1582,20 +1582,20 @@
           "id": "rb-1",
           "projectId": "demo-proj-2",
           "sampleId": "recycled-1",
-          "deletedAt": "2026-06-17T13:43:28.916Z",
+          "deletedAt": "2024-12-31T00:00:00.000Z",
           "sampleData": {
             "id": "recycled-1",
             "projectId": "demo-proj-2",
             "code": "BX-DEL-001",
             "minerals": "已删除矿物",
-            "photo": "data:image/png;base64,bW9jay1waG90by1kZWxldGVkLTEtMTc4MTc5MDIwODkxNg=="
+            "photo": "data:image/png;base64,bW9jay1waG90by1kZWxldGVkLTEtZml4ZWQtc2FtcGxl"
           }
         },
         {
           "id": "rb-2",
           "projectId": "demo-proj-2",
           "sampleId": "recycled-2",
-          "deletedAt": "2026-06-15T13:43:28.916Z",
+          "deletedAt": "2024-12-29T00:00:00.000Z",
           "sampleData": {
             "id": "recycled-2",
             "projectId": "demo-proj-2",
@@ -1618,7 +1618,7 @@
           "comment": "这是一块典型的花岗岩薄片",
           "score": null,
           "gradedAt": null,
-          "submittedAt": "2026-06-18T13:41:48.916Z"
+          "submittedAt": "2024-12-31T23:58:20.000Z"
         },
         {
           "id": "ans-2",
@@ -1633,8 +1633,8 @@
           "observation": "方解石颗粒较小",
           "comment": "石灰岩薄片，颗粒偏细",
           "score": 85,
-          "gradedAt": "2026-06-18T13:43:28.916Z",
-          "submittedAt": "2026-06-18T13:40:08.916Z"
+          "gradedAt": "2025-01-01T00:00:00.000Z",
+          "submittedAt": "2024-12-31T23:56:40.000Z"
         }
       ],
       "lessonGrading": {
@@ -1644,7 +1644,7 @@
             "lessonPackageId": "lesson-pack-demo-001",
             "studentName": "张三",
             "studentId": "2024001",
-            "submittedAt": "2026-06-18T13:41:48.916Z",
+            "submittedAt": "2024-12-31T23:58:20.000Z",
             "scores": {},
             "answers": {
               "sample-0001": {
@@ -1696,15 +1696,15 @@
     {
       "format": "wxyy-thin-section-project-backup",
       "version": 2,
-      "exportDate": "2026-06-18T13:43:28.916Z",
+      "exportDate": "2025-01-01T00:00:00.000Z",
       "project": {
         "id": "demo-proj-3",
         "name": "变质岩综合练习",
         "description": "这是用于校验备份恢复链路的示例数据。包含 15 个样本、3 个任务、版本历史和学生作答。",
-        "createdAt": "2026-05-19T13:43:28.916Z",
+        "createdAt": "2024-12-02T00:00:00.000Z",
         "meta": {
           "isSampleBackup": true,
-          "generatedAt": "2026-06-18T13:43:28.916Z",
+          "generatedAt": "2025-01-01T00:00:00.000Z",
           "generator": "scripts/generate-sample-data.js",
           "datasetSize": "8 samples · 3 tasks"
         }
@@ -1725,12 +1725,12 @@
           "observationFeatures": [
             "波状消光"
           ],
-          "photo": "data:image/png;base64,bW9jay1waG90by1zYW1wbGUtMS0xNzgxNzkwMjA4OTE2",
+          "photo": "data:image/png;base64,bW9jay1waG90by1zYW1wbGUtMS1maXhlZC1zYW1wbGU=",
           "photoResourceId": null,
           "annotationResourceId": null,
           "groupId": null,
-          "createdAt": "2026-06-17T13:43:28.916Z",
-          "updatedAt": "2026-06-18T01:43:28.916Z"
+          "createdAt": "2024-12-31T00:00:00.000Z",
+          "updatedAt": "2024-12-31T12:00:00.000Z"
         },
         {
           "id": "sample-0002",
@@ -1748,12 +1748,12 @@
             "具有解理缝",
             "可见双晶"
           ],
-          "photo": "data:image/png;base64,bW9jay1waG90by1zYW1wbGUtMi0xNzgxNzkwMjA4OTE2",
+          "photo": "data:image/png;base64,bW9jay1waG90by1zYW1wbGUtMi1maXhlZC1zYW1wbGU=",
           "photoResourceId": "photo-res-2",
           "annotationResourceId": null,
           "groupId": null,
-          "createdAt": "2026-06-16T13:43:28.916Z",
-          "updatedAt": "2026-06-17T13:43:28.916Z"
+          "createdAt": "2024-12-30T00:00:00.000Z",
+          "updatedAt": "2024-12-31T00:00:00.000Z"
         },
         {
           "id": "sample-0003",
@@ -1770,12 +1770,12 @@
           "observationFeatures": [
             "波状消光"
           ],
-          "photo": "data:image/png;base64,bW9jay1waG90by1zYW1wbGUtMy0xNzgxNzkwMjA4OTE2",
+          "photo": "data:image/png;base64,bW9jay1waG90by1zYW1wbGUtMy1maXhlZC1zYW1wbGU=",
           "photoResourceId": null,
           "annotationResourceId": null,
           "groupId": null,
-          "createdAt": "2026-06-15T13:43:28.916Z",
-          "updatedAt": "2026-06-17T01:43:28.916Z"
+          "createdAt": "2024-12-29T00:00:00.000Z",
+          "updatedAt": "2024-12-30T12:00:00.000Z"
         },
         {
           "id": "sample-0004",
@@ -1793,12 +1793,12 @@
             "具有解理缝",
             "可见双晶"
           ],
-          "photo": "data:image/png;base64,bW9jay1waG90by1zYW1wbGUtNC0xNzgxNzkwMjA4OTE2",
+          "photo": "data:image/png;base64,bW9jay1waG90by1zYW1wbGUtNC1maXhlZC1zYW1wbGU=",
           "photoResourceId": "photo-res-4",
           "annotationResourceId": null,
           "groupId": "group-1",
-          "createdAt": "2026-06-14T13:43:28.916Z",
-          "updatedAt": "2026-06-16T13:43:28.916Z"
+          "createdAt": "2024-12-28T00:00:00.000Z",
+          "updatedAt": "2024-12-30T00:00:00.000Z"
         },
         {
           "id": "sample-0005",
@@ -1815,12 +1815,12 @@
           "observationFeatures": [
             "波状消光"
           ],
-          "photo": "data:image/png;base64,bW9jay1waG90by1zYW1wbGUtNS0xNzgxNzkwMjA4OTE2",
+          "photo": "data:image/png;base64,bW9jay1waG90by1zYW1wbGUtNS1maXhlZC1zYW1wbGU=",
           "photoResourceId": null,
           "annotationResourceId": null,
           "groupId": null,
-          "createdAt": "2026-06-13T13:43:28.916Z",
-          "updatedAt": "2026-06-16T01:43:28.916Z"
+          "createdAt": "2024-12-27T00:00:00.000Z",
+          "updatedAt": "2024-12-29T12:00:00.000Z"
         },
         {
           "id": "sample-0006",
@@ -1838,12 +1838,12 @@
             "具有解理缝",
             "可见双晶"
           ],
-          "photo": "data:image/png;base64,bW9jay1waG90by1zYW1wbGUtNi0xNzgxNzkwMjA4OTE2",
+          "photo": "data:image/png;base64,bW9jay1waG90by1zYW1wbGUtNi1maXhlZC1zYW1wbGU=",
           "photoResourceId": "photo-res-6",
           "annotationResourceId": null,
           "groupId": null,
-          "createdAt": "2026-06-12T13:43:28.916Z",
-          "updatedAt": "2026-06-15T13:43:28.916Z"
+          "createdAt": "2024-12-26T00:00:00.000Z",
+          "updatedAt": "2024-12-29T00:00:00.000Z"
         },
         {
           "id": "sample-0007",
@@ -1860,12 +1860,12 @@
           "observationFeatures": [
             "波状消光"
           ],
-          "photo": "data:image/png;base64,bW9jay1waG90by1zYW1wbGUtNy0xNzgxNzkwMjA4OTE2",
+          "photo": "data:image/png;base64,bW9jay1waG90by1zYW1wbGUtNy1maXhlZC1zYW1wbGU=",
           "photoResourceId": null,
           "annotationResourceId": null,
           "groupId": null,
-          "createdAt": "2026-06-11T13:43:28.916Z",
-          "updatedAt": "2026-06-15T01:43:28.916Z"
+          "createdAt": "2024-12-25T00:00:00.000Z",
+          "updatedAt": "2024-12-28T12:00:00.000Z"
         },
         {
           "id": "sample-0008",
@@ -1883,12 +1883,12 @@
             "具有解理缝",
             "可见双晶"
           ],
-          "photo": "data:image/png;base64,bW9jay1waG90by1zYW1wbGUtOC0xNzgxNzkwMjA4OTE2",
+          "photo": "data:image/png;base64,bW9jay1waG90by1zYW1wbGUtOC1maXhlZC1zYW1wbGU=",
           "photoResourceId": "photo-res-8",
           "annotationResourceId": null,
           "groupId": "group-2",
-          "createdAt": "2026-06-10T13:43:28.916Z",
-          "updatedAt": "2026-06-14T13:43:28.916Z"
+          "createdAt": "2024-12-24T00:00:00.000Z",
+          "updatedAt": "2024-12-28T00:00:00.000Z"
         }
       ],
       "tasks": [
@@ -1907,15 +1907,15 @@
             "sample-0001"
           ],
           "lessonPackageId": "lesson-pack-demo-001",
-          "createdAt": "2026-06-16T13:43:28.916Z",
-          "updatedAt": "2026-06-17T13:43:28.916Z"
+          "createdAt": "2024-12-30T00:00:00.000Z",
+          "updatedAt": "2024-12-31T00:00:00.000Z"
         },
         {
           "id": "task-2",
           "projectId": "demo-proj-3",
           "title": "观察任务 2：火成岩手标本描述",
           "objective": "本次任务要求学生系统观察任务样本的矿物组成、结构特征，并结合沉积学原理进行成因分析。请标注关键矿物的光学特征。",
-          "deadline": "2026-06-25T13:43:28.916Z",
+          "deadline": "2025-01-08T00:00:00.000Z",
           "sampleIds": [
             "sample-0002",
             "sample-0005",
@@ -1925,8 +1925,8 @@
             "sample-0002"
           ],
           "lessonPackageId": null,
-          "createdAt": "2026-06-14T13:43:28.916Z",
-          "updatedAt": "2026-06-16T13:43:28.916Z"
+          "createdAt": "2024-12-28T00:00:00.000Z",
+          "updatedAt": "2024-12-30T00:00:00.000Z"
         },
         {
           "id": "task-3",
@@ -1942,8 +1942,8 @@
             "sample-0003"
           ],
           "lessonPackageId": null,
-          "createdAt": "2026-06-12T13:43:28.916Z",
-          "updatedAt": "2026-06-15T13:43:28.916Z"
+          "createdAt": "2024-12-26T00:00:00.000Z",
+          "updatedAt": "2024-12-29T00:00:00.000Z"
         }
       ],
       "sampleGroups": [
@@ -1965,13 +1965,13 @@
             "id": "fv-1",
             "name": "待复核视图",
             "reviewStatus": "pending",
-            "createdAt": "2026-06-18T13:43:28.916Z"
+            "createdAt": "2025-01-01T00:00:00.000Z"
           },
           {
             "id": "fv-2",
             "name": "正交偏光视图",
             "polarization": "正交偏光",
-            "createdAt": "2026-06-18T13:43:28.916Z"
+            "createdAt": "2025-01-01T00:00:00.000Z"
           }
         ]
       },
@@ -1980,7 +1980,7 @@
           "id": "vh-0-1",
           "sampleId": "sample-0001",
           "version": 1,
-          "timestamp": "2026-06-18T12:43:28.916Z",
+          "timestamp": "2024-12-31T23:00:00.000Z",
           "changeType": "create",
           "changedFields": [
             "*"
@@ -1999,7 +1999,7 @@
           "id": "vh-0-2",
           "sampleId": "sample-0001",
           "version": 2,
-          "timestamp": "2026-06-18T11:43:28.916Z",
+          "timestamp": "2024-12-31T22:00:00.000Z",
           "changeType": "update",
           "changedFields": [
             "minerals",
@@ -2019,7 +2019,7 @@
           "id": "vh-1-1",
           "sampleId": "sample-0002",
           "version": 1,
-          "timestamp": "2026-06-18T07:43:28.916Z",
+          "timestamp": "2024-12-31T18:00:00.000Z",
           "changeType": "create",
           "changedFields": [
             "*"
@@ -2038,7 +2038,7 @@
           "id": "vh-1-2",
           "sampleId": "sample-0002",
           "version": 2,
-          "timestamp": "2026-06-18T06:43:28.916Z",
+          "timestamp": "2024-12-31T17:00:00.000Z",
           "changeType": "update",
           "changedFields": [
             "minerals",
@@ -2058,7 +2058,7 @@
           "id": "vh-1-3",
           "sampleId": "sample-0002",
           "version": 3,
-          "timestamp": "2026-06-18T05:43:28.916Z",
+          "timestamp": "2024-12-31T16:00:00.000Z",
           "changeType": "update",
           "changedFields": [
             "comment"
@@ -2077,7 +2077,7 @@
           "id": "vh-2-1",
           "sampleId": "sample-0003",
           "version": 1,
-          "timestamp": "2026-06-18T02:43:28.916Z",
+          "timestamp": "2024-12-31T13:00:00.000Z",
           "changeType": "create",
           "changedFields": [
             "*"
@@ -2096,7 +2096,7 @@
           "id": "vh-2-2",
           "sampleId": "sample-0003",
           "version": 2,
-          "timestamp": "2026-06-18T01:43:28.916Z",
+          "timestamp": "2024-12-31T12:00:00.000Z",
           "changeType": "update",
           "changedFields": [
             "minerals",
@@ -2116,7 +2116,7 @@
           "id": "vh-2-3",
           "sampleId": "sample-0003",
           "version": 3,
-          "timestamp": "2026-06-18T00:43:28.916Z",
+          "timestamp": "2024-12-31T11:00:00.000Z",
           "changeType": "update",
           "changedFields": [
             "comment"
@@ -2135,7 +2135,7 @@
           "id": "vh-2-4",
           "sampleId": "sample-0003",
           "version": 4,
-          "timestamp": "2026-06-17T23:43:28.916Z",
+          "timestamp": "2024-12-31T10:00:00.000Z",
           "changeType": "update",
           "changedFields": [
             "comment"
@@ -2154,7 +2154,7 @@
           "id": "vh-3-1",
           "sampleId": "sample-0004",
           "version": 1,
-          "timestamp": "2026-06-17T21:43:28.916Z",
+          "timestamp": "2024-12-31T08:00:00.000Z",
           "changeType": "create",
           "changedFields": [
             "*"
@@ -2173,7 +2173,7 @@
           "id": "vh-3-2",
           "sampleId": "sample-0004",
           "version": 2,
-          "timestamp": "2026-06-17T20:43:28.916Z",
+          "timestamp": "2024-12-31T07:00:00.000Z",
           "changeType": "update",
           "changedFields": [
             "minerals",
@@ -2193,7 +2193,7 @@
           "id": "vh-4-1",
           "sampleId": "sample-0005",
           "version": 1,
-          "timestamp": "2026-06-17T16:43:28.916Z",
+          "timestamp": "2024-12-31T03:00:00.000Z",
           "changeType": "create",
           "changedFields": [
             "*"
@@ -2212,7 +2212,7 @@
           "id": "vh-4-2",
           "sampleId": "sample-0005",
           "version": 2,
-          "timestamp": "2026-06-17T15:43:28.916Z",
+          "timestamp": "2024-12-31T02:00:00.000Z",
           "changeType": "update",
           "changedFields": [
             "minerals",
@@ -2232,7 +2232,7 @@
           "id": "vh-4-3",
           "sampleId": "sample-0005",
           "version": 3,
-          "timestamp": "2026-06-17T14:43:28.916Z",
+          "timestamp": "2024-12-31T01:00:00.000Z",
           "changeType": "update",
           "changedFields": [
             "comment"
@@ -2251,7 +2251,7 @@
           "id": "vh-5-1",
           "sampleId": "sample-0006",
           "version": 1,
-          "timestamp": "2026-06-17T11:43:28.916Z",
+          "timestamp": "2024-12-30T22:00:00.000Z",
           "changeType": "create",
           "changedFields": [
             "*"
@@ -2270,7 +2270,7 @@
           "id": "vh-5-2",
           "sampleId": "sample-0006",
           "version": 2,
-          "timestamp": "2026-06-17T10:43:28.916Z",
+          "timestamp": "2024-12-30T21:00:00.000Z",
           "changeType": "update",
           "changedFields": [
             "minerals",
@@ -2290,7 +2290,7 @@
           "id": "vh-5-3",
           "sampleId": "sample-0006",
           "version": 3,
-          "timestamp": "2026-06-17T09:43:28.916Z",
+          "timestamp": "2024-12-30T20:00:00.000Z",
           "changeType": "update",
           "changedFields": [
             "comment"
@@ -2309,7 +2309,7 @@
           "id": "vh-5-4",
           "sampleId": "sample-0006",
           "version": 4,
-          "timestamp": "2026-06-17T08:43:28.916Z",
+          "timestamp": "2024-12-30T19:00:00.000Z",
           "changeType": "update",
           "changedFields": [
             "comment"
@@ -2328,7 +2328,7 @@
           "id": "vh-6-1",
           "sampleId": "sample-0007",
           "version": 1,
-          "timestamp": "2026-06-17T06:43:28.916Z",
+          "timestamp": "2024-12-30T17:00:00.000Z",
           "changeType": "create",
           "changedFields": [
             "*"
@@ -2347,7 +2347,7 @@
           "id": "vh-6-2",
           "sampleId": "sample-0007",
           "version": 2,
-          "timestamp": "2026-06-17T05:43:28.916Z",
+          "timestamp": "2024-12-30T16:00:00.000Z",
           "changeType": "update",
           "changedFields": [
             "minerals",
@@ -2367,7 +2367,7 @@
           "id": "vh-7-1",
           "sampleId": "sample-0008",
           "version": 1,
-          "timestamp": "2026-06-17T01:43:28.916Z",
+          "timestamp": "2024-12-30T12:00:00.000Z",
           "changeType": "create",
           "changedFields": [
             "*"
@@ -2386,7 +2386,7 @@
           "id": "vh-7-2",
           "sampleId": "sample-0008",
           "version": 2,
-          "timestamp": "2026-06-17T00:43:28.916Z",
+          "timestamp": "2024-12-30T11:00:00.000Z",
           "changeType": "update",
           "changedFields": [
             "minerals",
@@ -2406,7 +2406,7 @@
           "id": "vh-7-3",
           "sampleId": "sample-0008",
           "version": 3,
-          "timestamp": "2026-06-16T23:43:28.916Z",
+          "timestamp": "2024-12-30T10:00:00.000Z",
           "changeType": "update",
           "changedFields": [
             "comment"
@@ -2427,20 +2427,20 @@
           "id": "rb-1",
           "projectId": "demo-proj-3",
           "sampleId": "recycled-1",
-          "deletedAt": "2026-06-17T13:43:28.916Z",
+          "deletedAt": "2024-12-31T00:00:00.000Z",
           "sampleData": {
             "id": "recycled-1",
             "projectId": "demo-proj-3",
             "code": "BX-DEL-001",
             "minerals": "已删除矿物",
-            "photo": "data:image/png;base64,bW9jay1waG90by1kZWxldGVkLTEtMTc4MTc5MDIwODkxNg=="
+            "photo": "data:image/png;base64,bW9jay1waG90by1kZWxldGVkLTEtZml4ZWQtc2FtcGxl"
           }
         },
         {
           "id": "rb-2",
           "projectId": "demo-proj-3",
           "sampleId": "recycled-2",
-          "deletedAt": "2026-06-15T13:43:28.916Z",
+          "deletedAt": "2024-12-29T00:00:00.000Z",
           "sampleData": {
             "id": "recycled-2",
             "projectId": "demo-proj-3",
@@ -2463,7 +2463,7 @@
           "comment": "这是一块典型的花岗岩薄片",
           "score": null,
           "gradedAt": null,
-          "submittedAt": "2026-06-18T13:41:48.916Z"
+          "submittedAt": "2024-12-31T23:58:20.000Z"
         },
         {
           "id": "ans-2",
@@ -2478,8 +2478,8 @@
           "observation": "方解石颗粒较小",
           "comment": "石灰岩薄片，颗粒偏细",
           "score": 85,
-          "gradedAt": "2026-06-18T13:43:28.916Z",
-          "submittedAt": "2026-06-18T13:40:08.916Z"
+          "gradedAt": "2025-01-01T00:00:00.000Z",
+          "submittedAt": "2024-12-31T23:56:40.000Z"
         }
       ],
       "lessonGrading": {
@@ -2489,7 +2489,7 @@
             "lessonPackageId": "lesson-pack-demo-001",
             "studentName": "张三",
             "studentId": "2024001",
-            "submittedAt": "2026-06-18T13:41:48.916Z",
+            "submittedAt": "2024-12-31T23:58:20.000Z",
             "scores": {},
             "answers": {
               "sample-0001": {

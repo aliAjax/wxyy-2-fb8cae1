@@ -173,7 +173,11 @@ function runStage(stage) {
     let output = "";
     const child = spawn(stage.cmd, stage.args, {
       cwd: ROOT,
-      env: stage.env,
+      env: {
+        ...process.env,
+        REGRESSION_DETERMINISTIC: "1",
+        ...(stage.env || {})
+      },
       timeout: stage.timeout
     });
 

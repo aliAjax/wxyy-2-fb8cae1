@@ -47,8 +47,9 @@ function loadJSON(filePath) {
   }
 }
 
-function check(cond, msg, level = "error") {
-  return { pass: !!cond, level, msg };
+function check(cond, msg, level) {
+  const effectiveLevel = level || (cond ? "info" : "error");
+  return { pass: !!cond, level: effectiveLevel, msg };
 }
 
 function validateProjectBackup(data) {
@@ -224,7 +225,7 @@ function validateLessonPackage(data) {
 function printItem(item, indent = "") {
   const prefix = item.level === "error" ? `${RED}✗${RESET}` :
     item.level === "warning" ? `${YELLOW}⚠${RESET}` :
-      `${GRAY}ℹ${RESET}`;
+      `${GREEN}✓${RESET}`;
   const color = item.level === "error" ? RED :
     item.level === "warning" ? YELLOW : GRAY;
   console.log(`${indent}  ${prefix} ${color}${item.msg}${RESET}`);

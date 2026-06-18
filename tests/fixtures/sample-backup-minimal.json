@@ -1,15 +1,15 @@
 {
   "format": "wxyy-thin-section-project-backup",
   "version": 2,
-  "exportDate": "2026-06-18T13:43:28.916Z",
+  "exportDate": "2025-01-01T00:00:00.000Z",
   "project": {
     "id": "minimal-proj",
     "name": "最小化示例项目",
     "description": "这是用于校验备份恢复链路的示例数据。包含 15 个样本、3 个任务、版本历史和学生作答。",
-    "createdAt": "2026-05-19T13:43:28.916Z",
+    "createdAt": "2024-12-02T00:00:00.000Z",
     "meta": {
       "isSampleBackup": true,
-      "generatedAt": "2026-06-18T13:43:28.916Z",
+      "generatedAt": "2025-01-01T00:00:00.000Z",
       "generator": "scripts/generate-sample-data.js",
       "datasetSize": "3 samples · 1 tasks"
     }
@@ -30,12 +30,12 @@
       "observationFeatures": [
         "波状消光"
       ],
-      "photo": "data:image/png;base64,bW9jay1waG90by1zYW1wbGUtMS0xNzgxNzkwMjA4OTE2",
+      "photo": "data:image/png;base64,bW9jay1waG90by1zYW1wbGUtMS1maXhlZC1zYW1wbGU=",
       "photoResourceId": null,
       "annotationResourceId": null,
       "groupId": null,
-      "createdAt": "2026-06-17T13:43:28.916Z",
-      "updatedAt": "2026-06-18T01:43:28.916Z"
+      "createdAt": "2024-12-31T00:00:00.000Z",
+      "updatedAt": "2024-12-31T12:00:00.000Z"
     },
     {
       "id": "sample-0002",
@@ -53,12 +53,12 @@
         "具有解理缝",
         "可见双晶"
       ],
-      "photo": "data:image/png;base64,bW9jay1waG90by1zYW1wbGUtMi0xNzgxNzkwMjA4OTE2",
+      "photo": "data:image/png;base64,bW9jay1waG90by1zYW1wbGUtMi1maXhlZC1zYW1wbGU=",
       "photoResourceId": "photo-res-2",
       "annotationResourceId": null,
       "groupId": null,
-      "createdAt": "2026-06-16T13:43:28.916Z",
-      "updatedAt": "2026-06-17T13:43:28.916Z"
+      "createdAt": "2024-12-30T00:00:00.000Z",
+      "updatedAt": "2024-12-31T00:00:00.000Z"
     },
     {
       "id": "sample-0003",
@@ -75,12 +75,12 @@
       "observationFeatures": [
         "波状消光"
       ],
-      "photo": "data:image/png;base64,bW9jay1waG90by1zYW1wbGUtMy0xNzgxNzkwMjA4OTE2",
+      "photo": "data:image/png;base64,bW9jay1waG90by1zYW1wbGUtMy1maXhlZC1zYW1wbGU=",
       "photoResourceId": null,
       "annotationResourceId": null,
       "groupId": null,
-      "createdAt": "2026-06-15T13:43:28.916Z",
-      "updatedAt": "2026-06-17T01:43:28.916Z"
+      "createdAt": "2024-12-29T00:00:00.000Z",
+      "updatedAt": "2024-12-30T12:00:00.000Z"
     }
   ],
   "tasks": [
@@ -99,8 +99,8 @@
         "sample-0001"
       ],
       "lessonPackageId": "lesson-pack-demo-001",
-      "createdAt": "2026-06-16T13:43:28.916Z",
-      "updatedAt": "2026-06-17T13:43:28.916Z"
+      "createdAt": "2024-12-30T00:00:00.000Z",
+      "updatedAt": "2024-12-31T00:00:00.000Z"
     }
   ],
   "sampleGroups": [
@@ -120,13 +120,13 @@
         "id": "fv-1",
         "name": "待复核视图",
         "reviewStatus": "pending",
-        "createdAt": "2026-06-18T13:43:28.916Z"
+        "createdAt": "2025-01-01T00:00:00.000Z"
       },
       {
         "id": "fv-2",
         "name": "正交偏光视图",
         "polarization": "正交偏光",
-        "createdAt": "2026-06-18T13:43:28.916Z"
+        "createdAt": "2025-01-01T00:00:00.000Z"
       }
     ]
   },
@@ -135,7 +135,7 @@
       "id": "vh-0-1",
       "sampleId": "sample-0001",
       "version": 1,
-      "timestamp": "2026-06-18T12:43:28.916Z",
+      "timestamp": "2024-12-31T23:00:00.000Z",
       "changeType": "create",
       "changedFields": [
         "*"
@@ -154,7 +154,7 @@
       "id": "vh-0-2",
       "sampleId": "sample-0001",
       "version": 2,
-      "timestamp": "2026-06-18T11:43:28.916Z",
+      "timestamp": "2024-12-31T22:00:00.000Z",
       "changeType": "update",
       "changedFields": [
         "minerals",
@@ -174,7 +174,7 @@
       "id": "vh-1-1",
       "sampleId": "sample-0002",
       "version": 1,
-      "timestamp": "2026-06-18T07:43:28.916Z",
+      "timestamp": "2024-12-31T18:00:00.000Z",
       "changeType": "create",
       "changedFields": [
         "*"
@@ -199,7 +199,7 @@
         "lessonPackageId": "lesson-pack-demo-001",
         "studentName": "张三",
         "studentId": "2024001",
-        "submittedAt": "2026-06-18T13:41:48.916Z",
+        "submittedAt": "2024-12-31T23:58:20.000Z",
         "scores": {},
         "answers": {
           "sample-0001": {

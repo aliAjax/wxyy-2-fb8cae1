@@ -6,8 +6,8 @@
   "description": "本课堂包包含 12 个典型沉积岩薄片样本，要求学生完成矿物识别、结构描述和成因分析三项任务。",
   "teacher": "李老师",
   "course": "岩矿鉴定实习",
-  "lessonContentHash": "ej9xz3",
-  "contentHash": "c5brecm8l1",
+  "lessonContentHash": "pguj4o",
+  "contentHash": "fixed-lesson-content-hash-v4",
   "samples": [
     {
       "id": "sample-0001",
@@ -17,10 +17,10 @@
       "location": "剖面西侧第二层",
       "magnification": "100x",
       "polarization": "正交偏光",
-      "photo": "data:image/png;base64,bW9jay1waG90by1zYW1wbGUtMS0xNzgxNzkwMjA4OTE3",
+      "photo": "data:image/png;base64,bW9jay1waG90by1zYW1wbGUtMS1maXhlZC1zYW1wbGU=",
       "annotations": [
         {
-          "id": "657d6efa-bae8-49b7-a834-d82a7862e9aa",
+          "id": "42a9b263-bffb-4d79-91be-49f78fff4566",
           "type": "point",
           "x": 150,
           "y": 120,
@@ -36,10 +36,10 @@
       "location": "剖面北端第三层",
       "magnification": "200x",
       "polarization": "反射光",
-      "photo": "data:image/png;base64,bW9jay1waG90by1zYW1wbGUtMi0xNzgxNzkwMjA4OTE3",
+      "photo": "data:image/png;base64,bW9jay1waG90by1zYW1wbGUtMi1maXhlZC1zYW1wbGU=",
       "annotations": [
         {
-          "id": "d8bfc376-d21c-44ea-a9e1-ec8513324ac6",
+          "id": "e291b757-41c7-4b28-afd3-ad09e537afe4",
           "type": "point",
           "x": 150,
           "y": 120,
@@ -55,10 +55,10 @@
       "location": "剖面南端第五层",
       "magnification": "400x",
       "polarization": "单偏光",
-      "photo": "data:image/png;base64,bW9jay1waG90by1zYW1wbGUtMy0xNzgxNzkwMjA4OTE3",
+      "photo": "data:image/png;base64,bW9jay1waG90by1zYW1wbGUtMy1maXhlZC1zYW1wbGU=",
       "annotations": [
         {
-          "id": "a32b046b-86a9-4492-a882-be9b50319ca2",
+          "id": "3bc7470f-d643-4e91-84d4-ced9a5091908",
           "type": "point",
           "x": 150,
           "y": 120,
@@ -74,10 +74,10 @@
       "location": "主剖面第八层",
       "magnification": "40x",
       "polarization": "正交偏光",
-      "photo": "data:image/png;base64,bW9jay1waG90by1zYW1wbGUtNC0xNzgxNzkwMjA4OTE3",
+      "photo": "data:image/png;base64,bW9jay1waG90by1zYW1wbGUtNC1maXhlZC1zYW1wbGU=",
       "annotations": [
         {
-          "id": "e3c03874-99f7-4085-b1b8-94f3ccfcf8a7",
+          "id": "971842ce-3dc9-403b-bc18-c0ba0bd7fcbe",
           "type": "point",
           "x": 150,
           "y": 120,
@@ -93,10 +93,10 @@
       "location": "剖面东侧第一层",
       "magnification": "100x",
       "polarization": "反射光",
-      "photo": "data:image/png;base64,bW9jay1waG90by1zYW1wbGUtNS0xNzgxNzkwMjA4OTE3",
+      "photo": "data:image/png;base64,bW9jay1waG90by1zYW1wbGUtNS1maXhlZC1zYW1wbGU=",
       "annotations": [
         {
-          "id": "1e6109c9-4ebe-4aa4-ac0d-f44f7bf758e6",
+          "id": "d4e6860e-dfc8-4b90-acb5-bffe22ad2747",
           "type": "point",
           "x": 150,
           "y": 120,
@@ -112,10 +112,10 @@
       "location": "剖面西侧第二层",
       "magnification": "200x",
       "polarization": "单偏光",
-      "photo": "data:image/png;base64,bW9jay1waG90by1zYW1wbGUtNi0xNzgxNzkwMjA4OTE3",
+      "photo": "data:image/png;base64,bW9jay1waG90by1zYW1wbGUtNi1maXhlZC1zYW1wbGU=",
       "annotations": [
         {
-          "id": "125bf789-3f19-470e-9a41-a174521d8f69",
+          "id": "a08c6b1e-72e2-45c4-8f2a-f4a116cd672f",
           "type": "point",
           "x": 150,
           "y": 120,
@@ -131,10 +131,10 @@
       "location": "剖面北端第三层",
       "magnification": "400x",
       "polarization": "正交偏光",
-      "photo": "data:image/png;base64,bW9jay1waG90by1zYW1wbGUtNy0xNzgxNzkwMjA4OTE3",
+      "photo": "data:image/png;base64,bW9jay1waG90by1zYW1wbGUtNy1maXhlZC1zYW1wbGU=",
       "annotations": [
         {
-          "id": "d7fd6050-7cde-4789-8a99-a77730b24fa7",
+          "id": "9589c9cf-7a4a-4937-8076-4f15689317c4",
           "type": "point",
           "x": 150,
           "y": 120,
@@ -150,10 +150,10 @@
       "location": "剖面南端第五层",
       "magnification": "40x",
       "polarization": "反射光",
-      "photo": "data:image/png;base64,bW9jay1waG90by1zYW1wbGUtOC0xNzgxNzkwMjA4OTE3",
+      "photo": "data:image/png;base64,bW9jay1waG90by1zYW1wbGUtOC1maXhlZC1zYW1wbGU=",
       "annotations": [
         {
-          "id": "02b62141-bc6e-4c70-ba07-4a9828c6030b",
+          "id": "687de024-7c22-41d7-ace9-7d84ae8d1cb8",
           "type": "point",
           "x": 150,
           "y": 120,
@@ -169,10 +169,10 @@
       "location": "主剖面第八层",
       "magnification": "100x",
       "polarization": "单偏光",
-      "photo": "data:image/png;base64,bW9jay1waG90by1zYW1wbGUtOS0xNzgxNzkwMjA4OTE3",
+      "photo": "data:image/png;base64,bW9jay1waG90by1zYW1wbGUtOS1maXhlZC1zYW1wbGU=",
       "annotations": [
         {
-          "id": "55b60a01-6a27-4640-b61e-39212f594d8b",
+          "id": "6c8c7a51-382a-4b16-93dd-07ae914bb94c",
           "type": "point",
           "x": 150,
           "y": 120,
@@ -188,10 +188,10 @@
       "location": "剖面东侧第一层",
       "magnification": "200x",
       "polarization": "正交偏光",
-      "photo": "data:image/png;base64,bW9jay1waG90by1zYW1wbGUtMTAtMTc4MTc5MDIwODkxNw==",
+      "photo": "data:image/png;base64,bW9jay1waG90by1zYW1wbGUtMTAtZml4ZWQtc2FtcGxl",
       "annotations": [
         {
-          "id": "1451ae4c-af1b-4181-808b-17e18bc9dee1",
+          "id": "39d91424-748d-463c-bcd5-a4e493029577",
           "type": "point",
           "x": 150,
           "y": 120,
@@ -207,10 +207,10 @@
       "location": "剖面西侧第二层",
       "magnification": "400x",
       "polarization": "反射光",
-      "photo": "data:image/png;base64,bW9jay1waG90by1zYW1wbGUtMTEtMTc4MTc5MDIwODkxNw==",
+      "photo": "data:image/png;base64,bW9jay1waG90by1zYW1wbGUtMTEtZml4ZWQtc2FtcGxl",
       "annotations": [
         {
-          "id": "c754f62e-e94d-4364-a504-0abe1675e9b8",
+          "id": "9d34b5b9-26c3-4bcc-8f6e-c6993ad56f14",
           "type": "point",
           "x": 150,
           "y": 120,
@@ -226,10 +226,10 @@
       "location": "剖面北端第三层",
       "magnification": "40x",
       "polarization": "单偏光",
-      "photo": "data:image/png;base64,bW9jay1waG90by1zYW1wbGUtMTItMTc4MTc5MDIwODkxNw==",
+      "photo": "data:image/png;base64,bW9jay1waG90by1zYW1wbGUtMTItZml4ZWQtc2FtcGxl",
       "annotations": [
         {
-          "id": "87ce0f3b-d3a0-4b79-8d93-4b3c7cded764",
+          "id": "5eb63197-e518-4f65-8ecc-f4c046810d41",
           "type": "point",
           "x": 150,
           "y": 120,
@@ -241,7 +241,7 @@
   "tasks": [
     {
       "id": "task-1",
-      "projectId": "5b29b430-d1ab-49b7-a69f-cf94b5627ac2",
+      "projectId": "3f5f0026-537d-499e-a2eb-b5688f2ffe0b",
       "title": "观察任务 1：沉积岩识别",
       "objective": "本次任务要求学生系统观察任务样本的矿物组成、结构特征，并结合沉积学原理进行成因分析。请标注关键矿物的光学特征。",
       "deadline": null,
@@ -256,15 +256,15 @@
         "sample-0004"
       ],
       "lessonPackageId": "lesson-pack-demo-001",
-      "createdAt": "2026-06-16T13:43:28.917Z",
-      "updatedAt": "2026-06-17T13:43:28.917Z"
+      "createdAt": "2024-12-30T00:00:00.000Z",
+      "updatedAt": "2024-12-31T00:00:00.000Z"
     },
     {
       "id": "task-2",
-      "projectId": "5b29b430-d1ab-49b7-a69f-cf94b5627ac2",
+      "projectId": "3f5f0026-537d-499e-a2eb-b5688f2ffe0b",
       "title": "观察任务 2：火成岩手标本描述",
       "objective": "本次任务要求学生系统观察任务样本的矿物组成、结构特征，并结合沉积学原理进行成因分析。请标注关键矿物的光学特征。",
-      "deadline": "2026-06-25T13:43:28.917Z",
+      "deadline": "2025-01-08T00:00:00.000Z",
       "sampleIds": [
         "sample-0002",
         "sample-0005",
@@ -276,12 +276,12 @@
         "sample-0005"
       ],
       "lessonPackageId": null,
-      "createdAt": "2026-06-14T13:43:28.917Z",
-      "updatedAt": "2026-06-16T13:43:28.917Z"
+      "createdAt": "2024-12-28T00:00:00.000Z",
+      "updatedAt": "2024-12-30T00:00:00.000Z"
     },
     {
       "id": "task-3",
-      "projectId": "5b29b430-d1ab-49b7-a69f-cf94b5627ac2",
+      "projectId": "3f5f0026-537d-499e-a2eb-b5688f2ffe0b",
       "title": "观察任务 3：变质岩结构分析",
       "objective": "本次任务要求学生系统观察任务样本的矿物组成、结构特征，并结合沉积学原理进行成因分析。请标注关键矿物的光学特征。",
       "deadline": null,
@@ -296,8 +296,8 @@
         "sample-0006"
       ],
       "lessonPackageId": null,
-      "createdAt": "2026-06-12T13:43:28.917Z",
-      "updatedAt": "2026-06-15T13:43:28.917Z"
+      "createdAt": "2024-12-26T00:00:00.000Z",
+      "updatedAt": "2024-12-29T00:00:00.000Z"
     }
   ],
   "rubrics": [
@@ -382,5 +382,5 @@
       "comment": "参考结论：钾长石、石英 特征明显，斑状结构表明沉积环境稳定。"
     }
   },
-  "createdAt": "2026-06-18T13:43:28.917Z"
+  "createdAt": "2025-01-01T00:00:00.000Z"
 }

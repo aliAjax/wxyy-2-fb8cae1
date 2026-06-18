@@ -71,7 +71,10 @@ async function runSingleTest(moduleKey) {
     cwd: ROOT,
     stdio: "inherit",
     timeout: 120_000,
-    env: process.env
+    env: {
+      ...process.env,
+      REGRESSION_DETERMINISTIC: process.env.REGRESSION_DETERMINISTIC || "1"
+    }
   });
 
   const exitCode = result.status ?? (result.error ? 1 : 0);

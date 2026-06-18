@@ -100,9 +100,11 @@ if (summary.allPassed) {
 }
 
 console.log("─".repeat(50));
-console.log(
-  GRAY + "  运行时间: " + new Date().toLocaleString("zh-CN") + RESET
-);
+if (typeof process === "undefined" || !process.env || process.env.REGRESSION_DETERMINISTIC !== "1") {
+  console.log(
+    GRAY + "  运行时间: " + new Date().toLocaleString("zh-CN") + RESET
+  );
+}
 console.log("");
 
 process.exit(summary.allPassed ? 0 : 1);
